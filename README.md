@@ -15,6 +15,31 @@ Written by: [Betselot Zerihun Ayano ](https://github.com/betselotz)
   - Detection of genomic diversity and microevolution within hosts and populations.
 - MTBC genomics informs public health strategies, including **molecular surveillance, outbreak investigation, and personalized TB treatment**.
 
+# MTBC Species and *M. tuberculosis* Lineages
+
+## MTBC Species
+The *Mycobacterium tuberculosis* complex (MTBC) includes several closely related species:  
+- *Mycobacterium tuberculosis* – the main human pathogen  
+- *Mycobacterium bovis* – primarily infects cattle, can cause zoonotic TB in humans  
+- *Mycobacterium africanum* – restricted to West Africa, causes human TB  
+- *Mycobacterium canettii* – rare, mostly in East Africa, ancestral-like strains  
+- *Mycobacterium microti* – primarily infects voles, occasionally humans  
+- *Mycobacterium pinnipedii* – infects seals, rarely humans  
+- *Mycobacterium caprae* – mainly infects goats, occasionally humans  
+
+## *M. tuberculosis* Lineages
+Genomic studies have identified **lineages based on SNPs and phylogeny**:  
+1. **Lineage 1 (Indo-Oceanic)** – East Africa, India, Southeast Asia  
+2. **Lineage 2 (East-Asian / Beijing)** – East Asia, associated with drug resistance  
+3. **Lineage 3 (East-African-Indian)** – South Asia, East Africa  
+4. **Lineage 4 (Euro-American)** – Worldwide, highly prevalent  
+5. **Lineage 5 (West African 1 / *M. africanum*)** – West Africa  
+6. **Lineage 6 (West African 2 / *M. africanum*)** – West Africa  
+7. **Lineage 7** – restricted to Ethiopia  
+
+> Understanding MTBC species and lineages is critical for **epidemiology, phylogenetics, and drug-resistance surveillance**.
+
+
 ### Download Data from NCBI and EBI
 
 
