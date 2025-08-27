@@ -15,9 +15,8 @@ Written by: [Betselot Zerihun Ayano ](https://github.com/betselotz)
   - Detection of genomic diversity and microevolution within hosts and populations.
 - MTBC genomics informs public health strategies, including **molecular surveillance, outbreak investigation, and personalized TB treatment**.
 
-# MTBC Species and *M. tuberculosis* Lineages
-
-## MTBC Species
+### MTBC Species and *M. tuberculosis* Lineages
+#### MTBC Species
 The *Mycobacterium tuberculosis* complex (MTBC) includes several closely related species:  
 - *Mycobacterium tuberculosis* – the main human pathogen  
 - *Mycobacterium bovis* – primarily infects cattle, can cause zoonotic TB in humans  
@@ -26,8 +25,7 @@ The *Mycobacterium tuberculosis* complex (MTBC) includes several closely related
 - *Mycobacterium microti* – primarily infects voles, occasionally humans  
 - *Mycobacterium pinnipedii* – infects seals, rarely humans  
 - *Mycobacterium caprae* – mainly infects goats, occasionally humans  
-
-## *M. tuberculosis* Lineages
+#### *M. tuberculosis* Lineages
 Genomic studies have identified **lineages based on SNPs and phylogeny**:  
 1. **Lineage 1 (Indo-Oceanic)** – East Africa, India, Southeast Asia  
 2. **Lineage 2 (East-Asian / Beijing)** – East Asia, associated with drug resistance  
@@ -38,6 +36,49 @@ Genomic studies have identified **lineages based on SNPs and phylogeny**:
 7. **Lineage 7** – restricted to Ethiopia  
 
 > Understanding MTBC species and lineages is critical for **epidemiology, phylogenetics, and drug-resistance surveillance**.
+
+#### *Mycobacterium tuberculosis* Sublineages
+*M. tuberculosis* lineages are further divided into **sublineages** based on phylogenetic SNP markers:  
+- **Lineage 1 (Indo-Oceanic)**  
+  - Sublineages: L1.1, L1.2  
+- **Lineage 2 (East-Asian / Beijing)**  
+  - Sublineages: L2.1 (Proto-Beijing), L2.2 (Modern Beijing)  
+- **Lineage 3 (East-African-Indian)**  
+  - Sublineages: L3.1, L3.2  
+- **Lineage 4 (Euro-American)**  
+  - Sublineages: L4.1, L4.2, L4.3, L4.4, L4.5, etc.  
+- **Lineage 5–7**  
+  - Mainly restricted to West Africa and Ethiopia, with fewer sublineages described  
+
+> Sublineages help in **tracking transmission chains, outbreak sources, and population structure**.
+
+#### *Mycobacterium tuberculosis* Drug-Resistance Types
+
+| Abbreviation | Full Name | Description |
+|-------------|-----------|-------------|
+| **HR-TB** | Isoniazid-Resistant TB | Resistant to **isoniazid** only. |
+| **RR-TB** | Rifampicin-Resistant TB | Resistant to **rifampicin**, with or without resistance to other drugs. |
+| **MDR-TB** | Multidrug-Resistant TB | Resistant to **both isoniazid and rifampicin**, the two key first-line drugs. |
+| **Pre-XDR-TB** | Pre-Extensively Drug-Resistant TB | MDR TB that is additionally resistant to **any fluoroquinolone** or **any second-line injectable drug**. |
+| **XDR-TB** | Extensively Drug-Resistant TB | MDR TB that is resistant to **both fluoroquinolones and at least one second-line injectable drug**. |
+| **Other** | Other Drug-Resistance Patterns | Includes **mono-resistant TB, poly-drug resistant TB**, or rare resistance profiles not covered above. |
+
+> These categories are essential for **treatment planning, surveillance, and genomic interpretation** of TB drug resistance.
+
+#### Drug-Resistance Mutations
+> Genomic analysis can identify specific **mutations associated with these resistance types**, enabling rapid and precise drug-resistance prediction.
+- Key genes associated with resistance:  
+  - **Rifampicin:** *rpoB* mutations (e.g., S450L)  
+  - **Isoniazid:** *katG* (S315T), *inhA* promoter mutations  
+  - **Ethambutol:** *embB* (M306V/I)  
+  - **Pyrazinamide:** *pncA* mutations  
+  - **Fluoroquinolones:** *gyrA/gyrB* mutations  
+
+- Mutations are catalogued and updated by the **World Health Organization (WHO)** for standardized drug-resistance interpretation.  
+
+- **WHO Catalogue of Mutations in *M. tuberculosis*** (2021):  
+  [https://www.who.int/publications/i/item/9789240035024](https://www.who.int/publications/i/item/9789240035024)  
+
 
 
 ### Download Data from NCBI and EBI
