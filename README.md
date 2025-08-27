@@ -81,7 +81,7 @@ Genomic studies have identified **lineages based on SNPs and phylogeny**:
 - Mutations are catalogued and updated by the **World Health Organization (WHO)** for standardized drug-resistance interpretation.  
 
 - **Catalogue of mutations in Mycobacterium tuberculosis complex and their association with drug resistance, 2nd ed (2023):  
-  [(https://iris.who.int/bitstream/handle/10665/374061/9789240082410-eng.pdf?sequence=1)]
+  [https://github.com/GTB-tbsequencing/mutation-catalogue-2023/tree/main/Final%20Result%20Files]
 
 
 
