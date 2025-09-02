@@ -468,7 +468,6 @@ mkdir -p "$OUTPUT_DIR"
 multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"
 ```
 
-
 # SNIPPY
 ```bash
 1. Open nano to create the script
@@ -759,11 +758,10 @@ done
 echo "All consensus sequences saved in $OUTDIR with sample-based headers."
 ```
 
-
 4️⃣ Make the script executable
-
+```bash
 chmod +x generate_consensus_all.sh
-
+```
 
 5️⃣ Run the script
 ```bash
@@ -771,7 +769,7 @@ conda activate tb_consensus_env
 ./generate_consensus_all.sh
 ```
 
-#  check the length of each consensus FASTA using seqkit, bioawk, or even awk/grep. 
+check the length of each consensus FASTA using seqkit, bioawk, or even awk/grep. 
 1️⃣ Using grep and wc
 ```bash
 for f in consensus_sequences/*.fasta; do
@@ -782,18 +780,19 @@ for f in consensus_sequences/*.fasta; do
 done
 ```
 
-# MAFFT v7.490 does not accept multiple input files on the command line. It expects a single FASTA file containing all sequences. Passing multiple paths causes it to think the filenames are options.
+# MAFFT
+MAFFT v7.490 does not accept multiple input files on the command line. It expects a single FASTA file containing all sequences. Passing multiple paths causes it to think the filenames are options.
 
-# The correct approach is to merge all consensus FASTAs into one file, then run MAFFT on that single file.
-# Step 1: Merge all consensus FASTAs
+The correct approach is to merge all consensus FASTAs into one file, then run MAFFT on that single file.
+Step 1: Merge all consensus FASTAs
 ```bash
 cat consensus_sequences/*.fasta > consensus_sequences/all_consensus.fasta
 ```
-# Step 2: Run MAFFT
+Step 2: Run MAFFT
 ```bash
 mafft --auto --reorder --thread -1 consensus_sequences/all_consensus.fasta > consensus_sequences/aligned_consensus.fasta
 ```
-#  Step 3: Verify
+ Step 3: Verify
 ```bash
 head consensus_sequences/aligned_consensus.fasta
 ```
