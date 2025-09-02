@@ -114,27 +114,55 @@ The pipeline includes the following steps:
 7. **🌳 Phylogenetic tree construction & downstream analysis**  
 
 
-### Download Data from NCBI and EBI
+### Download Data from NCBI and ENA
 
+Raw sequencing data for *Mycobacterium tuberculosis* can be accessed from public repositories such as **NCBI Sequence Read Archive (SRA)** and **European Nucleotide Archive (ENA) / EBI**. These repositories provide high-throughput sequencing datasets submitted by researchers worldwide.  
 
-### 📥 Download Data from NCBI and EBI
+Key points:  
+- **NCBI SRA** (https://www.ncbi.nlm.nih.gov/sra): Provides raw FASTQ or SRA files that can be downloaded using the `sra-tools` (`prefetch`, `fasterq-dump`) or via FTP.  
+- **EBI / ENA** (https://www.ebi.ac.uk/ena/browser/home): Offers raw sequencing files (FASTQ) and metadata for projects submitted to Europe’s archive. Supports both browser-based and command-line downloads.  
+- Using accession lists (BioProject, Run IDs), data can be downloaded in bulk for large-scale analysis.  
+- Metadata includes sample source, sequencing platform, and study information, which is essential for downstream analysis and reproducibility.  
+
+> **Tip:** Always check the sequencing platform and read layout (paired-end vs single-end) to ensure correct processing in your pipeline.  
+
+There are multiple ways to download *Mycobacterium tuberculosis* sequencing data, depending on the dataset size and source. Below are two practical methods.
 
 ---
 
-#### Using SRA Explorer for few size samples 
+#### Method 1: Using **SRA Explorer** (for small datasets)
 
 1. Go to **[SRA Explorer](https://sra-explorer.info/#)**  
-2. Search for:  Bioproject number  example PRJNA1201357
-3. set Max Results into 500 
+2. Search for a **BioProject number**, e.g., `PRJNA1201357`  
+3. Set **Max Results** to `500`  
 
-4. In the search results, check the all boxes:  
-- ✅ *WGS of micobacterium tuberculosis*  
+4. In the search results, check the following options:  
+- ✅ *WGS of Mycobacterium tuberculosis*  
 - ✅ *Add to collection*  
-- ✅ * go to data saved*  
-- ✅ *Bash script for downloading FastQ files*  
+- ✅ *Go to data saved*  
+- ✅ *Bash script for downloading FASTQ files*  
 
-4. Download the generated Bash script (e.g., `sra_download.sh`)  
-5. Run the script to download the FASTQ file(s):  
+5. Download the generated Bash script (e.g., `sra_download.sh`)  
+6. Run the script to download the FASTQ files:  
+
+```bash
+bash sra_download.sh
+```
+> **Tip:** Tip: This method is user-friendly and ideal for small projects (<500 samples). For large-scale datasets, use the command-line method below.
+
+#### Method 2: Using SRA Toolkit / ENA Run Accessions (for large datasets)
+##### A. Get all run accessions from ENA
+```bash
+curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB3334&result=read_run&fields=run_accession" | tail -n +2 > runs.txt
+```
+#####  B. Get SRR run accessions from NCBI SRA
+```bash
+esearch -db sra -query PRJNA1201357 | efetch -format runinfo | cut -d',' -f1 | grep ^SRR > runs.txt
+```
+Once `runs.txt` is ready, create a download script:
+
+
+
 
 ##  Get the Run Accessions
 
