@@ -160,6 +160,89 @@ curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB3334&res
 esearch -db sra -query PRJNA1201357 | efetch -format runinfo | cut -d',' -f1 | grep ^SRR > runs.txt
 ```
 Once `runs.txt` is ready, create a download script:
+```bash
+nano download_sra.sh
+```
+Paste the following into the file:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Number of threads for fasterq-dump / pigz
+THREADS=4
+
+# Directory for FASTQ files
+OUTDIR="fastq_files"
+mkdir -p "$OUTDIR"
+
+# File containing run accessions
+RUNS="SRR_Acc_List.txt"
+
+# Directory where SRA files are stored by default
+SRADIR=~/ncbi/public/sra
+
+# Loop over each accession
+while read -r ACC; do
+    echo "==> Processing $ACC ..."
+
+    # Skip download if SRA file already exists
+    if [ -f "$SRADIR/$ACC.sra" ]; then
+        echo "SRA file $ACC.sra already exists, skipping prefetch."
+    else
+        echo "Downloading $ACC.sra ..."
+        prefetch --max-size 100G "$ACC"
+    fi
+
+    # Skip conversion if FASTQ already exists
+    if ls "$OUTDIR"/${ACC}*.fastq.gz 1> /dev/null 2>&1; then
+        echo "FASTQ for $ACC already exists, skipping fasterq-dump."
+    else
+        # Convert to FASTQ (split paired-end reads)
+        fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"
+
+        # Compress FASTQ files
+        if command -v pigz &> /dev/null; then
+            pigz -p "$THREADS" "$OUTDIR"/${ACC}*.fastq
+        else
+            gzip "$OUTDIR"/${ACC}*.fastq
+        fi
+    fi
+
+    # Optional: remove SRA file after successful FASTQ creation
+    if ls "$OUTDIR"/${ACC}*.fastq.gz 1> /dev/null 2>&1; then
+        rm -f "$SRADIR/$ACC.sra"
+    fi
+
+    echo "==> Completed $ACC"
+    echo
+done < "$RUNS"
+
+echo "🎉 All downloads and conversions completed!"
+
+```
+
+Tips for large-scale projects:
+
+> **Tip:** Adjust THREADS according to your CPU cores for faster downloads.
+> **Tip:** Ensure enough disk space; SRA files can be large (~10–50 GB per sample).
+> **Tip:** Use pigz for parallel compression to speed up gzip operations.
+> **Tip:** This method is reproducible and scalable for hundreds to thousands of samples.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
