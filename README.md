@@ -196,17 +196,7 @@ tail -f run.log
 ```bash
 ps aux | grep download_sra.sh
 ```
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+
 Checking if all of my fastq.gz file will pair correctly with out problem
 Change directory into the working directory
 ```bash
