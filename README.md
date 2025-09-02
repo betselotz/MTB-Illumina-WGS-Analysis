@@ -297,17 +297,30 @@ chmod +x check_fastq_pairs.sh
 ./check_fastq_pairs.sh
 ```
 
-# minimum, maximum, and average read length for gzipped FASTQ files using awk
+### Calculating Minimum, Maximum, and Average Read Lengths for Paired-End Reads
 
-### calculating min, max,avg read lengths for both reads
- We can loop over all _1.fastq.gz files, find the corresponding _2.fastq.gz, calculate min, max, avg read lengths for both, and save the results as a CSV file.
+Before performing any downstream bioinformatics analysis, it is important to understand the quality and characteristics of your sequencing data. One key metric is the **read length** of your FASTQ files. 
 
-1️⃣ Open nano to create a new script
+- **Minimum read length:** Helps identify very short reads that may result from sequencing errors or trimming. Extremely short reads can cause mapping errors or low-quality variant calls.  
+- **Maximum read length:** Confirms whether reads were sequenced to the expected length and identifies unusually long reads that may indicate adapter contamination or sequencing artifacts.  
+- **Average read length:** Provides an overall measure of the sequencing quality and consistency across the dataset.
+
+Calculating these metrics for **both R1 and R2 reads** is particularly important in paired-end sequencing:
+
+- Ensures that both reads in a pair are of comparable lengths, which is crucial for accurate alignment and variant calling.  
+- Detects any discrepancies between forward and reverse reads that could indicate technical issues during sequencing or library preparation.  
+- Allows early filtering of problematic samples before running computationally intensive steps such as mapping, variant calling, or assembly.  
+
+By summarizing read lengths in a **CSV file**, you can quickly inspect your dataset, compare samples, and make informed decisions on trimming, filtering, or quality control. This step improves the reliability and reproducibility of downstream analyses.
+
+---
+
+1️⃣ **Open nano to create a new script**
 ```bash
 nano fastq_read_length_summary.sh
 ```
-
 2️⃣ Paste the following code into nano
+
 ```bash
 #!/bin/bash
 FASTQ_DIR="."                          # Current directory with FASTQ files
@@ -345,15 +358,11 @@ for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do
 done
 
 echo "✅ Read length summary saved to $OUTPUT_CSV"
-
-echo "✅ Read length summary saved to $OUTPUT_CSV"
 ```
+
 3️⃣ Save and exit nano
-
-    Press Ctrl + O → Enter (to write the file)
-
-    Press Ctrl + X → Exit nano
-
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
 4️⃣ Make the script executable
 ```bash
 chmod +x fastq_read_length_summary.sh
@@ -362,8 +371,6 @@ chmod +x fastq_read_length_summary.sh
 ```bash
 ./fastq_read_length_summary.sh
 ```
-
-Visualize the readlength in some way
 
 
 # FASTP 
