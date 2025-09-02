@@ -827,3 +827,26 @@ mafft --auto --reorder --thread -1 consensus_sequences/all_consensus.fasta > con
 ```bash
 head consensus_sequences/aligned_consensus.fasta
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+📖 References
+
+WHO. Catalogue of mutations in MTBC and their association with drug resistance, 2nd ed, 2023.
+
+Ngabonziza JCS, et al. A sister lineage of the Mycobacterium tuberculosis complex discovered in Rwanda. Nat Commun, 2020 (Lineage 8).
+
+Coscolla M, et al. Phylogenomics of Mycobacterium africanum lineage 9. Nat Commun, 2021 (Lineage 9).
+
+Phelan J, et al. Whole-genome sequencing for TB: current standards and challenges. Nat Rev Microbiol.
+
+Li H, et al. Fast and accurate short read alignment with Burrows–Wheeler transform. Bioinformatics
