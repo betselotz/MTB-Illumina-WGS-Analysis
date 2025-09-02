@@ -113,16 +113,6 @@ The pipeline includes the following steps:
 6. **📊 Summary QC with `MultiQC`**  
 7. **🌳 Phylogenetic tree construction & downstream analysis**  
 
-```mermaid
-flowchart TD
-    A[📥 Download raw FASTQ] --> B[🧹 fastp - QC & trimming]
-    B --> C[🎯 Snippy - mapping & variant calling]
-    C --> D[🧬 tb-profiler - lineage & resistance]
-    D --> E[🧪 tb_variant_filter - SNP filtering]
-    E --> F[📊 MultiQC - QC summary]
-    F --> G[🌳 Phylogenetic tree construction]
-
-
 
 ### Download Data from NCBI and EBI
 
