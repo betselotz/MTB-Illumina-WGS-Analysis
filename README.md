@@ -95,11 +95,11 @@ Genomic studies have identified **lineages based on SNPs and phylogeny**:
 #### Using SRA Explorer for few size samples 
 
 1. Go to **[SRA Explorer](https://sra-explorer.info/#)**  
-2. Search for:  Bioproject number
+2. Search for:  Bioproject number  example PRJNA1201357
 3. set Max Results into 500 
 
 4. In the search results, check the all boxes:  
-- ✅ *WGS of Klebsiella pneumoniae isolate*  
+- ✅ *WGS of micobacterium tuberculosis*  
 - ✅ *Add to collection*  
 - ✅ * go to data saved*  
 - ✅ *Bash script for downloading FastQ files*  
@@ -115,11 +115,11 @@ curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB3334&res
 ```
 # Fetch all SRR run accessions for the BioProject
 ```bash
-esearch -db sra -query PRJNA787062 | efetch -format runinfo | cut -d',' -f1 | grep ^SRR > runs.txt
+esearch -db sra -query PRJNA1201357 | efetch -format runinfo | cut -d',' -f1 | grep ^SRR > runs.txt
 ```
-# Download & Compress
+### Download using fastq-dump & Compress
 
-# Once runs.txt is ready:
+#### Once runs.txt is ready:
 
 ```bash
 nano download_sra.sh
@@ -208,15 +208,17 @@ ps aux | grep download_sra.sh
 #
 #
 Checking if all of my fastq.gz file will pair correctly with out problem
-
+Change directory into the working directory
+```bash
 cd ~/Genomics_project/TB/fastq_data/f_invio
+```
 
-
-# 1️⃣ Open nano to create a new script
-
+1.  Open nano to create a new script
+```bash
 nano check_fastq_pairs.sh
-
-# 2. Paste this inside nano
+```
+2. Paste this inside nano
+```bash
 #!/bin/bash
 set -euo pipefail
 
@@ -264,24 +266,30 @@ if [ "$MISSING" = true ]; then
 else
     echo "✅ All FASTQ files are correctly paired."
 fi
+```
 
 
-
-# 4️⃣ Make the script executable
+Make the script executable
+```bash
 chmod +x check_fastq_pairs.sh
-
+```
 # 5️⃣ Run the script
+```bash
 ./check_fastq_pairs.sh
-
+```
 
 # minimum, maximum, and average read length for gzipped FASTQ files using awk
-# We can loop over all _1.fastq.gz files, find the corresponding _2.fastq.gz, calculate min, max, avg read lengths for both, and save the results as a CSV file.
 
-# 1️⃣ Open nano to create a new script
+### calculating min, max,avg read lengths for both reads
+ We can loop over all _1.fastq.gz files, find the corresponding _2.fastq.gz, calculate min, max, avg read lengths for both, and save the results as a CSV file.
 
+1️⃣ Open nano to create a new script
+```bash
 nano fastq_read_length_summary.sh
+```
 
-# 2️⃣ Paste the following code into nano
+2️⃣ Paste the following code into nano
+```bash
 #!/bin/bash
 FASTQ_DIR="."                          # Current directory with FASTQ files
 OUTDIR="read_length_summary"           # New output directory
@@ -320,182 +328,38 @@ done
 echo "✅ Read length summary saved to $OUTPUT_CSV"
 
 echo "✅ Read length summary saved to $OUTPUT_CSV"
-# 3️⃣ Save and exit nano
+```
+3️⃣ Save and exit nano
 
     Press Ctrl + O → Enter (to write the file)
 
     Press Ctrl + X → Exit nano
 
-# 4️⃣ Make the script executable
-
+4️⃣ Make the script executable
+```bash
 chmod +x fastq_read_length_summary.sh
-
-# 5️⃣ Run the script
-
+```
+5️⃣ Run the script
+```bash
 ./fastq_read_length_summary.sh
+```
 
-# Visualize the readlength i some way
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+Visualize the readlength in some way
+
 
 # FASTP 
 
-# 1. Open nano and create the script
-
+1. Open nano and create the script
+```bash
 nano run_fastp.sh
-
-# 2. Paste this inside nano
-
+```
+2. Paste this inside nano
+```bash
 #!/bin/bash
 set -euo pipefail
 
 INDIR="raw_data"
-OUTDIR="fastp_results_min_70"
-mkdir -p "$OUTDIR"
-
-SKIPPED=()      # Array to track skipped samples
-PROCESSED=0     # Counter for processed samples
-ALREADY_DONE=() # Samples skipped because results already exist
-
-# Number of parallel jobs (process 2 samples at a time)
-JOBS=2
-
-process_sample() {
-    local R1="$1"
-    local SAMPLE="$2"
-    local R2="$3"
-
-    # Skip if already processed (check trimmed file or report)
-    if [[ -f "$OUTDIR/${SAMPLE}_1.trim.fastq.gz" && -f "$OUTDIR/${SAMPLE}_2.trim.fastq.gz" ]]; then
-        echo "⏩ Skipping $SAMPLE (already analyzed)."
-        ALREADY_DONE+=("$SAMPLE")
-        return
-    fi
-
-    echo "✅ Processing sample: $SAMPLE"
-    fastp \
-        -i "$R1" \
-        -I "$R2" \
-        -o "$OUTDIR/${SAMPLE}_1.trim.fastq.gz" \
-        -O "$OUTDIR/${SAMPLE}_2.trim.fastq.gz" \
-        -h "$OUTDIR/${SAMPLE}_fastp.html" \
-        -j "$OUTDIR/${SAMPLE}_fastp.json" \
-        --detect_adapter_for_pe \
-        --thread 8 \
-        --cut_mean_quality 20 \
-        --cut_front \
-        --cut_tail \
-        --cut_window_size 4 \
-        --qualified_quality_phred 25 \
-        --unqualified_percent_limit 40 \
-        --length_required 70
-
-    PROCESSED=$((PROCESSED + 1))
-}
-
-# Loop over all R1 files in raw_data
-for R1 in "$INDIR"/*_1.fastq.gz "$INDIR"/*_R1.fastq.gz "$INDIR"/*_001.fastq.gz; do
-    [[ -f "$R1" ]] || continue
-
-    SAMPLE=$(basename "$R1")
-    SAMPLE=${SAMPLE%%_1.fastq.gz}
-    SAMPLE=${SAMPLE%%_R1.fastq.gz}
-    SAMPLE=${SAMPLE%%_001.fastq.gz}
-
-    # Find matching R2 file
-    if [[ -f "$INDIR/${SAMPLE}_2.fastq.gz" ]]; then
-        R2="$INDIR/${SAMPLE}_2.fastq.gz"
-    elif [[ -f "$INDIR/${SAMPLE}_R2.fastq.gz" ]]; then
-        R2="$INDIR/${SAMPLE}_R2.fastq.gz"
-    elif [[ -f "$INDIR/${SAMPLE}_002.fastq.gz" ]]; then
-        R2="$INDIR/${SAMPLE}_002.fastq.gz"
-    else
-        echo "⚠ No R2 file found for $SAMPLE — skipping."
-        SKIPPED+=("$SAMPLE")
-        continue
-    fi
-
-    # Run in background to allow parallel processing
-    process_sample "$R1" "$SAMPLE" "$R2" &
-
-    # Limit jobs to $JOBS at a time
-    if [[ $(jobs -r -p | wc -l) -ge $JOBS ]]; then
-        wait -n
-    fi
-done
-
-# Wait for any remaining jobs
-wait
-
-# Summary
-echo -e "\n===== Summary ====="
-echo "Total samples processed: $PROCESSED"
-if [ ${#ALREADY_DONE[@]} -ne 0 ]; then
-    echo "Samples skipped (already analyzed):"
-    for s in "${ALREADY_DONE[@]}"; do
-        echo "  - $s"
-    done
-fi
-if [ ${#SKIPPED[@]} -ne 0 ]; then
-    echo "Samples skipped (missing R2 file):"
-    for s in "${SKIPPED[@]}"; do
-        echo "  - $s"
-    done
-fi
-
-
-# 3. Save & exit nano
-
-    Press CTRL+O, Enter (save)
-
-    Press CTRL+X (exit)
-
-# 4. Make the script executable
-
-chmod +x run_fastp.sh
-
-# 5. Activate your conda env and run
-
-conda activate fastp_env
-./run_fastp.sh
-
-
-#run MultiQC on all the files inside fastp_results directory, saving the report into a folder called multiqc_output.
-
-#!/bin/bash
-set -euo pipefail
-
-INPUT_DIR="fastp_results_min_70"
-OUTPUT_DIR="multiqc_output"
-
-mkdir -p "$OUTPUT_DIR"
-
-multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"
-
-
-
-
-# Sometimes not all fastq.gz file in the directory processed by fastp so another code prepared to run for it 
-
-# 1. Open nano and create the script
-
-nano run_fastp2.sh
-
-# 2. Paste this inside nano
-
-#!/bin/bash
-set -euo pipefail
-
-INDIR="raw_data"
-OUTDIR="fastp_results_min_70"
+OUTDIR="fastp_results_min_50"
 mkdir -p "$OUTDIR"
 
 SAMPLES=()
@@ -526,11 +390,17 @@ for R1 in "$INDIR"/*_1.fastq.gz "$INDIR"/*_R1.fastq.gz "$INDIR"/*_001.fastq.gz "
         continue
     fi
 
-    # Save sample info for parallel execution
     SAMPLES+=("$SAMPLE,$R1,$R2")
 done
 
-# Export function to run fastp on one sample
+if [[ ${#SAMPLES[@]} -eq 0 ]]; then
+    echo "❌ No paired FASTQ files found in $INDIR"
+    exit 1
+fi
+
+THREADS=$(nproc)
+FASTP_THREADS=$(( THREADS / 2 ))
+
 run_fastp() {
     SAMPLE=$1
     R1=$2
@@ -543,89 +413,70 @@ run_fastp() {
         -O "$OUTDIR/${SAMPLE}_2.trim.fastq.gz" \
         -h "$OUTDIR/${SAMPLE}_fastp.html" \
         -j "$OUTDIR/${SAMPLE}_fastp.json" \
-        --length_required 70 \
-        --max_len1 150 \
-        --max_len2 150 \
+        --length_required 50 \
         --qualified_quality_phred 20 \
         --detect_adapter_for_pe \
-        --thread 8
+        --thread $FASTP_THREADS \
+        \
+        # 1. UMI preprocessing (if UMI data) → add: --umi
+        # 2. Global trim front → add: --trim_front1, --trim_front2
+        # 3. Global trim tail → add: --trim_tail1, --trim_tail2
+        # 4. Quality prune 5' → add: --cut_front
+        # 5. Sliding window pruning → add: --cut_right
+        # 6. Quality prune 3' → add: --cut_tail
+        # 7. PolyG trimming (default for NovaSeq/NextSeq)
+        # 8. Adapter trimming by overlap (default for PE data)
+        # 9. Adapter trimming by sequence → add: --adapter_sequence <seq>
+        # 10. PolyX trimming → add: --trim_poly_x
+        # 11. Max length (if really needed) → add: --max_len1, --max_len2 \
+        &> "$OUTDIR/${SAMPLE}_fastp.log"
 }
 
 export -f run_fastp
-export OUTDIR
+export OUTDIR FASTP_THREADS
 
-# Run in parallel: adjust -j to control how many samples run at once
 printf "%s\n" "${SAMPLES[@]}" | parallel -j 3 --colsep ',' run_fastp {1} {2} {3}
 
+echo "🎉 Completed fastp for $(ls "$OUTDIR"/*_fastp.json | wc -l) samples."
 
-# 3. Save & exit nano
+```
+3. Save & exit nano
 
     Press CTRL+O, Enter (save)
 
     Press CTRL+X (exit)
-
-# 4. Make the script executable
-
-chmod +x run_fastp2.sh
-
-# 5. Activate your conda env and run
-
+ 4. Make the script executable
+```bash
+chmod +x run_fastp.sh
+```
+ 5. Activate your conda env and run
+```bash
 conda activate fastp_env
-./run_fastp2.sh
-
-# 🔧 Notes
-
-# This script will:
-
-# Detect R1/R2 pairs
-
-# Skip unpaired samples
-
-# Skip already processed samples
-
-# Run multiple fastp jobs at the same time
-
-# The flag -j 3 means process 3 samples at once.
-# Since each fastp is using --thread 8, this means you’d use 24 threads total.
-# Adjust -j based on how many CPU cores you have.
-
-
-
-
-#run MultiQC on all the files inside fastp_results directory, saving the report into a folder called multiqc_output.
-
+./run_fastp.sh
+```
+# MultiQC
+run MultiQC on all the files inside fastp_results directory, saving the report into a folder called multiqc_output.
+```bash
 #!/bin/bash
 set -euo pipefail
 
-INPUT_DIR="fastp_results_min_70"
+INPUT_DIR="fastp_results_min_50"
 OUTPUT_DIR="multiqc_output"
 
 mkdir -p "$OUTPUT_DIR"
 
 multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+```
 
-#SNIPPY
 
-#1. Open nano to create the script
-
+# SNIPPY
+```bash
+1. Open nano to create the script
+```
 nano run_snippy.sh
 
-# 2. Paste this inside nano:
-
+2. Paste this inside nano:
+```bash
 #!/bin/bash
 set -euo pipefail
 
@@ -710,40 +561,32 @@ rm -f fastq_samples.txt snippy_samples.txt
 echo "🎯 All steps completed!"
 echo "Snippy results are in: ${OUTDIR}/"
 
-
-# 3. Save and exit nano
+```
+ 3. Save and exit nano
 
     Press Ctrl + O, then Enter
 
     Press Ctrl + X
 
-# 4. Make it executable:
-
+4. Make it executable:
+```bash
 chmod +x run_snippy.sh
-
-# 5. Activate your Snippy environment and run:
-
+```
+ 5. Activate your Snippy environment and run:
+```bash
 conda activate snippy_env
 ./run_snippy.sh
-
-
-#
-#
-#
-#
-#
-#
-#
-#
-#
+```
 
 # qualimap BAM QC
 
-# 1. Open nano to create the script
-
+ 1. Open nano to create the script
+```bash
 nano run_qualimap.sh
+```
 
-# 2. Paste this inside nano:
+2. Paste this inside nano:
+```bash
 #!/bin/bash
 set -euo pipefail
 
@@ -770,39 +613,34 @@ for bam in "$SNIPPY_DIR"/*.bam; do
 
     # MultiQC will look inside "$outdir" for raw_data folder
 done
-
+```
 3. Save and exit nano
 
     Press Ctrl + O, then Enter
 
     Press Ctrl + X
 4. Make it executable:
-
+```bash
 chmod +x run_qualimap.sh
-
+```
 5. Activate your Snippy environment and run:
-
+```bash
 conda activate qualimap_env
 ./run_qualimap.sh
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+```
+
 # MultiQC 
+```bash
 multiqc . -o multiqc_report
+```
+# tb variant filter 
 
-#1️⃣ Create or edit the script
-
+1️⃣ Create or edit the script
+```bash
 nano run_tb_variant_filter.sh
-
-# 2️⃣ Paste this code
-
+```
+2️⃣ Paste this code
+```bash
 #!/bin/bash
 
 # Activate tb_variant_filter environment
@@ -827,33 +665,25 @@ echo "All VCFs filtered and saved in $OUTDIR"
 
 
 echo "All VCFs filtered and saved in $OUTDIR"
-
+```
 3️⃣ Make it executable
-
+```bash
 chmod +x run_tb_variant_filter.sh
-
+```
 4️⃣ Run the script
+```bash
 conda activate tb_variant_filter_env
 ./run_tb_variant_filter.sh
+```
 
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
 # TBPROFILER FROM BAM FILE
 
-#1️⃣ Create or edit the script
-
+1️⃣ Create or edit the script
+```bash
 nano run_tbprofiler_on_snippy_bams.sh
-
-# 2️⃣ Paste this code
-
+```
+2️⃣ Paste this code
+```bash
 #!/bin/bash
 
 set -euo pipefail
@@ -870,35 +700,32 @@ for bam in "$BAM_DIR"/*.bam; do
         --prefix "$sample" \
         --txt
 done
+```
 3️⃣ Make it executable
-
+```bash
 chmod +x run_tbprofiler_on_snippy_bams.sh
-
+```
 4️⃣ Run the script
+```bash
 conda activate tbprofiler_env
 ./run_tbprofiler_on_snippy_bams.sh
+```
 
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-## bcftools concensus generation
+# bcftools concensus generation
 
-#  Compress and index each filtered VCF
+###  Compress and index each filtered VCF
+```bash
 for vcf in tb_variant_filter_results/*.vcf; do
     bgzip -c "$vcf" > "${vcf}.gz"
     bcftools index "${vcf}.gz"
 done
-# Create a script to generate consensus sequences:
+```
+### Create a script to generate consensus sequences:
+```bash
 nano generate_consensus_all.sh
-
-# Paste this:
+```
+ Paste this:
+```bash
 #!/bin/bash
 
 # Activate bcftools environment
@@ -930,7 +757,7 @@ for vcf in "$VCFDIR"/*.vcf; do
 done
 
 echo "All consensus sequences saved in $OUTDIR with sample-based headers."
-
+```
 
 
 4️⃣ Make the script executable
@@ -939,30 +766,34 @@ chmod +x generate_consensus_all.sh
 
 
 5️⃣ Run the script
+```bash
 conda activate tb_consensus_env
 ./generate_consensus_all.sh
-
+```
 
 #  check the length of each consensus FASTA using seqkit, bioawk, or even awk/grep. 
-#  1️⃣ Using grep and wc
+1️⃣ Using grep and wc
+```bash
 for f in consensus_sequences/*.fasta; do
     sample=$(basename "$f")
     # Remove header lines and count remaining characters
     length=$(grep -v ">" "$f" | tr -d '\n' | wc -c)
     echo "$sample : $length bp"
 done
-
+```
 
 # MAFFT v7.490 does not accept multiple input files on the command line. It expects a single FASTA file containing all sequences. Passing multiple paths causes it to think the filenames are options.
 
 # The correct approach is to merge all consensus FASTAs into one file, then run MAFFT on that single file.
 # Step 1: Merge all consensus FASTAs
-
+```bash
 cat consensus_sequences/*.fasta > consensus_sequences/all_consensus.fasta
-
+```
 # Step 2: Run MAFFT
-
+```bash
 mafft --auto --reorder --thread -1 consensus_sequences/all_consensus.fasta > consensus_sequences/aligned_consensus.fasta
+```
 #  Step 3: Verify
-
+```bash
 head consensus_sequences/aligned_consensus.fasta
+```
