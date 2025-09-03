@@ -599,27 +599,136 @@ In **tuberculosis genomics**, Snippy is particularly useful because:
 
 ---
 
-### Step 1: Create the script
+##### Step 1: Create the script
 ```bash
 nano run_snippy.sh
-
-
-# qualimap BAM QC
-
- 1. Open nano to create the script
-```bash
-nano run_qualimap.sh
 ```
-
-2. Paste this inside nano:
+##### Step 2: Paste the following into `run_snippy.sh`
 ```bash
 #!/bin/bash
 set -euo pipefail
 
-# Directory with snippy BAM files
+# ======== CONFIG ========
+REF="H37Rv.fasta"
+FASTP_DIR="fastp_results_min_70"
+OUTDIR="snippy_results"
+THREADS=8         # threads *inside* each Snippy job
+BWA_THREADS=30
+JOBS=4            # how many samples to run at once
+# ========================
+
+mkdir -p "$OUTDIR"
+
+# Function: run snippy for a single sample
+run_snippy_sample() {
+    SAMPLE="$1"
+    R1="${FASTP_DIR}/${SAMPLE}_1.trim.fastq.gz"
+    R2="${FASTP_DIR}/${SAMPLE}_2.trim.fastq.gz"
+
+    if [[ -f "$R1" && -f "$R2" ]]; then
+        echo "Running snippy on sample: $SAMPLE"
+        TMP_DIR="${OUTDIR}/${SAMPLE}_tmp"
+        mkdir -p "$TMP_DIR"
+
+        snippy --cpus "$THREADS" --outdir "$TMP_DIR" --ref "$REF" \
+               --R1 "$R1" --R2 "$R2" --force --bwaopt "-T $BWA_THREADS"
+
+        # Rename and move outputs
+        for f in "$TMP_DIR"/*; do
+            base=$(basename "$f")
+            case "$base" in
+                snps.vcf) newname="${SAMPLE}.snps.vcf" ;;
+                snps.tab) newname="${SAMPLE}.snps.tab" ;;
+                consensus.fa) newname="${SAMPLE}.consensus.fa" ;;
+                *.bam) newname="${SAMPLE}.bam" ;;
+                *.bam.bai) newname="${SAMPLE}.bam.bai" ;;
+                *) continue ;;
+            esac
+            mv "$f" "${OUTDIR}/${newname}"
+        done
+
+        rm -rf "$TMP_DIR"
+
+        if [[ -f "${OUTDIR}/${SAMPLE}.snps.vcf" ]]; then
+            echo "✅ VCF generated for $SAMPLE"
+        else
+            echo "⚠ No VCF produced for $SAMPLE"
+        fi
+    else
+        echo "⚠ Missing R1/R2 for $SAMPLE"
+    fi
+}
+
+export -f run_snippy_sample
+export REF FASTP_DIR OUTDIR THREADS BWA_THREADS
+
+# Run samples in parallel
+ls "${FASTP_DIR}"/*_1.trim.fastq.gz \
+    | sed 's|.*/||; s/_1\.trim\.fastq\.gz//' \
+    | parallel -j "$JOBS" run_snippy_sample {}
+
+# Step 2: Verification
+echo "Verifying completeness..."
+ls "${FASTP_DIR}"/*_1.trim.fastq.gz \
+    | sed 's|.*/||; s/_1\.trim\.fastq\.gz//' | sort > fastq_samples.txt
+ls "${OUTDIR}"/*.snps.vcf 2>/dev/null \
+    | sed 's|.*/||; s/\.snps\.vcf//' | sort > snippy_samples.txt
+
+echo "FASTQ pairs count: $(wc -l < fastq_samples.txt)"
+echo "Snippy outputs count: $(wc -l < snippy_samples.txt)"
+
+if diff fastq_samples.txt snippy_samples.txt >/dev/null; then
+    echo "✅ All FASTQ pairs have corresponding Snippy results."
+else
+    echo "⚠ Missing samples detected:"
+    diff fastq_samples.txt snippy_samples.txt || true
+fi
+
+rm -f fastq_samples.txt snippy_samples.txt
+
+echo "🎯 All steps completed!"
+echo "Snippy results are in: ${OUTDIR}/"
+
+```
+
+##### Step 3: Save and exit nano
+Press Ctrl + O, then Enter (save)
+Press Ctrl + X (exit)
+
+##### Step 4: Make the script executable
+```bash
+chmod +x run_snippy.sh
+```
+##### Step 5: Activate environment and run
+```bash
+conda activate snippy_env
+./run_snippy.sh
+```
+
+# 6️⃣ Qualimap BAM QC
+
+Once we generate BAM files with Snippy, it is important to assess their quality before moving to downstream analyses.  
+**Qualimap** is widely used for this because:  
+- It evaluates mapping quality, coverage distribution, and GC content.  
+- It produces both **HTML** and **PDF** reports with easy-to-interpret QC metrics.  
+- In TB genomics, it helps us quickly identify problematic samples with low coverage, uneven depth, or poor alignment to the H37Rv reference.  
+- The results can later be aggregated with MultiQC for batch reporting.  
+
+---
+
+##### Step 1: Create the script
+```bash
+nano run_qualimap.sh
+```
+#####  Step 2: Paste the following into `run_qualimap.sh`
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Directory with Snippy BAM files
 SNIPPY_DIR="all_bams"
 
-# Output directory for qualimap reports
+# Output directory for Qualimap reports
 QUALIMAP_OUT="qualimap_reports"
 mkdir -p "$QUALIMAP_OUT"
 
@@ -630,44 +739,97 @@ for bam in "$SNIPPY_DIR"/*.bam; do
     outdir="${QUALIMAP_OUT}/${sample}"
     mkdir -p "$outdir"
 
-    # Run Qualimap (both HTML and PDF for completeness, lowercase format name)
+    # Run Qualimap (both HTML and PDF for completeness)
     qualimap bamqc \
         -bam "$bam" \
         -outdir "$outdir" \
         -outformat pdf:html \
         --java-mem-size=4G
 
-    # MultiQC will look inside "$outdir" for raw_data folder
+    # MultiQC will later scan these reports
 done
 ```
-3. Save and exit nano
+##### Step 3: Save and exit nano
 
-    Press Ctrl + O, then Enter
-
-    Press Ctrl + X
-4. Make it executable:
+Press Ctrl + O, then Enter (save)
+Press Ctrl + X (exit)
+##### Step 4: Make the script executable
 ```bash
 chmod +x run_qualimap.sh
 ```
-5. Activate your Snippy environment and run:
+##### Step 5: Activate environment and run
 ```bash
 conda activate qualimap_env
 ./run_qualimap.sh
 ```
 
-# MultiQC 
-```bash
-multiqc . -o multiqc_report
-```
-# tb variant filter 
+# 7️⃣ MultiQC after Qualimap
 
-1️⃣ Create or edit the script
+Once we finish running **Qualimap BAM QC**, each sample has its own folder with detailed HTML and PDF reports.  
+While these per-sample reports are useful, it becomes inefficient to open them one by one when working with many TB isolates.  
+This is where **MultiQC** is especially powerful:  
+- It scans all the Qualimap output folders.  
+- It aggregates mapping quality, depth, and coverage statistics across all samples.  
+- It provides an **at-a-glance overview** of problematic samples (e.g., low coverage, uneven depth, or poor alignment).  
+- It ensures results are **standardized and shareable** across teams.  
+---
+
+### Run MultiQC on Qualimap outputs
+```bash
+multiqc qualimap_reports -o multiqc_report
+```
+📊 The final summary will be available in:  multiqc_report/multiqc_report.html
+
+# 8️⃣ TB Variant Filter
+The **tb_variant_filter** tool is a specialized filtering framework designed for **Mycobacterium tuberculosis (M. tb)** sequencing data. Unlike generic variant filtering tools (e.g., GATK VariantFiltration, bcftools filter), this tool leverages TB-specific genomic features and known problematic regions of the **H37Rv reference genome** to ensure only **high-confidence variants** are kept for downstream analysis.
+---
+## ✨ Why Filtering is Important
+Raw variant calls from Snippy (or any variant caller) often include:
+- **False positives** due to sequencing errors or mapping ambiguity.  
+- Variants in **repetitive regions**, where reads cannot be uniquely aligned.  
+- Low-quality calls with insufficient coverage or poor base quality.  
+If left unfiltered, these can:
+- Lead to **spurious drug resistance predictions**.  
+- Introduce **noise in phylogenetic analyses**, distorting transmission clustering.  
+- Inflate **SNP distances**, causing misinterpretation of outbreaks.  
+---
+
+## ⚙️ What `tb_variant_filter` Does
+This tool applies a series of filters tailored to *M. tuberculosis*. The main steps include:
+
+1. **Masking problematic genomic regions**  
+   - Excludes SNPs in highly repetitive or poorly mappable regions (e.g., **PE/PPE gene families**, mobile genetic elements).  
+   - These regions are known to cause alignment artifacts and unreliable variant calls.  
+2. **Depth-based filtering**  
+   - Removes variants with **insufficient coverage** (low read depth).  
+   - Ensures only variants supported by enough reads are retained.  
+3. **Quality-based filtering**  
+   - Filters out variants with **low base or mapping quality**.  
+   - Retains only high-confidence SNPs/indels.  
+4. **Retains core genome SNPs**  
+   - Focuses on SNPs in **conserved coding regions**, which are more reliable for drug resistance and phylogeny.  
+   - This ensures consistency across isolates for comparative analysis.  
+---
+
+## ✅ Benefits of Using `tb_variant_filter`
+- **TB-specific**: Tailored to the H37Rv reference genome.  
+- **Improved accuracy**: Removes false positives that generic tools often miss.  
+- **Reliable resistance prediction**: Only keeps SNPs truly linked to drug resistance.  
+- **Cleaner phylogenies**: Results in more robust clustering and outbreak inference.  
+- **Standardization**: Widely adopted in TB genomic epidemiology pipelines, making results comparable across studies.  
+
+---
+
+## Steps
+
+##### Step 1: Create or edit the script  
 ```bash
 nano run_tb_variant_filter.sh
 ```
-2️⃣ Paste this code
+#####  Step 2: Paste the following into `run_tb_variant_filter.sh`
 ```bash
 #!/bin/bash
+set -euo pipefail
 
 # Activate tb_variant_filter environment
 source $(conda info --base)/etc/profile.d/conda.sh
@@ -687,31 +849,51 @@ for vcf in "$CURDIR/snippy_results"/*.vcf; do
     tb_variant_filter "$vcf" "$OUTDIR/${sample%.vcf}.filtered.vcf"
 done
 
-echo "All VCFs filtered and saved in $OUTDIR"
-
-
-echo "All VCFs filtered and saved in $OUTDIR"
+echo "✅ All VCFs filtered and saved in $OUTDIR"
 ```
-3️⃣ Make it executable
+
+##### Step 4: Make the script executable
 ```bash
 chmod +x run_tb_variant_filter.sh
 ```
-4️⃣ Run the script
+##### Step 5: Activate environment and run
 ```bash
 conda activate tb_variant_filter_env
 ./run_tb_variant_filter.sh
 ```
 
-# TBPROFILER FROM BAM FILE
+# 9️⃣ TB-Profiler from BAM Files
 
-1️⃣ Create or edit the script
+After variant calling and BAM QC, we can run **TB-Profiler** directly on the BAM files produced by Snippy. This approach is efficient and specifically tailored for *Mycobacterium tuberculosis* genomic analysis.
+
+## Why we run TB-Profiler from BAM files
+
+1. **Avoids re-processing raw FASTQ**  
+   - BAM files already contain reads mapped to the reference genome.  
+   - Running TB-Profiler from BAM saves time and computational resources, especially in **large-scale projects**.  
+2. **Preserves alignment information**  
+   - BAM files retain **mapping quality, coverage, and paired-read context**, which improves the accuracy of **variant calling and drug-resistance prediction**.  
+3. **Efficient for high-throughput pipelines**  
+   - When analyzing hundreds or thousands of isolates, this method **scales better** than starting from raw FASTQ files.  
+4. **Direct lineage and resistance profiling**  
+   - TB-Profiler can predict:  
+     - **Lineage and sublineage**  
+     - **Spoligotype patterns**  
+     - **Drug-resistance mutations** (first- and second-line drugs)  
+   - All from a single, processed BAM file.  
+5. **Integration with QC and filtering steps**  
+   - Using BAM files **after Snippy and tb_variant_filter** ensures only high-quality, confidently mapped variants are analyzed.  
+   - Reduces false positives from low-quality or misaligned reads.
+---
+
+## steps 
+##### Step 1: Create or edit the script
 ```bash
 nano run_tbprofiler_on_snippy_bams.sh
 ```
-2️⃣ Paste this code
+##### Step 2: Paste the following code
 ```bash
 #!/bin/bash
-
 set -euo pipefail
 
 BAM_DIR="snippy_results"
@@ -727,32 +909,42 @@ for bam in "$BAM_DIR"/*.bam; do
         --txt
 done
 ```
-3️⃣ Make it executable
+##### Step 4: Make the script executable
 ```bash
 chmod +x run_tbprofiler_on_snippy_bams.sh
 ```
-4️⃣ Run the script
+##### Step 5: Activate environment and run
 ```bash
 conda activate tbprofiler_env
 ./run_tbprofiler_on_snippy_bams.sh
 ```
+# 10️⃣ BCFTools Consensus Generation
 
-# bcftools concensus generation
+After filtering VCFs with **tb_variant_filter**, we generate **sample-specific consensus sequences**.  
+This allows us to produce FASTA sequences representing the **full genome of each isolate**, incorporating only **high-confidence variants** relative to the reference genome (*H37Rv*).  
 
-###  Compress and index each filtered VCF
+## Why consensus sequences are important
+- Provide a **single representative genome** per sample for downstream analyses.  
+- Used in **phylogenetic reconstruction**, outbreak investigation, and comparative genomics.  
+- Incorporates **only reliable SNPs and indels**, reducing noise from sequencing errors.  
+- Standardizes genome representations across multiple isolates.  
+---
+
+##### Step 1: Compress and index each filtered VCF
 ```bash
 for vcf in tb_variant_filter_results/*.vcf; do
     bgzip -c "$vcf" > "${vcf}.gz"
     bcftools index "${vcf}.gz"
 done
 ```
-### Create a script to generate consensus sequences:
+##### Step 2: Create a script to generate consensus sequences
 ```bash
 nano generate_consensus_all.sh
 ```
- Paste this:
+##### Step 3: Paste this code
 ```bash
 #!/bin/bash
+set -euo pipefail
 
 # Activate bcftools environment
 source $(conda info --base)/etc/profile.d/conda.sh
@@ -770,31 +962,36 @@ mkdir -p "$OUTDIR"
 for vcf in "$VCFDIR"/*.vcf; do
     sample=$(basename "$vcf" .vcf)
     echo "Processing $sample ..."
+
     # Compress VCF with bgzip
     bgzip -c "$vcf" > "$vcf.gz"
+
     # Index the compressed VCF
     bcftools index "$vcf.gz"
+
     # Generate consensus FASTA
     bcftools consensus -f "$CURDIR/H37Rv.fasta" "$vcf.gz" \
         | sed "1s/.*/>$sample/" \
         > "$OUTDIR/${sample}.consensus.fasta"
 
-    echo "$sample consensus generated with sample label."
+    echo "✅ $sample consensus generated with sample-based header."
 done
 
-echo "All consensus sequences saved in $OUTDIR with sample-based headers."
+echo "🎉 All consensus sequences saved in $OUTDIR."
 ```
 
-4️⃣ Make the script executable
+##### Step 4: Make the script executable
 ```bash
 chmod +x generate_consensus_all.sh
 ```
-
-5️⃣ Run the script
+##### Step 5: Run the script
 ```bash
 conda activate tb_consensus_env
 ./generate_consensus_all.sh
 ```
+
+
+
 
 check the length of each consensus FASTA using seqkit, bioawk, or even awk/grep. 
 1️⃣ Using grep and wc
