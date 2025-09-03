@@ -222,132 +222,64 @@ echo "🎉 All downloads and conversions completed!"
 
 ```
 
-Tips for large-scale projects:
+> **Tips for large-scale projects:**
+> 
+> - Adjust `THREADS` according to your CPU cores for faster downloads.
+> - Ensure enough disk space; SRA files can be large (~10–50 GB per sample).
+> - Use `pigz` for parallel compression to speed up gzip operations.
+> - This method is reproducible and scalable for **hundreds to thousands of samples**.
 
-> **Tip:** Adjust THREADS according to your CPU cores for faster downloads.
-> **Tip:** Ensure enough disk space; SRA files can be large (~10–50 GB per sample).
-> **Tip:** Use pigz for parallel compression to speed up gzip operations.
-> **Tip:** This method is reproducible and scalable for hundreds to thousands of samples.
+### Running the Download Script in the Background
 
+To run your script in the background and keep it running even if you close the terminal, use `nohup`. All output and errors will be saved to `run.log`.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-##  Get the Run Accessions
-
-###  1. Get all ERR run IDs from ENA
-```bash
-curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB3334&result=read_run&fields=run_accession" | tail -n +2 > runs.txt
-```
-# Fetch all SRR run accessions for the BioProject
-```bash
-esearch -db sra -query PRJNA1201357 | efetch -format runinfo | cut -d',' -f1 | grep ^SRR > runs.txt
-```
-### Download using fastq-dump & Compress
-
-#### Once runs.txt is ready:
-
-```bash
-nano download_sra.sh
-```
-```bash
-#!/bin/bash
-set -euo pipefail
-
-# Number of threads for fasterq-dump / pigz
-THREADS=4
-
-# Directory for FASTQ files
-OUTDIR="fastq_files"
-mkdir -p "$OUTDIR"
-
-# File containing run accessions
-RUNS="SRR_Acc_List.txt"
-
-# Directory where SRA files are stored by default
-SRADIR=~/ncbi/public/sra
-
-# Loop over each accession
-while read -r ACC; do
-    echo "==> Processing $ACC ..."
-
-    # Skip download if SRA file already exists
-    if [ -f "$SRADIR/$ACC.sra" ]; then
-        echo "SRA file $ACC.sra already exists, skipping prefetch."
-    else
-        echo "Downloading $ACC.sra ..."
-        prefetch --max-size 100G "$ACC"
-    fi
-
-    # Skip conversion if FASTQ already exists
-    if ls "$OUTDIR"/${ACC}*.fastq.gz 1> /dev/null 2>&1; then
-        echo "FASTQ for $ACC already exists, skipping fasterq-dump."
-    else
-        # Convert to FASTQ (split paired-end reads)
-        fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"
-
-        # Compress FASTQ files
-        if command -v pigz &> /dev/null; then
-            pigz -p "$THREADS" "$OUTDIR"/${ACC}*.fastq
-        else
-            gzip "$OUTDIR"/${ACC}*.fastq
-        fi
-    fi
-
-    # Optional: remove SRA file after successful FASTQ creation
-    if ls "$OUTDIR"/${ACC}*.fastq.gz 1> /dev/null 2>&1; then
-        rm -f "$SRADIR/$ACC.sra"
-    fi
-
-    echo "==> Completed $ACC"
-    echo
-done < "$RUNS"
-
-echo "🎉 All downloads and conversions completed!"
-```
-
-Run your script in the background with nohup
-
-Save all output and errors to run.log.
-
-Keep it running even if you close the terminal.
 ```bash
 nohup bash download_sra.sh > run.log 2>&1 &
 ```
-To check progress:
+Check the progress of your download
 ```bash
 tail -f run.log
 ```
-#To see if it’s still running:
+Check if the script is still running
 ```bash
 ps aux | grep download_sra.sh
 ```
 
-Checking if all of my fastq.gz file will pair correctly with out problem
-Change directory into the working directory
+
+# 🧬 FASTQ Pair Checking and Download Workflow for MTB WGS
+
+This guide demonstrates how to:
+
+1. Check that all your FASTQ files are correctly paired.
+2. Download *Mycobacterium tuberculosis* raw sequencing data using **SRA Explorer** or **SRA Toolkit / ENA**.
+3. Run the download scripts in the background for large datasets.
+
+---
+
+## Initial Notes
+
+Before starting, make sure you have:
+
+- `sra-tools` installed (`prefetch`, `fasterq-dump`, `esearch`, `efetch`)
+- `pigz` for parallel compression (optional, but recommended for large files)
+- Enough disk space for raw and compressed FASTQ files
+- Access to your working directory for downloads
+
+---
+
+## 1️⃣ Checking FASTQ Pairing
+
+Ensure all FASTQ files are correctly paired before running any trimming or analysis.
+
+##### Step 1: Change directory into your working directory
 ```bash
 cd ~/Genomics_project/TB/fastq_data/f_invio
 ```
-
-1.  Open nano to create a new script
+##### Step 2: Create the script
 ```bash
 nano check_fastq_pairs.sh
 ```
-2. Paste this inside nano
+##### Step 3: Paste the following into `check_fastq_pairs.sh`
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -397,18 +329,19 @@ else
     echo "✅ All FASTQ files are correctly paired."
 fi
 ```
-
-
-Make the script executable
+##### Step 4: Make the script executable
 ```bash
 chmod +x check_fastq_pairs.sh
 ```
-# 5️⃣ Run the script
+##### Step 5: Run the script
 ```bash
 ./check_fastq_pairs.sh
 ```
+> **Tip:** Ensure all R1/R2 naming conventions in your directory match the patterns used in the script.  
+> You can adjust the patterns (`*_1.fastq.gz`, `*_R1.fastq.gz`, etc.) if needed.
 
-### Calculating Minimum, Maximum, and Average Read Lengths for Paired-End Reads
+
+# 2️⃣Calculating Minimum, Maximum, and Average Read Lengths for Paired-End Reads
 
 Before performing any downstream bioinformatics analysis, it is important to understand the quality and characteristics of your sequencing data. One key metric is the **read length** of your FASTQ files. 
 
@@ -426,11 +359,11 @@ By summarizing read lengths in a **CSV file**, you can quickly inspect your data
 
 ---
 
-1️⃣ **Open nano to create a new script**
+##### Step 1:  Open nano to create a new script
 ```bash
 nano fastq_read_length_summary.sh
 ```
-2️⃣ Paste the following code into nano
+##### Step 2: Paste the following code into nano
 
 ```bash
 #!/bin/bash
@@ -471,26 +404,50 @@ done
 echo "✅ Read length summary saved to $OUTPUT_CSV"
 ```
 
-3️⃣ Save and exit nano
+##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
 Press Ctrl + X → Exit nano
-4️⃣ Make the script executable
+##### Step 4: Make the script executable
 ```bash
 chmod +x fastq_read_length_summary.sh
 ```
-5️⃣ Run the script
+##### Step 5: Run the script
 ```bash
 ./fastq_read_length_summary.sh
 ```
 
 
-# FASTP 
+# 3️⃣ FASTP – Quality Control and Trimming
 
-1. Open nano and create the script
+[`fastp`](https://github.com/OpenGene/fastp) is a widely used **FASTQ preprocessor** for quality control (QC), read trimming, and adapter removal. It is efficient, multithreaded, and provides both **JSON and HTML reports** for each sample.  
+In this pipeline, `fastp` is used to ensure that only **high-quality reads** are retained before mapping and variant calling.  
+High-quality read preprocessing is crucial in *Mycobacterium tuberculosis* (TB) whole-genome sequencing (WGS) analysis. Poorly trimmed or unfiltered reads can lead to:
+- False-positive SNP calls
+- Mapping errors, especially in repetitive regions (e.g., PE/PPE genes)
+- Biased coverage, affecting downstream variant interpretation
+
+### Advantages of fastp over Trimmomatic and other tools
+- **All-in-one solution**: Unlike Trimmomatic (which often requires extra tools for QC reports), `fastp` handles trimming, adapter detection, filtering, and QC in a single step.  
+- **Automatic adapter detection**: No need to manually supply adapter sequences, which reduces human error. This is especially helpful for large TB projects with mixed sequencing batches.  
+- **Speed and multithreading**: `fastp` is written in C++ and is **much faster** than Trimmomatic (Java-based), making it well-suited for high-throughput TB datasets.  
+- **Comprehensive QC output**: Generates both HTML (interactive) and JSON (machine-readable) reports, giving insights into quality distribution, duplication rates, adapter content, and polyG/polyX tails.  
+- **Better polyG/polyX handling**: Important for Illumina NovaSeq/NextSeq data (common in TB studies), where artificial polyG tails are a known issue.  
+- **UMI (Unique Molecular Identifier) support**: Useful in advanced TB sequencing protocols where UMIs are used for error correction.  
+- **Minimal parameter tuning**: Default settings are optimized and generally require fewer manual adjustments than Trimmomatic, reducing complexity in standardized pipelines.  
+
+### Why this matters for TB analysis
+- **Accurate SNP calling**: TB drug-resistance prediction relies on high-confidence SNPs; poor-quality reads increase false positives.  
+- **Low genetic diversity detection**: TB isolates often differ by only a handful of SNPs. Retaining true biological variants while filtering sequencing errors is critical.  
+- **Scalability for large cohorts**: Public datasets (e.g., thousands of TB isolates from ENA/NCBI) require efficient, reproducible, and automated preprocessing — a role where `fastp` excels.  
+---
+
+### Steps to Run FASTP
+
+##### Step 1: **Open nano to create the script**
 ```bash
 nano run_fastp.sh
 ```
-2. Paste this inside nano
+##### Step 2: Paste the following code into nano
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -575,24 +532,38 @@ export OUTDIR FASTP_THREADS
 printf "%s\n" "${SAMPLES[@]}" | parallel -j 3 --colsep ',' run_fastp {1} {2} {3}
 
 echo "🎉 Completed fastp for $(ls "$OUTDIR"/*_fastp.json | wc -l) samples."
-
 ```
-3. Save & exit nano
-
-    Press CTRL+O, Enter (save)
-
-    Press CTRL+X (exit)
- 4. Make the script executable
+##### Step 3: Save & exit nano
+Press CTRL+O, Enter (save)
+Press CTRL+X (exit)
+##### Step 4: Make the script executable
 ```bash
 chmod +x run_fastp.sh
 ```
- 5. Activate your conda env and run
+##### Step 5: Activate your conda env and run
 ```bash
 conda activate fastp_env
 ./run_fastp.sh
 ```
-# MultiQC
-run MultiQC on all the files inside fastp_results directory, saving the report into a folder called multiqc_output.
+
+# 4️⃣ MultiQC
+
+After preprocessing with `fastp`, we often end up with dozens or even hundreds of per-sample QC reports (`.html` and `.json`). Instead of checking each report manually, **MultiQC** allows us to aggregate all results into a single interactive HTML report.  
+
+### Why we use MultiQC in TB analysis
+- **Aggregated QC overview**: Summarizes all `fastp` results in one place.  
+- **Consistency check**: Helps us quickly detect outlier samples (e.g., unusually short reads, poor quality, or failed trimming).  
+- **Scalable**: Works seamlessly for hundreds or thousands of TB isolates.  
+- **Standardized reporting**: Essential for sharing results across teams or publications.  
+
+---
+
+### Script: Run MultiQC
+##### Step 1: **Open nano to create the script `run_multiqc.sh`
+```bash
+nano run_multiqc.sh
+```
+##### Step 2: Paste the following code into nano
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -601,118 +572,37 @@ INPUT_DIR="fastp_results_min_50"
 OUTPUT_DIR="multiqc_output"
 
 mkdir -p "$OUTPUT_DIR"
-
 multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"
 ```
-
-# SNIPPY
+##### Step 3: Save & exit nano
+Press CTRL+O, Enter (save)
+Press CTRL+X (exit)
+##### Step 4: Make the script executable
 ```bash
-1. Open nano to create the script
+chmod +x run_multiqc.sh
 ```
+##### Step 5: Activate your conda env and run
+```bash
+conda activate multiqc_env
+./run_multiqc.sh
+```
+
+
+# 5️⃣ Snippy
+
+`Snippy` is a rapid variant calling and consensus generation pipeline designed for bacterial genomes.  
+In **tuberculosis genomics**, Snippy is particularly useful because:  
+- It maps reads directly to a reference genome (e.g., *M. tuberculosis* H37Rv).  
+- It calls SNPs and produces high-quality consensus FASTA sequences.  
+- It is reproducible and lightweight, making it ideal for large TB WGS datasets.  
+- Outputs are standardized and easily used for downstream tools (phylogenetics, TBProfiler, etc.).  
+
+---
+
+### Step 1: Create the script
+```bash
 nano run_snippy.sh
 
-2. Paste this inside nano:
-```bash
-#!/bin/bash
-set -euo pipefail
-
-# ======== CONFIG ========
-REF="H37Rv.fasta"
-FASTP_DIR="fastp_results_min_70"
-OUTDIR="snippy_results"
-THREADS=8         # threads *inside* each Snippy job
-BWA_THREADS=30
-JOBS=4            # how many samples to run at once
-# ========================
-
-mkdir -p "$OUTDIR"
-
-# Function: run snippy for a single sample
-run_snippy_sample() {
-    SAMPLE="$1"
-    R1="${FASTP_DIR}/${SAMPLE}_1.trim.fastq.gz"
-    R2="${FASTP_DIR}/${SAMPLE}_2.trim.fastq.gz"
-
-    if [[ -f "$R1" && -f "$R2" ]]; then
-        echo "Running snippy on sample: $SAMPLE"
-        TMP_DIR="${OUTDIR}/${SAMPLE}_tmp"
-        mkdir -p "$TMP_DIR"
-
-        snippy --cpus "$THREADS" --outdir "$TMP_DIR" --ref "$REF" \
-               --R1 "$R1" --R2 "$R2" --force --bwaopt "-T $BWA_THREADS"
-
-        # Rename and move outputs
-        for f in "$TMP_DIR"/*; do
-            base=$(basename "$f")
-            case "$base" in
-                snps.vcf) newname="${SAMPLE}.snps.vcf" ;;
-                snps.tab) newname="${SAMPLE}.snps.tab" ;;
-                consensus.fa) newname="${SAMPLE}.consensus.fa" ;;
-                *.bam) newname="${SAMPLE}.bam" ;;
-                *.bam.bai) newname="${SAMPLE}.bam.bai" ;;
-                *) continue ;;
-            esac
-            mv "$f" "${OUTDIR}/${newname}"
-        done
-
-        rm -rf "$TMP_DIR"
-
-        if [[ -f "${OUTDIR}/${SAMPLE}.snps.vcf" ]]; then
-            echo "✅ VCF generated for $SAMPLE"
-        else
-            echo "⚠ No VCF produced for $SAMPLE"
-        fi
-    else
-        echo "⚠ Missing R1/R2 for $SAMPLE"
-    fi
-}
-
-export -f run_snippy_sample
-export REF FASTP_DIR OUTDIR THREADS BWA_THREADS
-
-# Run samples in parallel
-ls "${FASTP_DIR}"/*_1.trim.fastq.gz \
-    | sed 's|.*/||; s/_1\.trim\.fastq\.gz//' \
-    | parallel -j "$JOBS" run_snippy_sample {}
-
-# Step 2: Verification
-echo "Verifying completeness..."
-ls "${FASTP_DIR}"/*_1.trim.fastq.gz \
-    | sed 's|.*/||; s/_1\.trim\.fastq\.gz//' | sort > fastq_samples.txt
-ls "${OUTDIR}"/*.snps.vcf 2>/dev/null \
-    | sed 's|.*/||; s/\.snps\.vcf//' | sort > snippy_samples.txt
-
-echo "FASTQ pairs count: $(wc -l < fastq_samples.txt)"
-echo "Snippy outputs count: $(wc -l < snippy_samples.txt)"
-
-if diff fastq_samples.txt snippy_samples.txt >/dev/null; then
-    echo "✅ All FASTQ pairs have corresponding Snippy results."
-else
-    echo "⚠ Missing samples detected:"
-    diff fastq_samples.txt snippy_samples.txt || true
-fi
-
-rm -f fastq_samples.txt snippy_samples.txt
-
-echo "🎯 All steps completed!"
-echo "Snippy results are in: ${OUTDIR}/"
-
-```
- 3. Save and exit nano
-
-    Press Ctrl + O, then Enter
-
-    Press Ctrl + X
-
-4. Make it executable:
-```bash
-chmod +x run_snippy.sh
-```
- 5. Activate your Snippy environment and run:
-```bash
-conda activate snippy_env
-./run_snippy.sh
-```
 
 # qualimap BAM QC
 
