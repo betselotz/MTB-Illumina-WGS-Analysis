@@ -782,6 +782,7 @@ multiqc qualimap_reports -o multiqc_report
 
 # 8️⃣ TB Variant Filter
 The **tb_variant_filter** tool is a specialized filtering framework designed for **Mycobacterium tuberculosis (M. tb)** sequencing data. Unlike generic variant filtering tools (e.g., GATK VariantFiltration, bcftools filter), this tool leverages TB-specific genomic features and known problematic regions of the **H37Rv reference genome** to ensure only **high-confidence variants** are kept for downstream analysis.
+
 ---
 ## ✨ Why Filtering is Important
 Raw variant calls from Snippy (or any variant caller) often include:
