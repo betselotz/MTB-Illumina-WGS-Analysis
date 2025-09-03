@@ -990,11 +990,16 @@ conda activate tb_consensus_env
 ./generate_consensus_all.sh
 ```
 
+# 11️⃣ Check Consensus FASTA Lengths
 
+After generating consensus sequences, it's important to **verify the genome length** for each sample.  
+This ensures no sequences are truncated or incomplete due to missing coverage or filtering.
 
+---
 
-check the length of each consensus FASTA using seqkit, bioawk, or even awk/grep. 
-1️⃣ Using grep and wc
+### Using `grep` and `wc`
+We can remove the FASTA headers and count the remaining nucleotides to get the total genome length:
+
 ```bash
 for f in consensus_sequences/*.fasta; do
     sample=$(basename "$f")
@@ -1004,35 +1009,34 @@ for f in consensus_sequences/*.fasta; do
 done
 ```
 
-# MAFFT
-MAFFT v7.490 does not accept multiple input files on the command line. It expects a single FASTA file containing all sequences. Passing multiple paths causes it to think the filenames are options.
+# 12️⃣ Multiple Sequence Alignment with MAFFT
 
-The correct approach is to merge all consensus FASTAs into one file, then run MAFFT on that single file.
-Step 1: Merge all consensus FASTAs
+MAFFT v7.490 requires **a single FASTA file** as input.  
+It **cannot take multiple FASTA files** on the command line directly, otherwise it interprets filenames as options.
+
+---
+
+##### Step 1: Merge all consensus FASTAs
+Combine all individual consensus sequences into one multi-FASTA file:
+
 ```bash
 cat consensus_sequences/*.fasta > consensus_sequences/all_consensus.fasta
 ```
-Step 2: Run MAFFT
+##### Step 2: Run MAFFT
+Perform multiple sequence alignment on the merged file:
 ```bash
 mafft --auto --reorder --thread -1 consensus_sequences/all_consensus.fasta > consensus_sequences/aligned_consensus.fasta
 ```
- Step 3: Verify
+
+##### Step 3: Verify the alignment
+Quickly inspect the top of the aligned FASTA:
 ```bash
 head consensus_sequences/aligned_consensus.fasta
 ```
 
 
 
-
-
-
-
-
-
-
-
-
-📖 References
+# 📖 References
 
 WHO. Catalogue of mutations in MTBC and their association with drug resistance, 2nd ed, 2023.
 
