@@ -1018,8 +1018,13 @@ This ensures no sequences are truncated or incomplete due to missing coverage or
 
 ---
 
+### 📏 Calculating Consensus Genome Lengths
+
+We can check the length of each consensus FASTA sequence to ensure completeness and consistency.  
+This helps verify that consensus sequences cover the full *M. tuberculosis* genome (~4.4 Mbp) and can reveal missing regions.
+
 ### Using `grep` and `wc`
-We can remove the FASTA headers and count the remaining nucleotides to get the total genome length:
+We remove the FASTA headers (`>` lines) and count the remaining nucleotides to get the total genome length:
 
 ```bash
 for f in consensus_sequences/*.fasta; do
@@ -1028,6 +1033,31 @@ for f in consensus_sequences/*.fasta; do
     length=$(grep -v ">" "$f" | tr -d '\n' | wc -c)
     echo "$sample : $length bp"
 done
+```
+
+to save the result in csv file 
+```bash
+#!/bin/bash
+
+# Directory with consensus FASTAs
+FASTA_DIR="consensus_sequences"
+
+# Output CSV file
+OUTPUT_CSV="consensus_lengths.csv"
+
+# Write CSV header
+echo "Sample,Length_bp" > "$OUTPUT_CSV"
+
+# Loop over FASTA files
+for f in "$FASTA_DIR"/*.fasta; do
+    sample=$(basename "$f" .fasta)
+    # Remove header lines and count nucleotides
+    length=$(grep -v ">" "$f" | tr -d '\n' | wc -c)
+    # Append to CSV
+    echo "$sample,$length" >> "$OUTPUT_CSV"
+done
+
+echo "✅ Consensus genome lengths saved to $OUTPUT_CSV"
 ```
 
 ### rename all consensus FASTA files
