@@ -1062,9 +1062,15 @@ echo "✅ Consensus genome lengths saved to $OUTPUT_CSV"
 
 ### rename all consensus FASTA files
 ```bash
-for f in *.snps.filtered.consensus.fasta; do
+#!/bin/bash
+# Rename all consensus FASTA files in consensus_sequences
+FASTA_DIR="consensus_sequences"
+
+for f in "$FASTA_DIR"/*.snps.filtered.consensus.fasta; do
     mv "$f" "${f/.snps.filtered.consensus/}"
 done
+
+echo "✅ All consensus FASTA files have been renamed."
 ```
 
 
