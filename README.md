@@ -862,18 +862,36 @@ chmod +x run_tb_variant_filter.sh
 conda activate tb_variant_filter_env
 ./run_tb_variant_filter.sh
 ```
+# 9️⃣ TB-Profiler from FASTQ Files
 
-# 9️⃣ TB-Profiler from fastq Files
+---
+
+**TB-Profiler** is a specialized bioinformatics tool designed for *Mycobacterium tuberculosis* whole-genome sequencing (WGS) data.  
+It performs **variant calling, lineage determination, and drug resistance prediction** in a single streamlined pipeline.  
+
+### Why we use TB-Profiler in our workflow
+- 🧪 **Drug Resistance Prediction** → Screens for known resistance mutations against both first- and second-line TB drugs.  
+- 🌍 **Lineage Typing** → Classifies isolates into globally recognized TB lineages (e.g., Lineage 1–7).  
+- 🔄 **Flexible Input** → Accepts FASTQ, BAM, or VCF files depending on our analysis stage.  
+- 📊 **Clear Outputs** → Generates both human-readable reports (`.txt`) and structured machine-readable files (`.json`).  
+- ⚡ **Speed & Integration** → Built on efficient tools like `bcftools` and integrates easily into TB genomics pipelines.  
+
+### Why it matters
+- Provides **actionable insights for public health**: drug resistance, lineage distribution, and outbreak tracking.  
+- Avoids the need to manually cross-reference mutations with multiple TB resistance databases.  
+- Standardized and widely adopted in the TB research community, making our results **comparable across studies**.  
 
 
 ---
 
-## steps 
+## Steps
+
 ##### Step 1: Create or edit the script
 ```bash
-nano run_tbprofiler_on_snippy_bams.sh
+nano run_tbprofiler.sh
 ```
 ##### Step 2: Paste the following code
+```bash
 #!/bin/bash
 set -euo pipefail
 
@@ -905,15 +923,18 @@ done
 
 echo "🎯 All tb-profiler runs completed. Results saved in $OUTDIR"
 ```
-##### Step 4: Make the script executable
+
+##### Step 3: Make the script executable
 ```bash
-chmod +x run_tbprofiler_on_snippy_bams.sh
+chmod +x run_tbprofiler.sh
 ```
-##### Step 5: Activate environment and run
+##### Step 4: Activate environment and run
 ```bash
 conda activate tbprofiler_env
-./run_tbprofiler_on_snippy_bams.sh
+./run_tbprofiler.sh
 ```
+
+
 # 10️⃣ BCFTools Consensus Generation
 
 After filtering VCFs with **tb_variant_filter**, we generate **sample-specific consensus sequences**.  
