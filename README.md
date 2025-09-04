@@ -1011,7 +1011,7 @@ conda activate tb_consensus_env
 ./generate_consensus_all.sh
 ```
 
-# 11️⃣ Check Consensus FASTA Lengths
+# 1️⃣1️⃣ Check Consensus FASTA Lengths
 
 After generating consensus sequences, it's important to **verify the genome length** for each sample.  
 This ensures no sequences are truncated or incomplete due to missing coverage or filtering.
@@ -1089,7 +1089,7 @@ done
 echo "🎉 All FASTA headers have been successfully updated."
 ```
 
-# 12️⃣ Multiple Sequence Alignment with MAFFT
+# 1️⃣2️⃣ Multiple Sequence Alignment with MAFFT
 
 MAFFT v7.490 requires **a single FASTA file** as input.  
 It **cannot take multiple FASTA files** on the command line directly, otherwise it interprets filenames as options.
