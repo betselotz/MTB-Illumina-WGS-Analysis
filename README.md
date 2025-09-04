@@ -1030,6 +1030,14 @@ for f in consensus_sequences/*.fasta; do
 done
 ```
 
+### rename all consensus FASTA files
+```bash
+for f in *.snps.filtered.consensus.fasta; do
+    mv "$f" "${f/.snps.filtered.consensus/}"
+done
+```
+
+
 # 12️⃣ Multiple Sequence Alignment with MAFFT
 
 MAFFT v7.490 requires **a single FASTA file** as input.  
