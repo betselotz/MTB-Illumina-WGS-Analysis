@@ -1060,31 +1060,34 @@ done
 echo "✅ Consensus genome lengths saved to $OUTPUT_CSV"
 ```
 
-### rename the files and also update the FASTA headers inside each file
+### Rename the FASTA files
+
+```bash
 #!/bin/bash
-# Rename all consensus FASTA files and update headers inside the FASTA
+# Rename all consensus FASTA files in consensus_sequences
 FASTA_DIR="consensus_sequences"
 
 for f in "$FASTA_DIR"/*.snps.filtered.consensus.fasta; do
-    # Extract new filename
-    new_f="${f/.snps.filtered.consensus/}"
-
-    # Extract sample name for FASTA header
-    sample=$(basename "$new_f" .fasta)
-
-    # Update header inside FASTA and write to temporary file
-    awk -v s="$sample" 'BEGIN{OFS=""} /^>/{print ">" s; next} {print}' "$f" > "${new_f}.tmp"
-
-    # Replace original file with updated file
-    mv "${new_f}.tmp" "$new_f"
-
-    echo "✅ Renamed file and updated header: $(basename "$new_f")"
+    mv "$f" "${f/.snps.filtered.consensus/}"
 done
 
-echo "🎉 All FASTA files and headers have been successfully renamed."
-
+echo "✅ All consensus FASTA files have been renamed."
 ```
 
+###  Update headers inside the FASTA files
+```bash
+#!/bin/bash
+# Update headers inside the renamed FASTA files
+FASTA_DIR="consensus_sequences"
+
+for f in "$FASTA_DIR"/*.fasta; do
+    sample=$(basename "$f" .fasta)
+    awk -v s="$sample" '/^>/{print ">" s; next} {print}' "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"
+    echo "✅ Updated header in: $(basename "$f")"
+done
+
+echo "🎉 All FASTA headers have been successfully updated."
+```
 
 # 12️⃣ Multiple Sequence Alignment with MAFFT
 
