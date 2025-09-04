@@ -757,9 +757,13 @@ Press Ctrl + X (exit)
 ```bash
 chmod +x run_qualimap.sh
 ```
-##### Step 5: Activate environment and run
+##### Step 5: Activate environment and install GNU Parallel into your `qualimap_env`:
 ```bash
 conda activate qualimap_env
+conda install -c conda-forge parallel
+```
+##### Step 6: run:
+```bash
 ./run_qualimap.sh
 ```
 
