@@ -863,28 +863,9 @@ conda activate tb_variant_filter_env
 ./run_tb_variant_filter.sh
 ```
 
-# 9️⃣ TB-Profiler from BAM Files
+# 9️⃣ TB-Profiler from fastq Files
 
-After variant calling and BAM QC, we can run **TB-Profiler** directly on the BAM files produced by Snippy. This approach is efficient and specifically tailored for *Mycobacterium tuberculosis* genomic analysis.
 
-## Why we run TB-Profiler from BAM files
-
-1. **Avoids re-processing raw FASTQ**  
-   - BAM files already contain reads mapped to the reference genome.  
-   - Running TB-Profiler from BAM saves time and computational resources, especially in **large-scale projects**.  
-2. **Preserves alignment information**  
-   - BAM files retain **mapping quality, coverage, and paired-read context**, which improves the accuracy of **variant calling and drug-resistance prediction**.  
-3. **Efficient for high-throughput pipelines**  
-   - When analyzing hundreds or thousands of isolates, this method **scales better** than starting from raw FASTQ files.  
-4. **Direct lineage and resistance profiling**  
-   - TB-Profiler can predict:  
-     - **Lineage and sublineage**  
-     - **Spoligotype patterns**  
-     - **Drug-resistance mutations** (first- and second-line drugs)  
-   - All from a single, processed BAM file.  
-5. **Integration with QC and filtering steps**  
-   - Using BAM files **after Snippy and tb_variant_filter** ensures only high-quality, confidently mapped variants are analyzed.  
-   - Reduces false positives from low-quality or misaligned reads.
 ---
 
 ## steps 
@@ -893,22 +874,36 @@ After variant calling and BAM QC, we can run **TB-Profiler** directly on the BAM
 nano run_tbprofiler_on_snippy_bams.sh
 ```
 ##### Step 2: Paste the following code
-```bash
 #!/bin/bash
 set -euo pipefail
 
-BAM_DIR="snippy_results"
+# ======== CONFIG ========
+FASTQ_DIR="raw_data"          # directory containing fastq.gz files
+OUTDIR="tbprofiler_results"
+# ========================
 
-for bam in "$BAM_DIR"/*.bam; do
-    sample=$(basename "$bam" .bam)
-    echo "Processing sample: $sample"
+mkdir -p "$OUTDIR"
 
-    # Run tb-profiler profile with spoligotype and TXT output
+# Loop over all R1 FASTQs
+for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do
+    SAMPLE=$(basename "$R1" _1.fastq.gz)
+    R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"
+
+    if [[ ! -f "$R2" ]]; then
+        echo "❌ Missing pair for $SAMPLE (no $R2)"
+        continue
+    fi
+
+    echo "Processing sample: $SAMPLE"
+
     tb-profiler profile \
-        --bam "$bam" \
-        --prefix "$sample" \
+        --read1 "$R1" \
+        --read2 "$R2" \
+        --prefix "$OUTDIR/$SAMPLE" \
         --txt
 done
+
+echo "🎯 All tb-profiler runs completed. Results saved in $OUTDIR"
 ```
 ##### Step 4: Make the script executable
 ```bash
