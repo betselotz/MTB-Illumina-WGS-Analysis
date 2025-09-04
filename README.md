@@ -1060,17 +1060,31 @@ done
 echo "✅ Consensus genome lengths saved to $OUTPUT_CSV"
 ```
 
-### rename all consensus FASTA files
+### rename the files and also update the FASTA headers inside each file
 ```bash
 #!/bin/bash
-# Rename all consensus FASTA files in consensus_sequences
+# Rename all consensus FASTA files and update headers inside the FASTA
 FASTA_DIR="consensus_sequences"
 
 for f in "$FASTA_DIR"/*.snps.filtered.consensus.fasta; do
-    mv "$f" "${f/.snps.filtered.consensus/}"
+    # Extract new filename
+    new_f="${f/.snps.filtered.consensus/}"
+    
+    # Extract sample name for FASTA header
+    sample=$(basename "$new_f" .fasta)
+    
+    # Update header inside FASTA and save to temp file
+    awk -v s="$sample" '/^>/{print ">"s; next}{print}' "$f" > "${new_f}.tmp"
+    
+    # Replace original file with updated file
+    mv "${new_f}.tmp" "$new_f"
+    
+    # Rename file itself
+    echo "Renamed and updated headers: $(basename "$new_f")"
 done
 
-echo "✅ All consensus FASTA files have been renamed."
+echo "✅ All consensus FASTA files and headers have been renamed."
+
 ```
 
 
