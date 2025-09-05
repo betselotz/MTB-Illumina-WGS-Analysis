@@ -857,11 +857,11 @@ done
 echo "✅ All VCFs filtered and saved in $OUTDIR"
 ```
 
-##### Step 4: Make the script executable
+##### Step 3: Make the script executable
 ```bash
 chmod +x run_tb_variant_filter.sh
 ```
-##### Step 5: Activate environment and run
+##### Step 4: Activate environment and run
 ```bash
 conda activate tb_variant_filter_env
 ./run_tb_variant_filter.sh
@@ -1226,24 +1226,98 @@ Counted how many contigs we have
 grep -c ">" ./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
 ```
 
-###  Assembly Evaluation
+To get contig name, length, coverage from the FASTA headers:
+```bash
+grep ">" ./shovill_results/ET1135_S12/ET1135_S12_contigs.fa | \
+awk -F'[ =]' '{print $1, $2, $3, $4, $5}'
+```
+#  Assembly Evaluation
 
-Before downstream analyses, it is important to verify the quality of the assembled genome.
+Before downstream analyses, it is important to verify the quality of the assembled genome. This ensures reliable results in variant calling, consensus generation, and phylogenetic analyses.
+### 1. Quick assembly stats using `stats.sh`
 
-#### 1. Quick assembly stats using `stats.sh`
+The `stats.sh` script from BBMap provides basic assembly statistics such as total length, N50, number of contigs, and GC content.
+###### Activate the environment
+```bash
+conda activate bbmap_env
+```
+###### Run stats.sh to Verify Installation
+```bash
+stats.sh
+```
 
+######  run `stats.sh`
 ```bash
 stats.sh in=./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
 ```
+> **Tip:** This command will display key statistics including:
+> 
+> - Total bases
+> - Number of contigs
+> - Minimum, maximum, and N50 contig lengths
+> - GC content
 
-#### 2. Using seqkit to explore assembly
-##### List available seqkit modules
-``` bash
-module avail seqkit
+
+loop over multiple assemblies:
+```bash
+for f in ./shovill_results/*/*_contigs.fa; do
+    stats.sh in="$f"
+done
 ```
-###### Load seqkit
+script that will loop over all contig FASTA files, run stats.sh from BBMap, and save the results to a CSV file:
+##### Step 1: Create or edit the script
+```bash
+nano run_assembly_stats.sh
+```
+##### Step 2: Paste the following into the script
+```bash
+#!/bin/bash
+# Script to generate assembly statistics for all contig FASTA files and save to CSV
+
+# Directory containing contig FASTA files
+CONTIG_DIR="./shovill_results"
+
+# Output CSV file
+OUTPUT_CSV="assembly_stats.csv"
+
+# Initialize CSV with header
+echo "Sample,Total_Bases,Num_Contigs,Min_Contig,Max_Contig,N50,GC_Content" > "$OUTPUT_CSV"
+
+# Loop over all contig FASTA files
+for f in "$CONTIG_DIR"/*/*_contigs.fa; do
+    sample=$(basename "$f" _contigs.fa)
+    
+    # Run stats.sh and extract fields
+    stats_output=$(stats.sh in="$f" format=tsv 2>/dev/null | tail -n 1)
+    
+    # stats.sh TSV format: total,bases,numContigs,min,max,N50,avg,GC,...
+    total=$(echo "$stats_output" | cut -f1)
+    num=$(echo "$stats_output" | cut -f3)
+    min=$(echo "$stats_output" | cut -f4)
+    max=$(echo "$stats_output" | cut -f5)
+    n50=$(echo "$stats_output" | cut -f6)
+    gc=$(echo "$stats_output" | cut -f8)
+    
+    # Append to CSV
+    echo "$sample,$total,$num,$min,$max,$n50,$gc" >> "$OUTPUT_CSV"
+done
+
+echo "✅ Assembly stats saved to $OUTPUT_CSV"
+```
+###### Step 3: Make the script executable
 ``` bash
-module load seqkit/0.11.0 
+chmod +x run_assembly_stats.sh
+```
+###### Step 4: Activate environment and run
+``` bash
+conda activate bbmap_env
+./run_assembly_stats.sh
+```
+
+### 2. Using seqkit to explore assembly
+###### Activate the environment
+``` bash
+conda activate seqkit_env
 ```
 ###### Display help
 ``` bash
@@ -1253,16 +1327,78 @@ seqkit -h
 ``` bash
 seqkit fx2tab -nl ./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
 ```
-We can use another tool assembly-scan to generate summary statistics of the assembly.
+### run QUAST on all Shovill assemblies
+Collect the key statistics in a single CSV file
+##### Step 1: Create the script
+```bash
+nano run_seqkit_on_shovill.sh
+```
+#####  Step 2: Paste the following into `run_seqkit_on_shovill.sh`
+
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+# Directories
+SHOVILL_DIR="shovill_results"
+QUAST_DIR="quast_results"
+mkdir -p "$QUAST_DIR"
+
+# CSV output
+CSV_FILE="quast_summary.csv"
+echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CSV_FILE"
+
+# Loop over all samples
+for sample_out in "$SHOVILL_DIR"/*; do
+  [[ -d "$sample_out" ]] || continue
+
+  sample=$(basename "$sample_out")
+  contigs=$(ls "$sample_out"/*_contigs.fa 2>/dev/null | head -n 1)
+  if [[ -z "$contigs" ]]; then
+    echo ">> Skipping $sample (no contigs found)" >&2
+    continue
+  fi
+
+  # Output folder for QUAST
+  outdir="$QUAST_DIR/$sample"
+  mkdir -p "$outdir"
+
+  echo "==> Running QUAST on sample: $sample"
+  quast "$contigs" -o "$outdir" --csv
+
+  # Extract statistics from QUAST CSV
+  stats_file="$outdir/report.tsv"
+  if [[ -f "$stats_file" ]]; then
+    # QUAST tsv has header, take the second line
+    stats=$(sed -n '2p' "$stats_file" | tr '\t' ',')
+    echo "${sample},${stats}" >> "$CSV_FILE"
+  else
+    echo ">> Warning: QUAST report missing for $sample" >&2
+  fi
+done
+
+echo "✅ All QUAST stats saved in $CSV_FILE"
+```
+
+##### Step 3: Make the script executable
+```bash
+chmod +x run_seqkit_on_shovill.sh
+```
+##### Step 4: Activate environment and run
+```bash
+conda activate tbprofiler_env
+./run_seqkit_on_shovill.sh
+```
 
 #### 3. Assembly summary with assembly-scan
-######  List available modules
+We can use another tool assembly-scan to generate summary statistics of the assembly.
+###### Activate the environment
 ``` bash
-module avail assembly-scan
+conda activate assembly_scan_env
 ```
-######  Load assembly-scan
+###### Verify the Installation
 ``` bash
-module load assembly-scan/1.0.0
+assembly-scan --version
 ```
 ######  Generate summary statistics
 ``` bash
