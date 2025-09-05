@@ -1114,6 +1114,62 @@ Quickly inspect the top of the aligned FASTA:
 head consensus_sequences/aligned_consensus.fasta
 ```
 
+# Shovill
+```bash
+#!/bin/bash
+set -euo pipefail
+
+INPUT_DIR="fastp_results_min_50"
+OUTDIR="shovill_results"
+mkdir -p "$OUTDIR"
+
+# Genome size: Mycobacterium tuberculosis H37Rv (~4.41 Mb)
+GSIZE=4411532
+
+shopt -s nullglob
+for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
+  [[ -e "$R1" ]] || continue
+
+  # Guess R2 name
+  R2="${R1/_1.trim.fastq.gz/_2.trim.fastq.gz}"
+
+  if [[ ! -f "$R2" ]]; then
+    echo ">> Skipping $(basename "$R1") (no matching R2 found)" >&2
+    continue
+  fi
+
+  sample=$(basename "$R1" _1.trim.fastq.gz)
+  sample_out="$OUTDIR/$sample"
+
+  echo "==> Running Shovill on: $sample"
+  mkdir -p "$sample_out"
+
+  shovill \
+    --R1 "$R1" \
+    --R2 "$R2" \
+    --gsize "$GSIZE" \
+    --outdir "$sample_out" \
+    --assembler skesa \
+    --minlen 500 \
+    --mincov 5 \
+    --depth 100 \
+    --namefmt "${sample}_%05d" \
+    --cpus 4 \
+    --ram 16 \
+    --tmpdir "${TMPDIR:-/tmp}" \
+    --force
+
+  echo "==> Renaming output files in: $sample_out"
+  # Rename all files inside output directory by prefixing with sample name
+  for f in "$sample_out"/*; do
+    base=$(basename "$f")
+    mv "$f" "$sample_out/${sample}_$base"
+  done
+done
+
+```
+
+
 
 
 # 📖 References
