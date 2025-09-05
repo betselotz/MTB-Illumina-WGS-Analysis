@@ -1212,6 +1212,83 @@ done
 ```
 
 
+### Checking the output
+View large files page by page
+```bash
+less shovill_results/ET1135_S12/ET1135_S12_contigs.fa
+```
+View the firt ten lines
+```bash
+head -n 20 shovill_results/ET1135_S12/ET1135_S12_contigs.fa
+```
+Counted how many contigs we have
+```bash
+grep -c ">" ./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
+```
+
+###  Assembly Evaluation
+
+Before downstream analyses, it is important to verify the quality of the assembled genome.
+
+#### 1. Quick assembly stats using `stats.sh`
+
+```bash
+stats.sh in=./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
+```
+
+#### 2. Using seqkit to explore assembly
+##### List available seqkit modules
+``` bash
+module avail seqkit
+```
+###### Load seqkit
+``` bash
+module load seqkit/0.11.0 
+```
+###### Display help
+``` bash
+seqkit -h
+```
+###### Convert FASTA to tab-delimited table (sequence length and name)
+``` bash
+seqkit fx2tab -nl ./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
+```
+We can use another tool assembly-scan to generate summary statistics of the assembly.
+
+#### 3. Assembly summary with assembly-scan
+######  List available modules
+``` bash
+module avail assembly-scan
+```
+######  Load assembly-scan
+``` bash
+module load assembly-scan/1.0.0
+```
+######  Generate summary statistics
+``` bash
+assembly-scan ./shovill_results/ET1135_S12/ET1135_S12_contigs.fa \
+  --transpose \
+  | tee ./shovill_results/ET1135_S12/ET1135_S12-assembly-scan.tsv
+```
+##### 4. Compute GC content from assembly-scan output
+``` bash
+grep 'contig_percent_[cg]' \
+  ./shovill_results/ET1135_S12/ET1135_S12-assembly-scan.tsv \
+  | awk -F '\t' '{sum+=$3} END {print "GC%=",sum}'
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 # 📖 References
 
 WHO. Catalogue of mutations in MTBC and their association with drug resistance, 2nd ed, 2023.
