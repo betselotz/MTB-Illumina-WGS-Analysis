@@ -1168,8 +1168,48 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
 done
 
 ```
+# Prokka
+```bash
+#!/bin/bash
+set -euo pipefail
 
+# Directory containing Shovill results
+SHOVILL_DIR="shovill_results"
+# Directory to store Prokka outputs
+PROKKA_DIR="prokka_results"
+mkdir -p "$PROKKA_DIR"
 
+# Loop over all sample directories
+for sample_out in "$SHOVILL_DIR"/*; do
+  [[ -d "$sample_out" ]] || continue
+
+  # Get sample name from directory
+  sample=$(basename "$sample_out")
+
+  # Find the contigs file
+  contigs=$(ls "$sample_out"/*_contigs.fa 2>/dev/null | head -n 1)
+  if [[ -z "$contigs" ]]; then
+    echo ">> Skipping $sample (no contigs.fa found)" >&2
+    continue
+  fi
+
+  echo "==> Running Prokka on sample: $sample"
+
+  # Output directory for Prokka
+  outdir="$PROKKA_DIR/$sample"
+  mkdir -p "$outdir"
+
+  # Run Prokka
+  prokka \
+    --outdir "$outdir" \
+    --prefix "$sample" \
+    --kingdom Bacteria \
+    --genus Mycobacterium \
+    --species tuberculosis \
+    --cpus 4 \
+    "$contigs"
+done
+```
 
 
 # 📖 References
