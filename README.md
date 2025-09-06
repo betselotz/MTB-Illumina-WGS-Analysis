@@ -199,49 +199,27 @@ Once `runs.txt` is ready, create a download script:
 nano download_sra.sh
 ```
 Paste the following into the file:
-
 ```bash
 #!/bin/bash
 set -euo pipefail
-
 THREADS=4
-OUTDIR="fastq_files"
-mkdir -p "$OUTDIR"
+OUTDIR="fastq_files"; mkdir -p "$OUTDIR"
 RUNS="SRR_Acc_List.txt"
 SRADIR=~/ncbi/public/sra
 
 while read -r ACC; do
-    echo "==> Processing $ACC ..."
-
-    if [ -f "$SRADIR/$ACC.sra" ]; then
-        echo "SRA file $ACC.sra already exists, skipping prefetch."
+    echo "📥 $ACC"
+    [ -f "$SRADIR/$ACC.sra" ] && echo "✅ exists" || { echo "⬇️ downloading"; prefetch --max-size 100G "$ACC"; }
+    if ! ls "$OUTDIR"/${ACC}*.fastq.gz 1>/dev/null 2>&1; then
+        echo "⚡ converting"; fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"
+        command -v pigz &>/dev/null && pigz -p "$THREADS" "$OUTDIR"/${ACC}*.fastq || gzip "$OUTDIR"/${ACC}*.fastq
     else
-        echo "Downloading $ACC.sra ..."
-        prefetch --max-size 100G "$ACC"
+        echo "✅ FASTQ exists"
     fi
-
-    if ls "$OUTDIR"/${ACC}*.fastq.gz 1> /dev/null 2>&1; then
-        echo "FASTQ for $ACC already exists, skipping fasterq-dump."
-    else
-        fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"
-
-        if command -v pigz &> /dev/null; then
-            pigz -p "$THREADS" "$OUTDIR"/${ACC}*.fastq
-        else
-            gzip "$OUTDIR"/${ACC}*.fastq
-        fi
-    fi
-
-    if ls "$OUTDIR"/${ACC}*.fastq.gz 1> /dev/null 2>&1; then
-        rm -f "$SRADIR/$ACC.sra"
-    fi
-
-    echo "==> Completed $ACC"
-    echo
+    ls "$OUTDIR"/${ACC}*.fastq.gz 1>/dev/null 2>&1 && rm -f "$SRADIR/$ACC.sra"
+    echo "🎯 done"
 done < "$RUNS"
-
-echo "🎉 All downloads and conversions completed!"
-
+echo "🎉 All done!"
 ```
 
 <details>
@@ -254,14 +232,15 @@ echo "🎉 All downloads and conversions completed!"
 - `RUNS="SRR_Acc_List.txt"` → Text file listing SRA accession numbers.  
 - `SRADIR=~/ncbi/public/sra` → Default location for `prefetch` downloads.  
 - `while read -r ACC; do ... done < "$RUNS"` → Loops over each accession.  
-- `if [ -f "$SRADIR/$ACC.sra" ]; then ... fi` → Skips download if SRA exists; otherwise uses `prefetch`.  
-- `if ls "$OUTDIR"/${ACC}*.fastq.gz ...` → Skips conversion if FASTQs already exist.  
+- `[ -f "$SRADIR/$ACC.sra" ] && ... || ...` → Skips download if SRA exists; otherwise uses `prefetch`.  
+- `if ! ls "$OUTDIR"/${ACC}*.fastq.gz 1>/dev/null 2>&1; then ... fi` → Converts SRA to FASTQ only if not already present.  
 - `fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"` → Converts SRA to paired-end FASTQ using multiple threads.  
 - Compression: uses `pigz` (multi-threaded gzip) if available, else falls back to `gzip`.  
 - `rm -f "$SRADIR/$ACC.sra"` → Removes original SRA file after successful FASTQ creation.  
 - `echo` statements → Provide progress updates for each accession.  
 
 </details>
+
 
 
 > **Tips for large-scale projects:**
@@ -361,97 +340,28 @@ done
 
 echo "🎉 All done! Read counts saved to '$OUTFILE'"
 ```
-# 📊 FASTQ Read Count Script – Explanations
-
-This guide explains a **bash script** that counts reads in paired-end FASTQ files and outputs a CSV.  
-It is useful for **quality checks** before trimming, mapping, or variant calling.
-
----
 
 <details>
-<summary>📂 <strong>Input Directory & Output CSV</strong></summary>
+<summary>📊 FASTQ Read Count Script Explanation</summary>
 
-We define the **input directory** containing all raw FASTQ files and the **output CSV file** to save the read counts.  
+- `#!/bin/bash` → Runs the script using Bash.  
+- `set -euo pipefail` → Exits on errors, unset variables, or failed commands.  
+- `INDIR="raw_data"` → Directory containing input FASTQ files.  
+- `OUTFILE="fastq_read_counts.csv"` → CSV file to store read counts.  
+- `echo "Sample,R1_reads,R2_reads" > "$OUTFILE"` → Creates CSV header.  
+- `echo "📊 Counting reads in FASTQ files from '$INDIR'..."` → Prints starting message.  
+- `for R1 in "$INDIR"/*_1.fastq.gz "$INDIR"/*_R1.fastq.gz; do ... done` → Loops through all R1 FASTQ files.  
+- `[[ -f "$R1" ]] || continue` → Skips if the R1 file does not exist.  
+- `SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.fastq\.gz//')` → Extracts sample name from file name.  
+- `for suffix in "_2.fastq.gz" "_R2.fastq.gz" "_R2_*.fastq.gz"; do ... done` → Finds corresponding R2 file if it exists.  
+- `R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))` → Counts reads in R1 by dividing total lines by 4.  
+- `R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")` → Counts reads in R2 if present; else "NA".  
+- `echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTFILE"` → Appends counts to CSV file.  
+- `echo "✅ $SAMPLE → R1: $R1_COUNT | R2: $R2_COUNT"` → Prints progress for each sample.  
+- `echo "🎉 All done! Read counts saved to '$OUTFILE'"` → Prints completion message.  
 
-💡 **Tip:** Updating these variables is enough to point the script to a different dataset.
 </details>
 
-<details>
-<summary>📝 <strong>Initialize CSV File</strong></summary>
-
-The script creates the CSV file and writes **column headers**:  
-
-- `Sample` → Name of the sample  
-- `R1_reads` → Number of reads in R1  
-- `R2_reads` → Number of reads in R2  
-
-✨ This ensures the output is **well-formatted** and ready for downstream analysis.
-</details>
-
-<details>
-<summary>🔄 <strong>Loop Over R1 FASTQ Files</strong></summary>
-
-We iterate over all **R1 FASTQ files** in the input directory.  
-
-Supported naming conventions:  
-- `_1.fastq.gz`  
-- `_R1.fastq.gz`  
-
-Any missing files are automatically **skipped** to prevent errors.
-</details>
-
-<details>
-<summary>🧬 <strong>Extract Sample Name</strong></summary>
-
-For each R1 file, we derive the **sample name** by removing the `_R1` or `_1` suffix and any extra extensions.  
-
-🎯 This ensures correct pairing of R1 and R2, even with different naming conventions.
-</details>
-
-<details>
-<summary>🔍 <strong>Find Corresponding R2 File</strong></summary>
-
-For each sample, we search for the **matching R2 FASTQ file** using patterns:  
-
-- `_2.fastq.gz`  
-- `_R2.fastq.gz`  
-- `_R2_*.fastq.gz`  
-
-If no R2 is found, it is set to `NA`, allowing **partial datasets** to be processed.
-</details>
-
-<details>
-<summary>📏 <strong>Count Reads</strong></summary>
-
-The number of reads is calculated by dividing **the total number of lines by 4**, since each read in a FASTQ file consists of 4 lines.  
-
-- R1 count → `R1_COUNT`  
-- R2 count → `R2_COUNT` (or `NA` if missing)  
-
-⚡ This provides a quick overview of sequencing depth per sample.
-</details>
-
-<details>
-<summary>💾 <strong>Write Results to CSV</strong></summary>
-
-After counting, we append each sample’s read counts to the CSV file. ✅
-
-✨ Result: A **complete table of read counts** for all FASTQ files.
-</details>
-
-<details>
-<summary>✅ <strong>Finish</strong></summary>
-
-Once all samples are processed, the script prints a confirmation message:  
-
-> "✅ Read counts saved to fastq_read_counts.csv"
-
-This ensures we know the script ran **successfully**.
-</details>
-
----
-
-💡 **Tip:** We can combine this CSV with downstream QC tools or visualization in R/Python to **quickly assess sequencing consistency** across samples.
 
 ##### Step 3: Make the script executable
 ```bash
@@ -462,15 +372,24 @@ chmod +x count_reads.sh
 ./count_reads.sh
 ```
 
-
-
 ### 3. Base composition
+R1
 ```bash
-# R1
-zcat raw_data/ET3_S55_1.fastq.gz | sed -n '2~4p' | fold -w1 | sort | uniq -c
-# R2
-zcat raw_data/ET3_S55_2.fastq.gz | sed -n '2~4p' | fold -w1 | sort | uniq -c
+zcat raw_data/ET3_S55_1.fastq.gz | sed -n '2~4p' | fold -w1 | sort | uniq -czcat raw_data/ET3_S55_1.fastq.gz | awk 'NR%4==2 {
+    for(i=1;i<=length($0);i++) b[substr($0,i,1)]++
+} END {
+    for(base in b) print base, b[base]
+}'
 ```
+R2
+```bash
+zcat raw_data/ET3_S55_2.fastq.gz | awk 'NR%4==2 {
+    for(i=1;i<=length($0);i++) b[substr($0,i,1)]++
+} END {
+    for(base in b) print base, b[base]
+}'
+```
+
 ### 4. Quality score summary
 ```bash
 # First 10 quality lines
@@ -481,12 +400,8 @@ zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | head -n 10
 zcat raw_data/ET3_S55_1.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
 zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
 ```
-### 5. Extract reads with a motif
-```bash
-# Example: "ATG" motif in R1
-zcat raw_data/ET3_S55_1.fastq.gz | paste - - - - | grep "ATG" | tr '\t' '\n'
-```
-### 6. Quick paired-end summary
+
+### 5. Quick paired-end summary
 ```bash
 R1="raw_data/ET3_S55_1.fastq.gz"
 R2="raw_data/ET3_S55_2.fastq.gz"
@@ -496,7 +411,7 @@ echo "R1 reads: $(zcat "$R1" | echo $(( $(wc -l)/4 )))"
 echo "R2 reads: $(zcat "$R2" | echo $(( $(wc -l)/4 )))"
 ```
 
-###   Checking FASTQ Pairing 
+### 6.   Checking FASTQ Pairing 
 
 Ensure all FASTQ files are correctly paired before running any trimming or analysis.
 
@@ -514,10 +429,7 @@ nano check_fastq_pairs.sh
 set -euo pipefail
 
 INDIR="raw_data"
-
-if [[ "$(basename "$PWD")" != "raw_data" ]]; then
-    cd "$INDIR" || { echo "❌ raw_data directory not found"; exit 1; }
-fi
+[[ "$(basename "$PWD")" != "raw_data" ]] && cd "$INDIR" || { echo "❌ raw_data directory not found"; exit 1; }
 
 echo "🔍 Checking FASTQ pairings in $PWD ..."
 
@@ -527,14 +439,8 @@ TOTAL_COUNT=0
 
 for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do
     [[ -f "$R1" ]] || continue
-
     TOTAL_COUNT=$((TOTAL_COUNT+1))
-
-    SAMPLE=${R1%_1.fastq.gz}
-    SAMPLE=${SAMPLE%_R1.fastq.gz}
-    SAMPLE=${SAMPLE%_R1_*.fastq.gz}
-    SAMPLE=${SAMPLE%_001.fastq.gz}
-    SAMPLE=${SAMPLE%_R1_001.fastq.gz}
+    SAMPLE=${R1%_1.fastq.gz}; SAMPLE=${SAMPLE%_R1.fastq.gz}; SAMPLE=${SAMPLE%_R1_*.fastq.gz}; SAMPLE=${SAMPLE%_001.fastq.gz}; SAMPLE=${SAMPLE%_R1_001.fastq.gz}
 
     if [[ -f "${SAMPLE}_2.fastq.gz" || -f "${SAMPLE}_R2.fastq.gz" || -f "${SAMPLE}_R2_*.fastq.gz" || -f "${SAMPLE}_002.fastq.gz" ]]; then
         echo "✅ $SAMPLE — paired"
@@ -547,43 +453,29 @@ done
 
 echo -e "\nTotal samples checked: $TOTAL_COUNT"
 echo "Correctly paired samples: $PAIRED_COUNT"
-
-if [ "$MISSING" = true ]; then
-    echo "⚠ Some samples are missing pairs. Fix before running fastp."
-else
-    echo "✅ All FASTQ files are correctly paired."
-fi
-
+$MISSING && echo "⚠ Some samples are missing pairs. Fix before running fastp." || echo "✅ All FASTQ files are correctly paired."
 ```
 <details>
-<summary>🔹 FASTQ Pairing Check Script: Quick Line-by-Line Guide</summary>
+<summary>🔗 FASTQ Pairing Check Script Explanation</summary>
 
-| Line | Purpose |
-|------|---------|
-| `#!/bin/bash` | 🐚 Run with Bash |
-| `set -euo pipefail` | ⚡ Exit on error, unset vars, or pipe failure |
-| `INDIR="raw_data"` | 📁 Input folder |
-| `if [[ "$(basename "$PWD")" != "raw_data" ]]; then cd "$INDIR" || exit 1; fi` | 🔄 Move to `raw_data` or exit if missing |
-| `echo "🔍 Checking FASTQ pairings..."` | 🖨 Start message |
-| `MISSING=false` | 🚨 Track missing R2 |
-| `PAIRED_COUNT=0` | ✅ Count paired samples |
-| `TOTAL_COUNT=0` | 📊 Count total R1 files |
-| `for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do` | 🔎 Loop through R1 files |
-| `[[ -f "$R1" ]] || continue` | ⏭ Skip if file missing |
-| `TOTAL_COUNT=$((TOTAL_COUNT+1))` | ➕ Increment total |
-| `SAMPLE=...` | ✂ Extract base sample name |
-| `if [[ -f "${SAMPLE}_2.fastq.gz" || ... ]]; then` | 🔍 Check for corresponding R2 |
-| `echo "✅ $SAMPLE — paired"` | 🎉 Print paired |
-| `PAIRED_COUNT=$((PAIRED_COUNT+1))` | ➕ Increment paired count |
-| `echo "❌ $SAMPLE — missing R2 file"` | ⚠ Print missing R2 |
-| `MISSING=true` | 🚨 Mark missing |
-| `echo -e "\nTotal samples checked: $TOTAL_COUNT"` | 📊 Show total |
-| `echo "Correctly paired samples: $PAIRED_COUNT"` | ✅ Show paired count |
-| `if [ "$MISSING" = true ]; then ... else ... fi` | ⚠ Warn if missing, ✅ confirm all paired |
+- `#!/bin/bash` → Runs the script using Bash.  
+- `set -euo pipefail` → Exits on errors, unset variables, or failed commands.  
+- `INDIR="raw_data"` → Directory containing the FASTQ files.  
+- `[[ "$(basename "$PWD")" != "raw_data" ]] && cd "$INDIR" ...` → Changes to `raw_data` directory if not already there.  
+- `MISSING=false` → Flag to track if any R2 files are missing.  
+- `PAIRED_COUNT=0` / `TOTAL_COUNT=0` → Counters for paired samples and total samples checked.  
+- `for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do ... done` → Loops over all R1 FASTQ files.  
+- `[[ -f "$R1" ]] || continue` → Skips if the file does not exist.  
+- `SAMPLE=...` → Strips common R1 suffixes to extract the sample name.  
+- `if [[ -f "${SAMPLE}_2.fastq.gz" || ... ]]; then ... fi` → Checks if a corresponding R2 file exists.  
+- `echo "✅ $SAMPLE — paired"` → Prints a message if the pair is found.  
+- `echo "❌ $SAMPLE — missing R2 file"` → Prints a message if the pair is missing and sets `MISSING=true`.  
+- `TOTAL_COUNT` and `PAIRED_COUNT` → Track the total and successfully paired samples.  
+- Final messages:  
+  - `⚠ Some samples are missing pairs` → Warns user if any R2 files are missing.  
+  - `✅ All FASTQ files are correctly paired` → Confirms all samples are paired.  
 
 </details>
-
-
 
 ##### Step 4: Make the script executable
 ```bash
