@@ -1141,6 +1141,12 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
   sample=$(basename "$R1" _1.trim.fastq.gz)
   sample_out="$OUTDIR/$sample"
 
+  # Skip if assembly already exists (check contigs file)
+  if [[ -f "$sample_out/${sample}_contigs.fa" ]]; then
+    echo ">> Skipping $sample (already assembled)"
+    continue
+  fi
+
   echo "==> Running Shovill on: $sample"
   mkdir -p "$sample_out"
 
@@ -1160,12 +1166,8 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
     --force
 
   echo "==> Renaming output files in: $sample_out"
-  # Rename all files inside output directory by prefixing with sample name
-  for f in "$sample_out"/*; do
-    base=$(basename "$f")
-    mv "$f" "$sample_out/${sample}_$base"
-  done
-done
+  # Rename all files inside output directory by prefixing with sample na
+
 
 ```
 
