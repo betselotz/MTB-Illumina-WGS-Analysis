@@ -871,9 +871,11 @@ Count R1 trimmed files
 ls -lth fastp_results_min_50/*_1.trim.fastq.gz | wc -l
 ```
 ```bash
-ls fastp_results_min_50/*_2.trim.fastq.gz | wc -l
+ls -lth fastp_results_min_50/*_2.trim.fastq.gz | wc -l
 ```
+
 View first 10 quality lines in trimmed FASTQ
+
 ```bash
 zcat fastp_results_min_50/ET3_S55_1.trim.fastq.gz | sed -n '4~4p' | head -n 10
 zcat fastp_results_min_50/ET3_S55_2.trim.fastq.gz | sed -n '4~4p' | head -n 10
