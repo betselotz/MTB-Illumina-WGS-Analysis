@@ -866,6 +866,46 @@ conda activate fastp_env
 ./run_fastp.sh
 ```
 
+Count R1 trimmed files
+```bash
+ls -lth fastp_results_min_50/*_1.trim.fastq.gz | wc -l
+```
+```bash
+ls fastp_results_min_50/*_2.trim.fastq.gz | wc -l
+```
+View first 10 quality lines in trimmed FASTQ
+```bash
+zcat fastp_results_min_50/ET3_S55_1.trim.fastq.gz | sed -n '4~4p' | head -n 10
+zcat fastp_results_min_50/ET3_S55_2.trim.fastq.gz | sed -n '4~4p' | head -n 10
+```
+<details>
+  <summary>🔍 How it works</summary>
+
+- `zcat` → Decompresses the trimmed FASTQ.  
+- `sed -n '4~4p'` → Prints every 4th line starting from line 4 (the quality score line of each read).  
+- `head -n 10` → Shows the first 10 quality lines for quick inspection.  
+
+</details>
+
+Count ASCII characters in quality lines:
+```bash
+zcat fastp_results_min_50/ET3_S55_1.trim.fastq.gz | sed -n '4~4p' | \
+awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
+zcat fastp_results_min_50/ET3_S55_2.trim.fastq.gz | sed -n '4~4p' | \
+awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
+```
+<details>
+  <summary>🔢 How it works</summary>
+
+- `zcat` → Decompresses trimmed FASTQ.  
+- `sed -n '4~4p'` → Selects every 4th line (quality score line).  
+- `awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'` → Counts occurrences of each ASCII character in the quality scores.  
+
+This helps quickly identify if the quality encoding is correct (usually Phred+33 for Illumina) and whether trimming improved overall quality.
+
+</details>
+
+
 # 4️⃣ MultiQC
 
 <details>
