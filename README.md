@@ -309,7 +309,207 @@ Before starting, make sure you have:
 
 ---
 
+
 ## 1️⃣ Checking FASTQ Pairing
+###  FASTQ Visualization and Summary for ET3_S55
+
+This repository contains scripts and commands to **explore and summarize paired-end FASTQ files** for sample `ET3_S55` in a bioinformatically meaningful way.
+
+---
+
+### 1. Peek at the first few reads
+```bash
+zcat raw_data/ET3_S55_1.fastq.gz | head -n 16
+zcat raw_data/ET3_S55_2.fastq.gz | head -n 16
+```
+### 2. Count total reads
+For single sample
+```bash
+zcat raw_data/ET3_S55_1.fastq.gz | echo $(( $(wc -l)/4 ))
+zcat raw_data/ET3_S55_2.fastq.gz | echo $(( $(wc -l)/4 ))
+```
+For batch processing 
+##### Step 1: Open a new script
+```bash
+nano count_reads.sh
+```
+##### Step 2: Paste the following code
+```bash
+# FastQ Read Count Script
+
+This script counts reads in paired-end FASTQ files and saves results to a CSV.
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+INDIR="raw_data"
+OUTFILE="fastq_read_counts.csv"
+
+echo "Sample,R1_reads,R2_reads" > "$OUTFILE"
+
+for R1 in "$INDIR"/*_1.fastq.gz "$INDIR"/*_R1.fastq.gz; do
+    [[ -f "$R1" ]] || continue
+
+    SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.fastq\.gz//')
+
+    R2=""
+    for suffix in "_2.fastq.gz" "_R2.fastq.gz" "_R2_*.fastq.gz"; do
+        [[ -f "$INDIR/${SAMPLE}${suffix}" ]] && R2="$INDIR/${SAMPLE}${suffix}" && break
+    done
+
+    R1_COUNT=$(zcat "$R1" | wc -l)
+    R1_COUNT=$((R1_COUNT / 4))
+
+    if [[ -n "$R2" ]]; then
+        R2_COUNT=$(zcat "$R2" | wc -l)
+        R2_COUNT=$((R2_COUNT / 4))
+    else
+        R2_COUNT="NA"
+    fi
+
+    echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTFILE"
+done
+
+echo "✅ Read counts saved to $OUTFILE"
+
+```
+# 📊 FASTQ Read Count Script – Explanations
+
+This guide explains a **bash script** that counts reads in paired-end FASTQ files and outputs a CSV.  
+It is useful for **quality checks** before trimming, mapping, or variant calling.
+
+---
+
+<details>
+<summary>📂 <strong>Input Directory & Output CSV</strong></summary>
+
+We define the **input directory** containing all raw FASTQ files and the **output CSV file** to save the read counts.  
+
+💡 **Tip:** Updating these variables is enough to point the script to a different dataset.
+</details>
+
+<details>
+<summary>📝 <strong>Initialize CSV File</strong></summary>
+
+The script creates the CSV file and writes **column headers**:  
+
+- `Sample` → Name of the sample  
+- `R1_reads` → Number of reads in R1  
+- `R2_reads` → Number of reads in R2  
+
+✨ This ensures the output is **well-formatted** and ready for downstream analysis.
+</details>
+
+<details>
+<summary>🔄 <strong>Loop Over R1 FASTQ Files</strong></summary>
+
+We iterate over all **R1 FASTQ files** in the input directory.  
+
+Supported naming conventions:  
+- `_1.fastq.gz`  
+- `_R1.fastq.gz`  
+
+Any missing files are automatically **skipped** to prevent errors.
+</details>
+
+<details>
+<summary>🧬 <strong>Extract Sample Name</strong></summary>
+
+For each R1 file, we derive the **sample name** by removing the `_R1` or `_1` suffix and any extra extensions.  
+
+🎯 This ensures correct pairing of R1 and R2, even with different naming conventions.
+</details>
+
+<details>
+<summary>🔍 <strong>Find Corresponding R2 File</strong></summary>
+
+For each sample, we search for the **matching R2 FASTQ file** using patterns:  
+
+- `_2.fastq.gz`  
+- `_R2.fastq.gz`  
+- `_R2_*.fastq.gz`  
+
+If no R2 is found, it is set to `NA`, allowing **partial datasets** to be processed.
+</details>
+
+<details>
+<summary>📏 <strong>Count Reads</strong></summary>
+
+The number of reads is calculated by dividing **the total number of lines by 4**, since each read in a FASTQ file consists of 4 lines.  
+
+- R1 count → `R1_COUNT`  
+- R2 count → `R2_COUNT` (or `NA` if missing)  
+
+⚡ This provides a quick overview of sequencing depth per sample.
+</details>
+
+<details>
+<summary>💾 <strong>Write Results to CSV</strong></summary>
+
+After counting, we append each sample’s read counts to the CSV file. ✅
+
+✨ Result: A **complete table of read counts** for all FASTQ files.
+</details>
+
+<details>
+<summary>✅ <strong>Finish</strong></summary>
+
+Once all samples are processed, the script prints a confirmation message:  
+
+> "✅ Read counts saved to fastq_read_counts.csv"
+
+This ensures we know the script ran **successfully**.
+</details>
+
+---
+
+💡 **Tip:** We can combine this CSV with downstream QC tools or visualization in R/Python to **quickly assess sequencing consistency** across samples.
+
+##### Step 3: Make the script executable
+```bash
+chmod +x count_reads.sh
+```
+##### Step 4: Run the script
+```bash
+./count_reads.sh
+```
+
+
+
+### 3. Base composition
+```bash
+# R1
+zcat raw_data/ET3_S55_1.fastq.gz | sed -n '2~4p' | fold -w1 | sort | uniq -c
+# R2
+zcat raw_data/ET3_S55_2.fastq.gz | sed -n '2~4p' | fold -w1 | sort | uniq -c
+```
+### 4. Quality score summary
+```bash
+# First 10 quality lines
+zcat raw_data/ET3_S55_1.fastq.gz | sed -n '4~4p' | head -n 10
+zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | head -n 10
+
+# Count ASCII characters in quality lines
+zcat raw_data/ET3_S55_1.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
+zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
+```
+### 5. Extract reads with a motif
+```bash
+# Example: "ATG" motif in R1
+zcat raw_data/ET3_S55_1.fastq.gz | paste - - - - | grep "ATG" | tr '\t' '\n'
+```
+### 6. Quick paired-end summary
+```bash
+R1="raw_data/ET3_S55_1.fastq.gz"
+R2="raw_data/ET3_S55_2.fastq.gz"
+
+echo "Sample: ET3_S55"
+echo "R1 reads: $(zcat "$R1" | echo $(( $(wc -l)/4 )))"
+echo "R2 reads: $(zcat "$R2" | echo $(( $(wc -l)/4 )))"
+```
+
+###   Checking FASTQ Pairing 
 
 Ensure all FASTQ files are correctly paired before running any trimming or analysis.
 
