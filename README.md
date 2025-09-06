@@ -1522,6 +1522,18 @@ head consensus_sequences/aligned_consensus.fasta
 ```
 
 # Shovill
+Shovill is a fast and easy-to-use **bacterial genome assembler** designed for Illumina short-read data. It wraps around popular assemblers like **SPAdes** or **SKESA**, streamlining the process of genome assembly from paired-end reads.  
+
+Key points for TB genomes:
+
+- Optimized for **small bacterial genomes** (~4–5 Mb).  
+- Uses multiple threads for faster assembly (`--cpus`) and can manage RAM efficiently (`--ram`).  
+- Allows customization of **minimum contig length** (`--minlen`) and **coverage depth** (`--mincov` / `--depth`).  
+- Automatically renames output contigs for clarity and downstream analyses.  
+- Suitable for pipelines with **already trimmed FASTQ files** from fastp.  
+
+> ⚠ Note: Shovill is best used with **high-quality, paired-end Illumina reads**. Low-quality or highly fragmented data may require additional QC before assembly.
+
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -1854,9 +1866,24 @@ grep 'contig_percent_[cg]' \
   | awk -F '\t' '{sum+=$3} END {print "GC%=",sum}'
 ```
 
-
 # Prokka
+Prokka is a rapid **prokaryotic genome annotation tool** that predicts genes, coding sequences (CDS), rRNAs, tRNAs, and other genomic features from assembled contigs or genomes.  
+
+Key points for TB genomes:
+
+- Annotates **Mycobacterium tuberculosis** genomes with correct taxonomy using `--genus` and `--species`.  
+- Produces multiple output files, including **GFF3**, **FASTA of proteins**, and **GenBank format**, which are useful for downstream analysis.  
+- Supports **multi-threading** (`--cpus`) to speed up processing of multiple genomes.  
+- Works seamlessly with **Shovill-assembled contigs**.  
+- Output files are organized per sample directory with a consistent naming prefix for easy pipeline integration.  
+
+> ⚠ Note: Prokka relies on the quality of the assembly; fragmented or low-coverage assemblies may result in incomplete annotations.
+##### Step 1: Create or edit the script
 ```bash
+nano run_prokka.sh
+```
+##### Step 2: Paste the following into the script
+
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -1895,31 +1922,27 @@ done
 <details> <summary>Click to expand explanation</summary>
 
 SHOVILL_DIR="shovill_results" → directory containing Shovill assemblies.
-
 PROKKA_DIR="prokka_results" → directory to store Prokka annotation outputs.
-
 mkdir -p "$PROKKA_DIR" → ensures the Prokka results directory exists.
-
 for sample_out in "$SHOVILL_DIR"/*; do ... done → loops over each sample folder in Shovill results.
-
 [[ -d "$sample_out" ]] || continue → skips files, only process directories.
-
 sample=$(basename "$sample_out") → extracts sample name from directory.
-
 contigs=$(ls "$sample_out"/*_contigs.fa 2>/dev/null | head -n 1) → finds the contigs FASTA file.
-
 if [[ -z "$contigs" ]]; then ... fi → skip sample if no contigs found.
-
 outdir="$PROKKA_DIR/$sample" → creates a separate output directory per sample.
-
 mkdir -p "$outdir" → ensures the Prokka output directory exists.
-
 prokka --outdir "$outdir" --prefix "$sample" --kingdom Bacteria --genus Mycobacterium --species tuberculosis --cpus 4 "$contigs" → runs Prokka with TB-specific annotation settings and 4 CPUs.
-
 </details>
 
 
-
+###### Step 3: Make the script executable
+``` bash
+chmod +x run_prokka.sh
+```
+###### Step 4: Activate environment and run
+``` bash
+conda activate prokka_env
+./run_prokka.sh
 
 
 
