@@ -35,38 +35,45 @@ Written by: [**Betselot Zerihun Ayano**](https://github.com/betselotz)
 <details>
   <summary>🦠 MTBC Species Overview</summary>
 
-The **Mycobacterium tuberculosis complex (MTBC)** includes several closely related species:  
+The **Mycobacterium tuberculosis complex (MTBC)** consists of several genetically related species that cause tuberculosis in humans and animals:  
 
-- 🧍 **Mycobacterium tuberculosis** – main human pathogen  
-- 🐄 **Mycobacterium bovis** – primarily infects cattle, can cause zoonotic TB in humans  
-- 🌍 **Mycobacterium africanum** – restricted to West Africa, causes human TB  
-- 🌿 **Mycobacterium canettii** – rare, mostly in East Africa, ancestral-like strains  
-- 🐀 **Mycobacterium microti** – primarily infects voles, occasionally humans  
-- 🦭 **Mycobacterium pinnipedii** – infects seals, rarely humans  
-- 🐐 **Mycobacterium caprae** – mainly infects goats, occasionally humans  
+- 🧍 **Mycobacterium tuberculosis** – the primary human pathogen; responsible for the majority of TB cases globally; primarily infects the lungs but can cause extrapulmonary TB.  
+- 🐄 **Mycobacterium bovis** – mainly infects cattle; can cause zoonotic TB in humans through unpasteurized dairy or close contact; used in BCG vaccine derivation.  
+- 🌍 **Mycobacterium africanum** – largely restricted to West Africa; causes human TB; less virulent than *M. tuberculosis*, but important regionally.  
+- 🌿 **Mycobacterium canettii** – rare; mostly reported in East Africa; considered ancestral-like, showing higher genetic diversity; primarily human infections.  
+- 🐀 **Mycobacterium microti** – primarily infects wild rodents (voles); occasionally causes TB in humans; used in some experimental TB models.  
+- 🦭 **Mycobacterium pinnipedii** – infects seals and other pinnipeds; zoonotic infections are rare in humans.  
+- 🐐 **Mycobacterium caprae** – mainly infects goats and other livestock; can occasionally infect humans; prevalent in parts of Europe.  
+- 🐖 **Mycobacterium orygis** – infects various wild and domestic animals including antelopes, cattle, and occasionally humans; mainly reported in South Asia.  
+- 🐂 **Mycobacterium mungi** – infects banded mongooses in Africa; causes wildlife TB; rare human relevance.  
+- 🐘 **Mycobacterium suricattae** – infects meerkats in Southern Africa; wildlife pathogen with ecological importance.  
+- 🐏 **Mycobacterium caprae-like strains** – occasionally distinguished in livestock or wildlife; emphasizes host-adapted diversity within MTBC.  
+
+These species differ in **host preference, geographic distribution, virulence, and zoonotic potential**, highlighting the importance of genomic surveillance and comparative studies for TB control.  
 
 </details>
 
 ---  
 
 ### *M. tuberculosis* Lineages  
+
 <details>
   <summary>🌐 MTBC Lineages Overview</summary>
 
-Genomic studies have identified **10 major lineages** of MTBC based on SNPs and phylogeny:  
+Genomic studies have identified **10 major lineages** of MTBC based on SNPs, large sequence polymorphisms (LSPs), and phylogeny. These lineages show differences in **geographic distribution, host adaptation, virulence, and drug-resistance association**:  
 
-1. 🟢 **Lineage 1 (Indo-Oceanic)** – East Africa, India, Southeast Asia  
-2. 🔴 **Lineage 2 (East-Asian / Beijing)** – East Asia, often associated with drug resistance  
-3. 🔵 **Lineage 3 (East-African-Indian)** – South Asia, East Africa  
-4. 🟡 **Lineage 4 (Euro-American)** – Worldwide, highly prevalent  
-5. 🟣 **Lineage 5 (West African 1 / *M. africanum*)** – West Africa  
-6. 🟤 **Lineage 6 (West African 2 / *M. africanum*)** – West Africa  
-7. 🟠 **Lineage 7** – restricted to Ethiopia, ancient lineage with unique genomic markers  
-8. 🟣 **Lineage 8** – discovered in Rwanda and Uganda, deep-branching, highly ancestral  
-9. ⚫ **Lineage 9** – identified in East Africa, distinct SNP profile, rare  
-10. ⚪ **Lineage 10** – recently reported, limited information, potentially from East/Central Africa  
+1. 🟢 **Lineage 1 (Indo-Oceanic / EAI – East African-Indian)** – Predominantly found in East Africa, India, and Southeast Asia; associated with slow progression of disease in some regions.  
+2. 🔴 **Lineage 2 (East-Asian / Beijing)** – Widespread in East Asia and parts of Russia; often associated with multidrug resistance and high virulence.  
+3. 🔵 **Lineage 3 (East-African-Indian / CAS – Central Asian Strain)** – Found in South Asia and East Africa; linked to moderate transmission and some drug-resistance profiles.  
+4. 🟡 **Lineage 4 (Euro-American / LAM, Haarlem, X-type, T-type)** – Globally widespread; highly successful in transmission; includes multiple sublineages.  
+5. 🟣 **Lineage 5 (West African 1 / *M. africanum* type 1)** – Mostly restricted to West Africa; slower progression of TB; less virulent than L4.  
+6. 🟤 **Lineage 6 (West African 2 / *M. africanum* type 2)** – West Africa; similar epidemiology to Lineage 5; historically associated with specific ethnic populations.  
+7. 🟠 **Lineage 7** – Restricted to Ethiopia; ancient lineage with unique SNP markers; less studied, may have local host adaptation.  
+8. 🟣 **Lineage 8** – Discovered in Rwanda and Uganda; deep-branching, highly ancestral; limited prevalence, provides insight into MTBC evolution.  
+9. ⚫ **Lineage 9** – Identified in East Africa; rare; distinct SNP profile; contributes to regional TB genetic diversity.  
+10. ⚪ **Lineage 10** – Recently reported in East/Central Africa; very limited information; potentially ancestral lineage with unique genomic characteristics.  
 
-> Understanding MTBC species and lineages is critical for **epidemiology, phylogenetics, and drug-resistance surveillance**.
+> Understanding MTBC species and lineages is critical for **epidemiology, phylogenetics, outbreak tracing, and drug-resistance surveillance**, as different lineages can show varying transmission dynamics and treatment outcomes.
 
 </details>
 
@@ -76,18 +83,51 @@ Genomic studies have identified **10 major lineages** of MTBC based on SNPs and 
 
 <details>
   <summary>🔍 MTBC Sublineages</summary>
+*M. tuberculosis* lineages are further divided into **sublineages** based on phylogenetic SNP markers, large sequence polymorphisms, and other genomic signatures. Sublineages reflect **microevolution, genomic diversity, and lineage-specific traits**:  
 
-*M. tuberculosis* lineages are further divided into **sublineages** based on phylogenetic SNP markers:  
-
-- 🟢 **Lineage 1 (Indo-Oceanic):** L1.1, L1.2  
-- 🔴 **Lineage 2 (East-Asian / Beijing):** L2.1 (Proto-Beijing), L2.2 (Modern Beijing)  
-- 🔵 **Lineage 3 (East-African-Indian):** L3.1, L3.2  
-- 🟡 **Lineage 4 (Euro-American):** L4.1, L4.2, L4.3, L4.4, L4.5, etc.  
-- 🟣 **Lineage 5–10:** Mainly restricted to Africa, limited sublineage descriptions due to low prevalence and recent discovery  
-
-> Sublineages help in **tracking transmission chains, outbreak sources, and population structure**.
+- 🟢 **Lineage 1 (Indo-Oceanic / EAI – East African-Indian):**  
+  - Sublineages: L1.1, L1.2, L1.3  
+  - Also called “East African-Indian” sublineages  
+  - Show differences in SNP density, virulence markers, and drug-resistance loci  
+- 🔴 **Lineage 2 (East-Asian / Beijing):**  
+  - Sublineages: L2.1 (Proto-Beijing), L2.2 (Modern Beijing), L2.2.1, L2.2.2  
+  - “Beijing” sublineages have distinct genomic deletions, IS6110 insertion patterns, and higher mutation rates contributing to drug resistance  
+- 🔵 **Lineage 3 (East-African-Indian / CAS – Central Asian Strain):**  
+  - Sublineages: L3.1, L3.2, L3.3  
+  - Also called “CAS” strains  
+  - Genomic variation includes lineage-specific SNPs and polymorphic loci influencing host-pathogen interactions  
+- 🟡 **Lineage 4 (Euro-American / LAM, Haarlem, X-type, T-type):**  
+  - Sublineages: L4.1–L4.10 (includes LAM, Haarlem, X-type, T-type sublineages)  
+  - Exhibits high genomic diversity, including large sequence polymorphisms (LSPs) and sublineage-specific SNP clusters  
+  - Provides resolution for fine-scale phylogenetic studies and outbreak tracing  
+- 🟣 **Lineage 5 (West African 1 / *M. africanum* type 1):**  
+  - Sublineages: L5.1, L5.2 (where described)  
+  - Genomic differences include lineage-specific SNPs and regions of difference (RDs)  
+  - Less virulent than Lineage 4, with specific adaptation markers  
+- 🟤 **Lineage 6 (West African 2 / *M. africanum* type 2):**  
+  - Sublineages: L6.1, L6.2 (limited description)  
+  - Distinct SNP patterns and genomic deletions separate it from L5  
+  - Important for studying regional adaptation and genomic evolution  
+- 🟠 **Lineage 7:**  
+  - Ancient lineage restricted to Ethiopia  
+  - Unique SNP markers and genomic signatures distinguish it from other lineages  
+  - Limited sublineage information due to low prevalence  
+- 🟡 **Lineage 8:**  
+  - Deep-branching, recently discovered in Rwanda and Uganda  
+  - Shows ancestral genomic characteristics  
+  - Genomic diversity includes lineage-specific SNPs and RDs  
+- ⚫ **Lineage 9:**  
+  - Rare, identified in East Africa  
+  - Distinct SNP profile, showing microevolutionary divergence from other lineages  
+  - Limited sublineage information  
+- ⚪ **Lineage 10:**  
+  - Recently reported in East/Central Africa  
+  - Genomic features are ancestral with unique SNP and RD patterns  
+  - Very limited prevalence; data still emerging  
+> Sublineages capture **microevolutionary changes, genomic diversity, and lineage-specific features**, making them essential for high-resolution phylogenetics, drug-resistance studies, and molecular epidemiology.  
 
 </details>
+
 
 ---  
 
@@ -97,7 +137,7 @@ Genomic studies have identified **10 major lineages** of MTBC based on SNPs and 
 
 | Abbreviation | Full Name | Description |
 |-------------|-----------|-------------|
-| **HR-TB** | Isoniazid-Resistant TB | Resistant to **isoniazid** only |
+| **HR-TB** | Isoniazid-Resistant TB | Resistant to **isoniazid** but susceptible to **rifampicin**, with or without resistance to other drugs |
 | **RR-TB** | Rifampicin-Resistant TB | Resistant to **rifampicin**, with or without resistance to other drugs |
 | **MDR-TB** | Multidrug-Resistant TB | Resistant to **both isoniazid and rifampicin** |
 | **Pre-XDR-TB** | Pre-Extensively Drug-Resistant TB | MDR TB + resistance to **fluoroquinolone** or **second-line injectable** |
@@ -303,7 +343,7 @@ chmod +x download_sra.sh
 ```
 ### Running the Download Script in the Background
 
-To run your script in the background and keep it running even if you close the terminal, use `nohup`. All output and errors will be saved to `run.log`.
+To run our script in the background and keep it running even if we close the terminal, we can use `nohup`. All output and errors will be saved to `run.log`.
 
 ```bash
 nohup bash download_sra.sh > run.log 2>&1 &
