@@ -505,14 +505,13 @@ done
 
 
 ### 4. Quality score summary
+its good practice to quickly inspect base quality scores for the first few reads before full QC or analysis
+- We may spot unusual patterns in base quality that may indicate issues with the sequencing run.
 ```bash
  First 10 quality lines
 zcat raw_data/ET3_S55_1.fastq.gz | sed -n '4~4p' | head -n 10
 zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | head -n 10
 ```
-### 4. Inspect Quality Lines
-its good practice to quickly inspect base quality scores for the first few reads before full QC or analysis
-- We may spot unusual patterns in base quality that may indicate issues with the sequencing run.
 <details>
 <summary>🔍 View FASTQ Quality Scores</summary>
 
