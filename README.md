@@ -200,41 +200,55 @@ Paste the following into the file:
 #!/bin/bash
 set -euo pipefail
 THREADS=4
-OUTDIR="fastq_files"; mkdir -p "$OUTDIR"
+OUTDIR="raw_data"; mkdir -p "$OUTDIR"
 RUNS="SRR_Acc_List.txt"
 SRADIR=~/ncbi/public/sra
 
 while read -r ACC; do
     echo "📥 $ACC"
-    [ -f "$SRADIR/$ACC.sra" ] && echo "✅ exists" || { echo "⬇️ downloading"; prefetch --max-size 100G "$ACC"; }
-    if ! ls "$OUTDIR"/${ACC}*.fastq.gz 1>/dev/null 2>&1; then
-        echo "⚡ converting"; fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"
-        command -v pigz &>/dev/null && pigz -p "$THREADS" "$OUTDIR"/${ACC}*.fastq || gzip "$OUTDIR"/${ACC}*.fastq
-    else
-        echo "✅ FASTQ exists"
+
+    if ls "$OUTDIR"/${ACC}*.fastq.gz 1>/dev/null 2>&1; then
+        echo "✅ FASTQ already exists → skipping"
+        continue
     fi
-    ls "$OUTDIR"/${ACC}*.fastq.gz 1>/dev/null 2>&1 && rm -f "$SRADIR/$ACC.sra"
+
+    [ -f "$SRADIR/$ACC.sra" ] && echo "✅ SRA exists" || { echo "⬇️ downloading"; prefetch --max-size 100G "$ACC"; }
+
+    echo "⚡ converting"
+    fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"
+
+    command -v pigz &>/dev/null && pigz -p "$THREADS" "$OUTDIR"/${ACC}*.fastq || gzip "$OUTDIR"/${ACC}*.fastq
+
+    if ls "$OUTDIR"/${ACC}*.fastq.gz 1>/dev/null 2>&1; then
+        rm -f "$SRADIR/$ACC.sra"
+        echo "🗑️ removed $ACC.sra"
+    fi
+
     echo "🎯 done"
 done < "$RUNS"
+
 echo "🎉 All done!"
+
 ```
 
 <details>
-<summary>📥 FASTQ Download Script Explanation</summary>
+<summary>📥 FASTQ Download & Cleanup Script Explanation</summary>
 
-- `#!/bin/bash` → Runs the script using Bash.  
-- `set -euo pipefail` → Exits on errors, unset variables, or failed commands.  
-- `THREADS=4` → Number of CPU threads for `fasterq-dump` and `pigz`.  
-- `OUTDIR="fastq_files"` → Directory to store downloaded FASTQ files.  
-- `RUNS="SRR_Acc_List.txt"` → Text file listing SRA accession numbers.  
-- `SRADIR=~/ncbi/public/sra` → Default location for `prefetch` downloads.  
-- `while read -r ACC; do ... done < "$RUNS"` → Loops over each accession.  
-- `[ -f "$SRADIR/$ACC.sra" ] && ... || ...` → Skips download if SRA exists; otherwise uses `prefetch`.  
-- `if ! ls "$OUTDIR"/${ACC}*.fastq.gz 1>/dev/null 2>&1; then ... fi` → Converts SRA to FASTQ only if not already present.  
-- `fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"` → Converts SRA to paired-end FASTQ using multiple threads.  
-- Compression: uses `pigz` (multi-threaded gzip) if available, else falls back to `gzip`.  
-- `rm -f "$SRADIR/$ACC.sra"` → Removes original SRA file after successful FASTQ creation.  
-- `echo` statements → Provide progress updates for each accession.  
+- `#!/bin/bash` → Runs the script with Bash.  
+- `set -euo pipefail` → Stops on errors, unset variables, or pipeline failures.  
+- `THREADS=4` → Number of CPU threads for `fasterq-dump` and compression.  
+- `OUTDIR="raw_data"` → Directory where FASTQ files will be saved.  
+- `RUNS="SRR_Acc_List.txt"` → File listing SRA accession numbers.  
+- `SRADIR=~/ncbi/public/sra` → Default location where `prefetch` stores `.sra` files.  
+- `while read -r ACC; do ... done < "$RUNS"` → Loops through each accession ID.  
+- `if ls "$OUTDIR"/${ACC}*.fastq.gz ...` → Skips processing if FASTQ files already exist.  
+- `prefetch --max-size 100G "$ACC"` → Downloads `.sra` file only if not already present.  
+- `fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"` → Converts `.sra` to paired FASTQ files.  
+- Compression:  
+  - Uses `pigz` (parallel gzip) if installed.  
+  - Falls back to `gzip` otherwise.  
+- `if ls "$OUTDIR"/${ACC}*.fastq.gz ... rm -f "$SRADIR/$ACC.sra"` → Automatically deletes `.sra` file after confirming FASTQs were saved.  
+- `echo` messages → Provide status updates (`📥`, `✅`, `⚡`, `🎯`, `🎉`).  
 
 </details>
 
