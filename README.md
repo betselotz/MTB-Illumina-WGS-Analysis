@@ -1165,7 +1165,6 @@ conda activate tb_variant_filter_env
 ./run_tb_variant_filter.sh
 ```
 # 9️⃣ TB-Profiler from FASTQ Files
-
 ---
 
 **TB-Profiler** is a specialized bioinformatics tool designed for *Mycobacterium tuberculosis* whole-genome sequencing (WGS) data.  
@@ -1182,8 +1181,6 @@ It performs **variant calling, lineage determination, and drug resistance predic
 - Provides **actionable insights for public health**: drug resistance, lineage distribution, and outbreak tracking.  
 - Avoids the need to manually cross-reference mutations with multiple TB resistance databases.  
 - Standardized and widely adopted in the TB research community, making our results **comparable across studies**.  
-
-
 ---
 
 ## Steps
@@ -1412,7 +1409,7 @@ echo "✅ Consensus genome lengths saved to $OUTPUT_CSV"
 
 ```
 <details>
-<summary>Click to expand explanation</summary>
+<summary>📖 Explanation of the calculating consensus genome lengths calculation and saving the result in csv</summary>
 
 - `FASTA_DIR="consensus_sequences"` → sets the directory containing consensus FASTA files.  
 - `OUTPUT_CSV="consensus_lengths.csv"` → defines the CSV file to save lengths.  
@@ -1436,7 +1433,7 @@ done
 echo "✅ All consensus FASTA files have been renamed."
 
 ```
-<details> <summary>Click to expand explanation</summary>
+<details> <summary>📖 Explanation of rename the FASTA files</summary>
 
 FASTA_DIR="consensus_sequences" → sets the directory containing consensus FASTA files.
 
@@ -1461,7 +1458,7 @@ done
 echo "🎉 All FASTA headers have been successfully updated."
 ```
 <details> 
-<summary>Click to expand explanation</summary>
+<summary>📖 Explanation of rename headers inside the FASTA files</summary>
 
 - `FASTA_DIR="consensus_sequences"` → sets the directory containing FASTA files.
 
@@ -1579,7 +1576,7 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
   done
 done
 ```
-<details> <summary>Click to expand explanation</summary>
+<details> <summary>📖 Explanation of Shovill Pipeline Script</summary>
 
 INPUT_DIR="fastp_results_min_50" → directory with preprocessed FASTQ files.
 
