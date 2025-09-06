@@ -327,12 +327,21 @@ nano check_fastq_pairs.sh
 set -euo pipefail
 
 INDIR="raw_data"
-cd "$INDIR" || { echo "❌ raw_data directory not found"; exit 1; }
 
-echo "Sample Status"
+if [[ "$(basename "$PWD")" != "raw_data" ]]; then
+    cd "$INDIR" || { echo "❌ raw_data directory not found"; exit 1; }
+fi
+
+echo "🔍 Checking FASTQ pairings in $PWD ..."
+
+MISSING=false
+PAIRED_COUNT=0
+TOTAL_COUNT=0
 
 for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do
     [[ -f "$R1" ]] || continue
+
+    TOTAL_COUNT=$((TOTAL_COUNT+1))
 
     SAMPLE=${R1%_1.fastq.gz}
     SAMPLE=${SAMPLE%_R1.fastq.gz}
@@ -341,41 +350,49 @@ for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do
     SAMPLE=${SAMPLE%_R1_001.fastq.gz}
 
     if [[ -f "${SAMPLE}_2.fastq.gz" || -f "${SAMPLE}_R2.fastq.gz" || -f "${SAMPLE}_R2_*.fastq.gz" || -f "${SAMPLE}_002.fastq.gz" ]]; then
-        echo "$SAMPLE Paired"
+        echo "✅ $SAMPLE — paired"
+        PAIRED_COUNT=$((PAIRED_COUNT+1))
     else
-        echo "$SAMPLE Missing_R2"
+        echo "❌ $SAMPLE — missing R2 file"
+        MISSING=true
     fi
 done
 
-echo "✅ Pairing check completed."
+echo -e "\nTotal samples checked: $TOTAL_COUNT"
+echo "Correctly paired samples: $PAIRED_COUNT"
+
+if [ "$MISSING" = true ]; then
+    echo "⚠ Some samples are missing pairs. Fix before running fastp."
+else
+    echo "✅ All FASTQ files are correctly paired."
+fi
+
 ```
 <details>
-<summary>📖 Explanation of FASTQ Pairing Check Script</summary>
+<summary>🔹 FASTQ Pairing Check Script: Quick Line-by-Line Guide</summary>
 
-- `#!/bin/bash` → runs the script using Bash.  
-- `set -euo pipefail` → exits on errors, unset variables, or pipeline failures.  
-
-**Setup:**  
-- `INDIR="raw_data"` → directory containing raw FASTQ files.  
-- `cd "$INDIR" || { echo "❌ raw_data directory not found"; exit 1; }` → changes to the directory, exits if missing.  
-
-**Prepare output CSV:**  
-- `echo "Sample,Status" > pairing_summary.csv` → initializes CSV with header.  
-
-**Loop over R1 FASTQ files:**  
-- `for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do ... done` → loops over common R1 naming patterns.  
-- `[[ -f "$R1" ]] || continue` → skip if file does not exist.  
-
-**Extract sample name:**  
-- `SAMPLE=...` → strips different R1 suffixes (`_1.fastq.gz`, `_R1.fastq.gz`, `_R1_*.fastq.gz`, `_001.fastq.gz`) to get the base sample name.  
-
-**Check for paired R2 file:**  
-- `if [[ -f "${SAMPLE}_2.fastq.gz" || ... ]]; then ... else ... fi` → checks multiple naming conventions for corresponding R2 file.  
-- `echo "$SAMPLE,Paired" | tee -a pairing_summary.csv` → logs paired samples.  
-- `echo "$SAMPLE,Missing_R2" | tee -a pairing_summary.csv` → logs samples with missing R2.  
-
-**Completion message:**  
-- `echo "✅ Pairing check completed. See pairing_summary.csv for details."` → prints summary.
+| Line | Purpose |
+|------|---------|
+| `#!/bin/bash` | 🐚 Run with Bash |
+| `set -euo pipefail` | ⚡ Exit on error, unset vars, or pipe failure |
+| `INDIR="raw_data"` | 📁 Input folder |
+| `if [[ "$(basename "$PWD")" != "raw_data" ]]; then cd "$INDIR" || exit 1; fi` | 🔄 Move to `raw_data` or exit if missing |
+| `echo "🔍 Checking FASTQ pairings..."` | 🖨 Start message |
+| `MISSING=false` | 🚨 Track missing R2 |
+| `PAIRED_COUNT=0` | ✅ Count paired samples |
+| `TOTAL_COUNT=0` | 📊 Count total R1 files |
+| `for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do` | 🔎 Loop through R1 files |
+| `[[ -f "$R1" ]] || continue` | ⏭ Skip if file missing |
+| `TOTAL_COUNT=$((TOTAL_COUNT+1))` | ➕ Increment total |
+| `SAMPLE=...` | ✂ Extract base sample name |
+| `if [[ -f "${SAMPLE}_2.fastq.gz" || ... ]]; then` | 🔍 Check for corresponding R2 |
+| `echo "✅ $SAMPLE — paired"` | 🎉 Print paired |
+| `PAIRED_COUNT=$((PAIRED_COUNT+1))` | ➕ Increment paired count |
+| `echo "❌ $SAMPLE — missing R2 file"` | ⚠ Print missing R2 |
+| `MISSING=true` | 🚨 Mark missing |
+| `echo -e "\nTotal samples checked: $TOTAL_COUNT"` | 📊 Show total |
+| `echo "Correctly paired samples: $PAIRED_COUNT"` | ✅ Show paired count |
+| `if [ "$MISSING" = true ]; then ... else ... fi` | ⚠ Warn if missing, ✅ confirm all paired |
 
 </details>
 
