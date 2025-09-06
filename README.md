@@ -1385,6 +1385,11 @@ Key points for TB genomes:
 - Suitable for pipelines with **already trimmed FASTQ files** from fastp.  
 
 > ⚠ Note: Shovill is best used with **high-quality, paired-end Illumina reads**. Low-quality or highly fragmented data may require additional QC before assembly.
+##### Step 1: Create or edit the script
+```bash
+nano run_shovill.sh
+```
+#####  Step 2: Paste the following into `run_shovill.sh`
 
 ```bash
 #!/bin/bash
@@ -1476,6 +1481,15 @@ done
 
 </details>
 
+###### Step 3: Make the script executable
+``` bash
+chmod +x run_shovill.sh
+```
+###### Step 4: Activate environment and run
+``` bash
+conda activate shovill_env
+./run_shovill.sh
+```
 
 ### Checking the output
 View large files page by page
