@@ -1074,13 +1074,19 @@ conda activate snippy_env
 ```
 
 # 6️⃣ Qualimap BAM QC
+<details>
+<summary>📈 BAM Quality Assessment with Qualimap</summary>
 
-Once we generate BAM files with Snippy, it is important to assess their quality before moving to downstream analyses.  
-**Qualimap** is widely used for this because:  
-- It evaluates mapping quality, coverage distribution, and GC content.  
-- It produces both **HTML** and **PDF** reports with easy-to-interpret QC metrics.  
-- In TB genomics, it helps us quickly identify problematic samples with low coverage, uneven depth, or poor alignment to the H37Rv reference.  
-- The results can later be aggregated with MultiQC for batch reporting.  
+After generating BAM files with Snippy, it is crucial to evaluate their quality before downstream analyses. **Qualimap** is widely used for this purpose.
+
+### Why we use Qualimap in TB genomics
+- **Mapping quality evaluation**: Assesses alignment accuracy and read placement.  
+- **Coverage distribution and GC content**: Detects uneven coverage or biases across the genome.  
+- **Visual reports**: Generates **HTML** and **PDF** reports with clear QC metrics.  
+- **Identify problematic samples**: Flags samples with low coverage, poor alignment, or uneven depth, which may affect variant calling.  
+- **Integration with MultiQC**: QC results can be aggregated for large TB cohorts for batch reporting.  
+
+</details>
 
 ---
 
@@ -1147,13 +1153,19 @@ conda install -c conda-forge parallel
 
 # 7️⃣ MultiQC after Qualimap
 
-Once we finish running **Qualimap BAM QC**, each sample has its own folder with detailed HTML and PDF reports.  
-While these per-sample reports are useful, it becomes inefficient to open them one by one when working with many TB isolates.  
-This is where **MultiQC** is especially powerful:  
-- It scans all the Qualimap output folders.  
-- It aggregates mapping quality, depth, and coverage statistics across all samples.  
-- It provides an **at-a-glance overview** of problematic samples (e.g., low coverage, uneven depth, or poor alignment).  
-- It ensures results are **standardized and shareable** across teams.  
+<details>
+<summary>📊 Aggregating BAM QC with MultiQC</summary>
+
+After running **Qualimap BAM QC**, each sample produces individual HTML and PDF reports. For large TB cohorts, opening these reports one by one is inefficient. **MultiQC** solves this by aggregating all results.
+
+### Why we use MultiQC after Qualimap
+- **Scans all Qualimap output folders**: Automatically detects per-sample QC reports.  
+- **Aggregates QC metrics**: Combines mapping quality, depth, and coverage statistics across all samples.  
+- **Quick overview of problematic samples**: Highlights low coverage, uneven depth, or poor alignment.  
+- **Standardized reporting**: Ensures results are consistent, shareable, and suitable for team collaboration or publications.  
+
+</details>
+
 ---
 
 ### Run MultiQC on Qualimap outputs
@@ -1163,43 +1175,40 @@ multiqc qualimap_reports -o multiqc_report
 📊 The final summary will be available in:  multiqc_report/multiqc_report.html
 
 # 8️⃣ TB Variant Filter
-The **tb_variant_filter** tool is a specialized filtering framework designed for **Mycobacterium tuberculosis (M. tb)** sequencing data. Unlike generic variant filtering tools (e.g., GATK VariantFiltration, bcftools filter), this tool leverages TB-specific genomic features and known problematic regions of the **H37Rv reference genome** to ensure only **high-confidence variants** are kept for downstream analysis.
+<details>
+<summary>🧬 TB-Specific Variant Filtering with tb_variant_filter</summary>
 
----
-## ✨ Why Filtering is Important
-Raw variant calls from Snippy (or any variant caller) often include:
-- **False positives** due to sequencing errors or mapping ambiguity.  
+The **tb_variant_filter** tool is tailored for **Mycobacterium tuberculosis (M. tb)** sequencing data. Unlike general-purpose filters, it considers TB-specific genomic features and problematic regions in the **H37Rv reference genome** to retain only **high-confidence variants**.
+
+### Why filtering matters
+Raw variant calls from Snippy or other callers often include:
+- **False positives** from sequencing errors or mapping ambiguity.  
 - Variants in **repetitive regions**, where reads cannot be uniquely aligned.  
 - Low-quality calls with insufficient coverage or poor base quality.  
-If left unfiltered, these can:
-- Lead to **spurious drug resistance predictions**.  
-- Introduce **noise in phylogenetic analyses**, distorting transmission clustering.  
+
+Unfiltered variants can:
+- Lead to **incorrect drug resistance predictions**.  
+- Introduce **noise in phylogenetic analyses**, misrepresenting transmission clusters.  
 - Inflate **SNP distances**, causing misinterpretation of outbreaks.  
----
 
-## ⚙️ What `tb_variant_filter` Does
-This tool applies a series of filters tailored to *M. tuberculosis*. The main steps include:
-
-1. **Masking problematic genomic regions**  
+### What tb_variant_filter does
+1. **Mask problematic genomic regions**  
    - Excludes SNPs in highly repetitive or poorly mappable regions (e.g., **PE/PPE gene families**, mobile genetic elements).  
-   - These regions are known to cause alignment artifacts and unreliable variant calls.  
 2. **Depth-based filtering**  
-   - Removes variants with **insufficient coverage** (low read depth).  
-   - Ensures only variants supported by enough reads are retained.  
+   - Removes variants with **low read depth**, ensuring reliable calls.  
 3. **Quality-based filtering**  
-   - Filters out variants with **low base or mapping quality**.  
-   - Retains only high-confidence SNPs/indels.  
+   - Discards variants with **low base or mapping quality**.  
 4. **Retains core genome SNPs**  
-   - Focuses on SNPs in **conserved coding regions**, which are more reliable for drug resistance and phylogeny.  
-   - This ensures consistency across isolates for comparative analysis.  
----
-
+   - Focuses on SNPs in **conserved coding regions**, suitable for drug resistance prediction and phylogenetic analysis.  
 ## ✅ Benefits of Using `tb_variant_filter`
 - **TB-specific**: Tailored to the H37Rv reference genome.  
 - **Improved accuracy**: Removes false positives that generic tools often miss.  
 - **Reliable resistance prediction**: Only keeps SNPs truly linked to drug resistance.  
 - **Cleaner phylogenies**: Results in more robust clustering and outbreak inference.  
 - **Standardization**: Widely adopted in TB genomic epidemiology pipelines, making results comparable across studies.  
+
+</details>
+  
 ---
 
 ## Steps
@@ -1261,22 +1270,26 @@ conda activate tb_variant_filter_env
 ./run_tb_variant_filter.sh
 ```
 # 9️⃣ TB-Profiler from FASTQ Files
----
 
-**TB-Profiler** is a specialized bioinformatics tool designed for *Mycobacterium tuberculosis* whole-genome sequencing (WGS) data.  
-It performs **variant calling, lineage determination, and drug resistance prediction** in a single streamlined pipeline.  
+<details>
+<summary>🧬 TB-Profiler: Variant Calling, Lineage, and Drug Resistance</summary>
 
-### Why we use TB-Profiler in our workflow
-- 🧪 **Drug Resistance Prediction** → Screens for known resistance mutations against both first- and second-line TB drugs.  
-- 🌍 **Lineage Typing** → Classifies isolates into globally recognized TB lineages (e.g., Lineage 1–7).  
-- 🔄 **Flexible Input** → Accepts FASTQ, BAM, or VCF files depending on our analysis stage.  
-- 📊 **Clear Outputs** → Generates both human-readable reports (`.txt`) and structured machine-readable files (`.json`).  
-- ⚡ **Speed & Integration** → Built on efficient tools like `bcftools` and integrates easily into TB genomics pipelines.  
+**TB-Profiler** is a specialized tool for *Mycobacterium tuberculosis* whole-genome sequencing (WGS) data. It performs **variant calling, lineage determination, and drug resistance prediction** in a single pipeline.
+
+### Why we use TB-Profiler
+- 🧪 **Drug Resistance Prediction** → Detects known resistance mutations for first- and second-line TB drugs.  
+- 🌍 **Lineage Typing** → Classifies isolates into recognized TB lineages (e.g., Lineage 1–7).  
+- 🔄 **Flexible Input** → Accepts FASTQ, BAM, or VCF files.  
+- 📊 **Clear Outputs** → Produces human-readable (`.txt`) and machine-readable (`.json`) reports.  
+- ⚡ **Speed & Integration** → Efficient and easily incorporated into TB genomics pipelines.  
 
 ### Why it matters
-- Provides **actionable insights for public health**: drug resistance, lineage distribution, and outbreak tracking.  
-- Avoids the need to manually cross-reference mutations with multiple TB resistance databases.  
-- Standardized and widely adopted in the TB research community, making our results **comparable across studies**.  
+- Provides **actionable insights** for public health, including drug resistance and outbreak tracking.  
+- Avoids manual cross-referencing with multiple TB resistance databases.  
+- Ensures **standardized results** comparable across studies.  
+
+</details>
+ 
 ---
 
 ## Steps
@@ -1346,17 +1359,20 @@ conda activate tbprofiler_env
 ./run_tbprofiler.sh
 ```
 
-
 # 10️⃣ BCFTools Consensus Generation
 
-After filtering VCFs with **tb_variant_filter**, we generate **sample-specific consensus sequences**.  
-This allows us to produce FASTA sequences representing the **full genome of each isolate**, incorporating only **high-confidence variants** relative to the reference genome (*H37Rv*).  
+<details>
+<summary>🧬 Generate Sample-Specific Consensus Sequences</summary>
 
-## Why consensus sequences are important
+After filtering VCFs with **tb_variant_filter**, we generate **consensus FASTA sequences** for each sample. These sequences represent the **full genome of each isolate**, including only **high-confidence variants** relative to the reference genome (*H37Rv*).
+
+### Why consensus sequences matter
 - Provide a **single representative genome** per sample for downstream analyses.  
 - Used in **phylogenetic reconstruction**, outbreak investigation, and comparative genomics.  
-- Incorporates **only reliable SNPs and indels**, reducing noise from sequencing errors.  
-- Standardizes genome representations across multiple isolates.  
+- Incorporate **only reliable SNPs and indels**, minimizing noise from sequencing errors.  
+- Standardize genome representations across multiple isolates, ensuring comparability.  
+
+</details>
 ---
 
 ##### Step 1: Compress and index each filtered VCF
@@ -1575,17 +1591,22 @@ head consensus_sequences/aligned_consensus.fasta
 ```
 
 # Shovill
-Shovill is a fast and easy-to-use **bacterial genome assembler** designed for Illumina short-read data. It wraps around popular assemblers like **SPAdes** or **SKESA**, streamlining the process of genome assembly from paired-end reads.  
+<details>
+<summary>🏗️ Shovill: Bacterial Genome Assembler</summary>
 
-Key points for TB genomes:
+**Shovill** is a fast and easy-to-use **bacterial genome assembler** designed for Illumina short-read data. It wraps around popular assemblers like **SPAdes** or **SKESA**, streamlining genome assembly from paired-end reads.
 
+### Key points for TB genomes
 - Optimized for **small bacterial genomes** (~4–5 Mb).  
-- Uses multiple threads for faster assembly (`--cpus`) and can manage RAM efficiently (`--ram`).  
+- Supports multithreading (`--cpus`) and efficient RAM usage (`--ram`) for faster assemblies.  
 - Allows customization of **minimum contig length** (`--minlen`) and **coverage depth** (`--mincov` / `--depth`).  
 - Automatically renames output contigs for clarity and downstream analyses.  
-- Suitable for pipelines with **already trimmed FASTQ files** from fastp.  
+- Works well with **preprocessed FASTQ files** from `fastp`.  
 
-> ⚠ Note: Shovill is best used with **high-quality, paired-end Illumina reads**. Low-quality or highly fragmented data may require additional QC before assembly.
+> ⚠ **Note:** Best used with high-quality, paired-end Illumina reads. Low-quality or fragmented data may require additional QC before assembly.
+
+</details>
+
 ##### Step 1: Create or edit the script
 ```bash
 nano run_shovill.sh
