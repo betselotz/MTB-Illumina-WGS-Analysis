@@ -12,68 +12,88 @@ Written by: [**Betselot Zerihun Ayano**](https://github.com/betselotz)
 
 ## Introduction – *Mycobacterium tuberculosis* Complex (MTBC)  
 
-- *Mycobacterium tuberculosis* complex (MTBC) comprises closely related bacterial species causing tuberculosis (TB) in humans and animals.  
-- TB remains a leading cause of infectious disease morbidity and mortality worldwide.  
-- MTBC is characterized by a **highly clonal genome**, with limited horizontal gene transfer, making genomic analysis crucial for understanding evolution, transmission, and drug resistance.  
-- **Genome size:** ~4.4 Mbp  
-- **GC content:** ~65%  
-- Comparative genomics reveals **lineage-specific SNPs**, large sequence polymorphisms (LSPs), and regions of difference (RDs) that are useful for strain typing and epidemiology.  
-- Whole-genome sequencing (WGS) enables:  
-  - Identification of **drug-resistance mutations** in key genes (e.g., *rpoB*, *katG*, *inhA*).  
-  - Phylogenetic analysis to trace transmission chains and outbreak sources.  
-  - Detection of genomic diversity and microevolution within hosts and populations.  
-- MTBC genomics informs public health strategies, including **molecular surveillance, outbreak investigation, and personalized TB treatment**.  
+<details>
+  <summary>🦠 MTBC & TB Genomics Overview</summary>
+
+- **🧬 Mycobacterium tuberculosis complex (MTBC):** Closely related species causing TB in humans & animals.  
+- **🌍 Global Impact:** TB remains a leading cause of infectious disease morbidity & mortality.  
+- **🔒 Highly Clonal Genome:** Limited horizontal gene transfer → genomic analysis critical for evolution, transmission & drug resistance.  
+- **📏 Genome Size:** ~4.4 Mbp  
+- **💎 GC Content:** ~65%  
+- **🔍 Comparative Genomics:** Identifies lineage-specific SNPs, large sequence polymorphisms (LSPs), and regions of difference (RDs) → useful for strain typing & epidemiology.  
+- **💻 Whole-Genome Sequencing (WGS) Enables:**  
+  - 💊 Detect drug-resistance mutations (e.g., *rpoB*, *katG*, *inhA*)  
+  - 🌳 Phylogenetic analysis to trace transmission & outbreaks  
+  - 🧩 Detect genomic diversity & microevolution within hosts/populations  
+- **🏥 Public Health Impact:** MTBC genomics informs molecular surveillance, outbreak investigation, and personalized TB treatment.
+
+</details>
 
 ---  
 
 ### MTBC Species  
+<details>
+  <summary>🦠 MTBC Species Overview</summary>
 
-The *Mycobacterium tuberculosis* complex (MTBC) includes several closely related species:  
+The **Mycobacterium tuberculosis complex (MTBC)** includes several closely related species:  
 
-- *Mycobacterium tuberculosis* – the main human pathogen  
-- *Mycobacterium bovis* – primarily infects cattle, can cause zoonotic TB in humans  
-- *Mycobacterium africanum* – restricted to West Africa, causes human TB  
-- *Mycobacterium canettii* – rare, mostly in East Africa, ancestral-like strains  
-- *Mycobacterium microti* – primarily infects voles, occasionally humans  
-- *Mycobacterium pinnipedii* – infects seals, rarely humans  
-- *Mycobacterium caprae* – mainly infects goats, occasionally humans  
+- 🧍 **Mycobacterium tuberculosis** – main human pathogen  
+- 🐄 **Mycobacterium bovis** – primarily infects cattle, can cause zoonotic TB in humans  
+- 🌍 **Mycobacterium africanum** – restricted to West Africa, causes human TB  
+- 🌿 **Mycobacterium canettii** – rare, mostly in East Africa, ancestral-like strains  
+- 🐀 **Mycobacterium microti** – primarily infects voles, occasionally humans  
+- 🦭 **Mycobacterium pinnipedii** – infects seals, rarely humans  
+- 🐐 **Mycobacterium caprae** – mainly infects goats, occasionally humans  
+
+</details>
 
 ---  
 
 ### *M. tuberculosis* Lineages  
+<details>
+  <summary>🌐 MTBC Lineages Overview</summary>
 
-Genomic studies have identified **10 major lineages** based on SNPs and phylogeny:  
+Genomic studies have identified **10 major lineages** of MTBC based on SNPs and phylogeny:  
 
-1. **Lineage 1 (Indo-Oceanic)** – East Africa, India, Southeast Asia  
-2. **Lineage 2 (East-Asian / Beijing)** – East Asia, associated with drug resistance  
-3. **Lineage 3 (East-African-Indian)** – South Asia, East Africa  
-4. **Lineage 4 (Euro-American)** – Worldwide, highly prevalent  
-5. **Lineage 5 (West African 1 / *M. africanum*)** – West Africa  
-6. **Lineage 6 (West African 2 / *M. africanum*)** – West Africa  
-7. **Lineage 7** – restricted to Ethiopia, ancient lineage with unique genomic markers  
-8. **Lineage 8** – discovered in Rwanda and Uganda, deep-branching, highly ancestral  
-9. **Lineage 9** – identified in East Africa, distinct SNP profile, rare  
-10. **Lineage 10** – recently reported, limited information, potentially from East/Central Africa  
+1. 🟢 **Lineage 1 (Indo-Oceanic)** – East Africa, India, Southeast Asia  
+2. 🔴 **Lineage 2 (East-Asian / Beijing)** – East Asia, often associated with drug resistance  
+3. 🔵 **Lineage 3 (East-African-Indian)** – South Asia, East Africa  
+4. 🟡 **Lineage 4 (Euro-American)** – Worldwide, highly prevalent  
+5. 🟣 **Lineage 5 (West African 1 / *M. africanum*)** – West Africa  
+6. 🟤 **Lineage 6 (West African 2 / *M. africanum*)** – West Africa  
+7. 🟠 **Lineage 7** – restricted to Ethiopia, ancient lineage with unique genomic markers  
+8. 🟣 **Lineage 8** – discovered in Rwanda and Uganda, deep-branching, highly ancestral  
+9. ⚫ **Lineage 9** – identified in East Africa, distinct SNP profile, rare  
+10. ⚪ **Lineage 10** – recently reported, limited information, potentially from East/Central Africa  
 
-> Understanding MTBC species and lineages is critical for **epidemiology, phylogenetics, and drug-resistance surveillance**.  
+> Understanding MTBC species and lineages is critical for **epidemiology, phylogenetics, and drug-resistance surveillance**.
+
+</details>
 
 ---  
 
 ### *Mycobacterium tuberculosis* Sublineages  
 
+<details>
+  <summary>🔍 MTBC Sublineages</summary>
+
 *M. tuberculosis* lineages are further divided into **sublineages** based on phylogenetic SNP markers:  
 
-- **Lineage 1 (Indo-Oceanic):** L1.1, L1.2  
-- **Lineage 2 (East-Asian / Beijing):** L2.1 (Proto-Beijing), L2.2 (Modern Beijing)  
-- **Lineage 3 (East-African-Indian):** L3.1, L3.2  
-- **Lineage 4 (Euro-American):** L4.1, L4.2, L4.3, L4.4, L4.5, etc.  
-- **Lineage 5–10:** Mainly restricted to Africa, with limited sublineage descriptions due to low prevalence and recent discovery  
+- 🟢 **Lineage 1 (Indo-Oceanic):** L1.1, L1.2  
+- 🔴 **Lineage 2 (East-Asian / Beijing):** L2.1 (Proto-Beijing), L2.2 (Modern Beijing)  
+- 🔵 **Lineage 3 (East-African-Indian):** L3.1, L3.2  
+- 🟡 **Lineage 4 (Euro-American):** L4.1, L4.2, L4.3, L4.4, L4.5, etc.  
+- 🟣 **Lineage 5–10:** Mainly restricted to Africa, limited sublineage descriptions due to low prevalence and recent discovery  
 
-> Sublineages help in **tracking transmission chains, outbreak sources, and population structure**.  
+> Sublineages help in **tracking transmission chains, outbreak sources, and population structure**.
+
+</details>
 
 ---  
 
 ### *Mycobacterium tuberculosis* Drug-Resistance Types  
+<details>
+  <summary>💊 TB Drug-Resistance Definitions</summary>
 
 | Abbreviation | Full Name | Description |
 |-------------|-----------|-------------|
@@ -82,11 +102,18 @@ Genomic studies have identified **10 major lineages** based on SNPs and phylogen
 | **MDR-TB** | Multidrug-Resistant TB | Resistant to **both isoniazid and rifampicin** |
 | **Pre-XDR-TB** | Pre-Extensively Drug-Resistant TB | MDR TB + resistance to **fluoroquinolone** or **second-line injectable** |
 | **XDR-TB** | Extensively Drug-Resistant TB | MDR TB + resistance to **fluoroquinolone** + **injectable** |
-| **Other** | Other Drug-Resistance Patterns | Includes mono-resistant TB, poly-resistant TB, and rare profiles |  
+| **Other** | Other Drug-Resistance Patterns | Includes mono-resistant TB, poly-resistant TB, and rare profiles |
+
+> Understanding these resistance patterns is crucial for **treatment decisions and epidemiological surveillance**.
+
+</details>
 
 ---  
 
 ### Drug-Resistance Mutations  
+
+<details>
+  <summary>🧬 Key TB Drug-Resistance Mutations</summary>
 
 - **Rifampicin:** *rpoB* mutations (e.g., S450L)  
 - **Isoniazid:** *katG* (S315T), *inhA* promoter mutations  
@@ -94,7 +121,9 @@ Genomic studies have identified **10 major lineages** based on SNPs and phylogen
 - **Pyrazinamide:** *pncA* mutations  
 - **Fluoroquinolones:** *gyrA/gyrB* mutations  
 
-> Mutations are catalogued and updated by the **World Health Organization (WHO)** for standardized drug-resistance interpretation.  
+> Mutations are catalogued and updated by the **World Health Organization (WHO)** for standardized drug-resistance interpretation.
+
+</details>
 
 - **Catalogue of mutations in Mycobacterium tuberculosis complex and their association with drug resistance, 2nd ed (2023):**  
   [WHO TB Mutation Catalogue 2023](https://github.com/GTB-tbsequencing/mutation-catalogue-2023/tree/main/Final%20Result%20Files)  
@@ -102,6 +131,9 @@ Genomic studies have identified **10 major lineages** based on SNPs and phylogen
 ---  
 
 ## Bioinformatics Workflow  
+
+<details>
+  <summary>🛠️ TB WGS Bioinformatics Pipeline Overview</summary>
 
 The pipeline includes the following steps:  
 
@@ -113,6 +145,9 @@ The pipeline includes the following steps:
 6. **📊 Summary QC with `MultiQC`**  
 7. **🌳 Phylogenetic tree construction & downstream analysis**  
 
+> This workflow is optimized for *Mycobacterium tuberculosis* whole-genome sequencing data.
+
+</details>
 
 ### Download Data from NCBI and ENA
 
@@ -210,48 +245,24 @@ echo "🎉 All downloads and conversions completed!"
 ```
 
 <details>
-<summary>📖 Explanation of the FASTQ Download Script</summary>
+<summary>📥 FASTQ Download Script Explanation</summary>
 
-- `#!/bin/bash`  
-  Runs the script with Bash shell.
-
-- `set -euo pipefail`  
-  Makes the script safer by exiting on errors, unset variables, or failed pipelines.
-
-- `THREADS=4`  
-  Number of CPU threads used by `fasterq-dump` and `pigz`.
-
-- `OUTDIR="fastq_files"`  
-  Directory where the FASTQ files will be saved.
-
-- `RUNS="SRR_Acc_List.txt"`  
-  File containing the list of SRR accession numbers to download.
-
-- `SRADIR=~/ncbi/public/sra`  
-  Default folder where `prefetch` stores downloaded `.sra` files.
-
-- `while read -r ACC; do ... done < "$RUNS"`  
-  Loops through each accession in the list.
-
-- `if [ -f "$SRADIR/$ACC.sra" ]; then ... fi`  
-  Skips downloading if the SRA file already exists, otherwise downloads with `prefetch`.
-
-- `if ls "$OUTDIR"/${ACC}*.fastq.gz ...`  
-  Skips FASTQ conversion if files already exist.
-
-- `fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"`  
-  Converts `.sra` to paired-end FASTQ files using multiple threads.
-
-- Compression step:  
-  - Uses `pigz` if available (multi-threaded gzip), else falls back to `gzip`.
-
-- `rm -f "$SRADIR/$ACC.sra"`  
-  Deletes the original `.sra` file after successful FASTQ creation.
-
-- `echo` statements  
-  Provide progress updates for each accession.
+- `#!/bin/bash` → Runs the script using Bash.  
+- `set -euo pipefail` → Exits on errors, unset variables, or failed commands.  
+- `THREADS=4` → Number of CPU threads for `fasterq-dump` and `pigz`.  
+- `OUTDIR="fastq_files"` → Directory to store downloaded FASTQ files.  
+- `RUNS="SRR_Acc_List.txt"` → Text file listing SRA accession numbers.  
+- `SRADIR=~/ncbi/public/sra` → Default location for `prefetch` downloads.  
+- `while read -r ACC; do ... done < "$RUNS"` → Loops over each accession.  
+- `if [ -f "$SRADIR/$ACC.sra" ]; then ... fi` → Skips download if SRA exists; otherwise uses `prefetch`.  
+- `if ls "$OUTDIR"/${ACC}*.fastq.gz ...` → Skips conversion if FASTQs already exist.  
+- `fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"` → Converts SRA to paired-end FASTQ using multiple threads.  
+- Compression: uses `pigz` (multi-threaded gzip) if available, else falls back to `gzip`.  
+- `rm -f "$SRADIR/$ACC.sra"` → Removes original SRA file after successful FASTQ creation.  
+- `echo` statements → Provide progress updates for each accession.  
 
 </details>
+
 
 > **Tips for large-scale projects:**
 > 
@@ -358,42 +369,22 @@ fi
 
 ```
 <details>
-<summary>📖 Explanation of FASTQ Pairing Check Script</summary>
+<summary>🔍 FASTQ Pairing Check Script Explanation</summary>
 
-- `#!/bin/bash`  
-  Runs the script with Bash shell.
-
-- `set -euo pipefail`  
-  Makes the script safer by exiting on errors, unset variables, or failed pipelines.
-
-- `INDIR="raw_data"`  
-  Directory containing raw FASTQ files.
-
-- `if [[ "$(basename "$PWD")" != "raw_data" ]]; then cd "$INDIR"; fi`  
-  Changes to the `raw_data` directory if not already there. Exits with error if directory is missing.
-
-- `MISSING=false; PAIRED_COUNT=0; TOTAL_COUNT=0`  
-  Initializes variables to track missing pairs, number of paired samples, and total samples checked.
-
-- `for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do ...`  
-  Loops over common naming patterns for R1 FASTQ files.
-
-- `SAMPLE=...`  
-  Strips suffixes like `_1`, `_R1`, `_001` to get the base sample name.
-
-- `if [[ -f "${SAMPLE}_2.fastq.gz" || ... ]]; then ... fi`  
-  Checks if corresponding R2 file exists with several naming variations.
-
-- `echo "✅ $SAMPLE — paired"`  
-  Logs paired sample.
-
-- `echo "❌ $SAMPLE — missing R2 file"`  
-  Logs missing pair and sets `MISSING=true`.
-
-- Summary output:  
-  - `Total samples checked`  
-  - `Correctly paired samples`  
-  - Warning if any samples are missing pairs.
+- `#!/bin/bash` → Runs the script in Bash.  
+- `set -euo pipefail` → Exits on errors, unset variables, or failed commands.  
+- `INDIR="raw_data"` → Directory with raw FASTQ files.  
+- `if [[ "$(basename "$PWD")" != "raw_data" ]]; then cd "$INDIR"; fi` → Switches to `raw_data` if not already there; errors if missing.  
+- `MISSING=false; PAIRED_COUNT=0; TOTAL_COUNT=0` → Initializes counters for missing files and paired samples.  
+- `for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do ...` → Loops over common R1 naming patterns.  
+- `SAMPLE=...` → Removes suffixes to extract base sample name.  
+- `if [[ -f "${SAMPLE}_2.fastq.gz" || ... ]]; then ... fi` → Checks for corresponding R2 files with multiple naming variations.  
+- `echo "✅ $SAMPLE — paired"` → Logs correctly paired samples.  
+- `echo "❌ $SAMPLE — missing R2 file"` → Logs missing pairs and flags `MISSING=true`.  
+- Summary prints:  
+  - Total samples checked  
+  - Number of correctly paired samples  
+  - Warning if any samples are missing pairs  
 
 </details>
 
@@ -468,60 +459,27 @@ echo "✅ Read length summary saved to $OUTPUT_CSV"
 
 ```
 <details>
-<summary>📖 Explanation of Read Length Summary Script</summary>
+<summary>📊 Read Length Summary Script Explanation</summary>
 
-- `#!/bin/bash`  
-  Runs the script with Bash shell.
-
-- `FASTQ_DIR="."`  
-  Directory containing FASTQ files (current directory by default).
-
-- `OUTDIR="read_length_summary"`  
-  Directory where the summary CSV will be saved.
-
-- `OUTPUT_CSV="${OUTDIR}/read_length_summary.csv"`  
-  Path to the output CSV file.
-
-- `mkdir -p "$OUTDIR"`  
-  Creates the output directory if it doesn’t exist.
-
-- `echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"`  
-  Writes the header line of the CSV.
-
-- `for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do ...`  
-  Loops over all R1 FASTQ files matching the `_1.trim.fastq.gz` pattern.
-
-- `SAMPLE=$(basename "$R1" _1.trim.fastq.gz)`  
-  Extracts the sample name from the R1 filename.
-
-- `R2="${FASTQ_DIR}/${SAMPLE}_2.trim.fastq.gz"`  
-  Constructs the corresponding R2 filename.
-
-- `if [[ -f "$R2" ]]; then ... else ... fi`  
-  Checks that the paired R2 file exists; skips the sample if missing.
-
-- `calc_stats() { ... }`  
-  Function that calculates **minimum, maximum, and average read length** for a given FASTQ file:
-  - `NR%4==2` → only sequence lines in FASTQ.  
-  - `min`, `max`, `avg` → computed for all reads.  
-  - Output format: `min,max,avg`.
-
-- `STATS_R1=$(calc_stats "$R1")`  
-  Calculates read length stats for R1.
-
-- `STATS_R2=$(calc_stats "$R2")`  
-  Calculates read length stats for R2.
-
-- `echo "$SAMPLE,$STATS_R1,$STATS_R2" >> "$OUTPUT_CSV"`  
-  Appends the sample stats as a new row in the CSV.
-
-- `echo "⚠ Missing R2 for $SAMPLE, skipping."`  
-  Warning if R2 is missing.
-
-- `echo "✅ Read length summary saved to $OUTPUT_CSV"`  
-  Final message after all samples are processed.
+- `#!/bin/bash` → Run script with Bash.  
+- `FASTQ_DIR="."` → Directory containing FASTQ files.  
+- `OUTDIR="read_length_summary"` → Directory to save CSV output.  
+- `OUTPUT_CSV="${OUTDIR}/read_length_summary.csv"` → Output CSV file path.  
+- `mkdir -p "$OUTDIR"` → Create output directory if missing.  
+- `echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"` → CSV header.  
+- `for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do ...` → Loop over all R1 FASTQ files.  
+- `SAMPLE=$(basename "$R1" _1.trim.fastq.gz)` → Extract sample name.  
+- `R2="${FASTQ_DIR}/${SAMPLE}_2.trim.fastq.gz"` → Get paired R2 filename.  
+- `if [[ -f "$R2" ]]; then ... else ... fi` → Skip sample if R2 missing.  
+- `calc_stats() { ... }` → Function to calculate min, max, avg read lengths for a FASTQ.  
+- `STATS_R1=$(calc_stats "$R1")` → Stats for R1.  
+- `STATS_R2=$(calc_stats "$R2")` → Stats for R2.  
+- `echo "$SAMPLE,$STATS_R1,$STATS_R2" >> "$OUTPUT_CSV"` → Append sample stats to CSV.  
+- `echo "⚠ Missing R2 for $SAMPLE, skipping."` → Warning if R2 missing.  
+- `echo "✅ Read length summary saved to $OUTPUT_CSV"` → Final confirmation message.
 
 </details>
+
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
@@ -639,66 +597,32 @@ echo "🎉 Completed fastp for $(ls "$OUTDIR"/*_fastp.json | wc -l) samples."
 
 ```
 <details>
-<summary>📖 Explanation of fastp Trimming Script</summary>
+<summary>🧹 fastp Trimming Script Explanation</summary>
 
-- `#!/bin/bash`  
-  Runs the script with Bash shell.
-
-- `set -euo pipefail`  
-  Exits on errors, undefined variables, or pipeline failures.
-
-- `INDIR="raw_data"`  
-  Directory containing raw FASTQ files.
-
-- `OUTDIR="fastp_results_min_50"`  
-  Directory for trimmed FASTQ files.
-
-- `mkdir -p "$OUTDIR"`  
-  Creates the output directory if it doesn’t exist.
-
-- `SAMPLES=()`  
-  Initializes an array to store sample names and FASTQ paths.
-
-- `for R1 in ...`  
-  Loops over common R1 naming patterns.
-
-- `SAMPLE=...`  
-  Strips suffixes from R1 filenames to get the sample name.
-
-- `if ... elif ... else`  
-  Searches for corresponding R2 file under multiple naming conventions.
-
-- `if [[ -f "$OUTDIR/${SAMPLE}_1.trim.fastq.gz" && ... ]]`  
-  Skips the sample if it has already been processed.
-
-- `SAMPLES+=("$SAMPLE,$R1,$R2")`  
-  Stores sample and file paths in the array for parallel processing.
-
-- `THREADS=$(nproc)`  
-  Detects the total number of CPU cores.
-
-- `FASTP_THREADS=$(( THREADS / 2 ))`  
-  Uses half the cores per fastp process to prevent overloading.
-
-- `run_fastp() { ... }`  
-  Function to run `fastp` for a single sample:
-  - `-i` / `-I` → input R1/R2 files
-  - `-o` / `-O` → output trimmed FASTQ files
-  - `-h` → HTML report
-  - `-j` → JSON report
-  - `--length_required 50` → discard reads shorter than 50 bp
-  - `--qualified_quality_phred 20` → minimum quality threshold
-  - `--detect_adapter_for_pe` → automatic adapter trimming
-  - `--thread` → number of threads
-
-- `export -f run_fastp`  
-  Makes the function available to GNU Parallel.
-
-- `printf "%s\n" "${SAMPLES[@]}" | parallel -j 3 --colsep ',' run_fastp {1} {2} {3}`  
-  Runs fastp in parallel for 3 samples at a time.
-
-- `echo "🎉 Completed fastp ..."`  
-  Prints total number of processed samples.
+- `#!/bin/bash` → Run script with Bash.  
+- `set -euo pipefail` → Exit on errors, undefined variables, or failed pipelines.  
+- `INDIR="raw_data"` → Raw FASTQ directory.  
+- `OUTDIR="fastp_results_min_50"` → Directory for trimmed FASTQs.  
+- `mkdir -p "$OUTDIR"` → Create output directory.  
+- `SAMPLES=()` → Initialize array to store sample info.  
+- `for R1 in ...` → Loop over R1 files with common naming patterns.  
+- `SAMPLE=...` → Extract sample name from R1 filename.  
+- `if ... elif ... else` → Detect corresponding R2 under multiple naming conventions.  
+- `if [[ -f "$OUTDIR/${SAMPLE}_1.trim.fastq.gz" && ... ]]` → Skip already processed samples.  
+- `SAMPLES+=("$SAMPLE,$R1,$R2")` → Store sample info for parallel execution.  
+- `THREADS=$(nproc)` → Detect total CPU cores.  
+- `FASTP_THREADS=$(( THREADS / 2 ))` → Allocate threads per fastp process.  
+- `run_fastp() { ... }` → Function to run fastp per sample:  
+  - `-i / -I` → Input R1/R2  
+  - `-o / -O` → Output trimmed FASTQs  
+  - `-h / -j` → HTML and JSON reports  
+  - `--length_required 50` → Minimum read length  
+  - `--qualified_quality_phred 20` → Quality threshold  
+  - `--detect_adapter_for_pe` → Auto adapter trimming  
+  - `--thread` → Threads for fastp  
+- `export -f run_fastp` → Make function available to GNU Parallel.  
+- `printf "%s\n" "${SAMPLES[@]}" | parallel -j 3 --colsep ',' run_fastp {1} {2} {3}` → Run 3 fastp jobs in parallel.  
+- `echo "🎉 Completed fastp ..."` → Display completion message.
 
 </details>
 
@@ -743,27 +667,17 @@ mkdir -p "$OUTPUT_DIR"
 multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"
 ```
 <details>
-<summary>📖 Explanation of MultiQC Script</summary>
+<summary>📊 MultiQC Script Explanation</summary>
 
-- `#!/bin/bash`  
-  Runs the script with Bash shell.
-
-- `set -euo pipefail`  
-  Exits on errors, undefined variables, or pipeline failures.
-
-- `INPUT_DIR="fastp_results_min_50"`  
-  Directory containing input QC reports (fastp JSON/HTML outputs).
-
-- `OUTPUT_DIR="multiqc_output"`  
-  Directory where MultiQC will save the aggregated report.
-
-- `mkdir -p "$OUTPUT_DIR"`  
-  Creates the output directory if it doesn’t exist.
-
-- `multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"`  
-  Runs MultiQC on all files in `INPUT_DIR` and outputs the combined HTML/JSON report into `OUTPUT_DIR`.
+- `#!/bin/bash` → Run script with Bash.  
+- `set -euo pipefail` → Exit on errors, undefined variables, or failed pipelines.  
+- `INPUT_DIR="fastp_results_min_50"` → Directory with fastp JSON/HTML outputs.  
+- `OUTPUT_DIR="multiqc_output"` → Directory for aggregated MultiQC report.  
+- `mkdir -p "$OUTPUT_DIR"` → Ensure output directory exists.  
+- `multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"` → Run MultiQC on all files in `INPUT_DIR` and save combined report in `OUTPUT_DIR`.
 
 </details>
+
 
 ##### Step 3: Save & exit nano
 Press CTRL+O, Enter (save)
@@ -873,56 +787,28 @@ echo "🎯 All steps completed!"
 echo "Snippy results are in: ${OUTDIR}/"
 ```
 <details>
-<summary>📖 Explanation of Snippy Pipeline Script</summary>
+<summary>🌳 Snippy Pipeline Script Explanation</summary>
 
-- `#!/bin/bash`  
-  Runs the script using Bash shell.
-
-- `set -euo pipefail`  
-  Exits on errors, undefined variables, or pipeline failures.
-
-- `REF="H37Rv.fasta"`  
-  Reference genome for Snippy variant calling.
-
-- `FASTP_DIR="fastp_results_min_70"`  
-  Directory containing trimmed FASTQ files.
-
-- `OUTDIR="snippy_results"`  
-  Directory for Snippy outputs.
-
-- `THREADS` and `BWA_THREADS`  
-  Threads for Snippy internal processes and BWA alignment.
-
-- `JOBS=4`  
-  Number of samples to run in parallel.
-
-- `run_snippy_sample() { ... }`  
-  Function to run Snippy for a single sample:
-  - Checks if R1/R2 FASTQ files exist.
-  - Creates a temporary directory for Snippy outputs.
-  - Runs Snippy with specified threads and BWA options.
-  - Renames and moves output files (`*.vcf`, `*.bam`, `consensus.fa`) to a standardized format with the sample name.
-  - Deletes temporary files.
-  - Verifies that the VCF was generated.
-
-- `export -f run_snippy_sample`  
-  Makes the function available to GNU Parallel.
-
-- `ls "${FASTP_DIR}"/*_1.trim.fastq.gz | sed ... | parallel -j "$JOBS" run_snippy_sample {}`  
-  Detects all R1 FASTQ files and runs Snippy in parallel for multiple samples.
-
-- Verification steps:  
-  - Lists FASTQ samples and generated VCFs.  
-  - Compares both lists to ensure all samples were processed.  
-  - Prints counts and warnings if samples are missing.
-
-- `rm -f fastq_samples.txt snippy_samples.txt`  
-  Cleans up temporary verification files.
-
-- `echo "🎯 All steps completed!"`  
-  Prints completion message with output directory location.
+- `#!/bin/bash` → Run script with Bash.  
+- `set -euo pipefail` → Exit on errors, undefined variables, or pipeline failures.  
+- `REF="H37Rv.fasta"` → Reference genome.  
+- `FASTP_DIR="fastp_results_min_70"` → Trimmed FASTQ files.  
+- `OUTDIR="snippy_results"` → Directory for Snippy outputs.  
+- `THREADS` & `BWA_THREADS` → Threads for Snippy and BWA.  
+- `JOBS=4` → Number of samples to run in parallel.  
+- `run_snippy_sample() { ... }` → Function for a single sample:  
+  - Checks FASTQ files exist.  
+  - Creates temp directory, runs Snippy with threads/BWA options.  
+  - Renames outputs to include sample name.  
+  - Deletes temp files and verifies VCF creation.  
+- `export -f run_snippy_sample` → Make function available to GNU Parallel.  
+- `ls ... | parallel -j "$JOBS" run_snippy_sample {}` → Run multiple samples in parallel.  
+- Verification: compares FASTQ vs VCF sample counts and prints warnings if missing.  
+- `rm -f ...` → Clean temporary files.  
+- `echo "🎯 All steps completed!"` → Final completion message.
 
 </details>
+
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O, then Enter (save)
@@ -977,42 +863,20 @@ for bam in "$SNIPPY_DIR"/*.bam; do
 done
 ```
 <details>
-<summary>📖 Explanation of Qualimap BAM QC Script</summary>
+<summary>📊 Qualimap BAM QC Script Explanation</summary>
 
-- `#!/bin/bash`  
-  Runs the script using Bash.
-
-- `set -euo pipefail`  
-  Exits on errors, undefined variables, or pipeline failures.
-
-- `SNIPPY_DIR="all_bams"`  
-  Directory containing Snippy-generated BAM files.
-
-- `QUALIMAP_OUT="qualimap_reports"`  
-  Directory to store Qualimap QC outputs.
-
-- `mkdir -p "$QUALIMAP_OUT"`  
-  Creates output directory if it does not exist.
-
-- `for bam in "$SNIPPY_DIR"/*.bam; do ... done`  
-  Loops over all BAM files in the Snippy directory.
-
-- `sample=$(basename "$bam" .bam)`  
-  Extracts the sample name from the BAM filename.
-
-- `outdir="${QUALIMAP_OUT}/${sample}"`  
-  Creates a unique output folder for each sample.
-
-- `qualimap bamqc -bam "$bam" -outdir "$outdir" -outformat pdf:html --java-mem-size=4G`  
-  Runs Qualimap QC on the BAM file:
-  - Generates both PDF and HTML reports.
-  - Allocates 4 GB of Java memory for processing.
-
-- `echo "Running Qualimap BAM QC for sample: $sample"`  
-  Prints status messages.
+- `#!/bin/bash` → Run script with Bash.  
+- `set -euo pipefail` → Exit on errors or undefined variables.  
+- `SNIPPY_DIR="all_bams"` → Directory with Snippy BAM files.  
+- `QUALIMAP_OUT="qualimap_reports"` → Output directory for QC reports.  
+- `mkdir -p "$QUALIMAP_OUT"` → Ensure output directory exists.  
+- `for bam in "$SNIPPY_DIR"/*.bam; do ... done` → Loop over all BAM files.  
+- `sample=$(basename "$bam" .bam)` → Extract sample name.  
+- `outdir="${QUALIMAP_OUT}/${sample}"` → Unique folder per sample.  
+- `qualimap bamqc -bam "$bam" -outdir "$outdir" -outformat pdf:html --java-mem-size=4G` → Run QC, generate PDF & HTML, allocate 4 GB memory.  
+- `echo "Running Qualimap BAM QC for sample: $sample"` → Print progress.
 
 </details>
-
 
 ##### Step 3: Save and exit nano
 
@@ -1118,40 +982,19 @@ echo "✅ All VCFs filtered and saved in $OUTDIR"
 
 ```
 <details>
-<summary>📖 Explanation of TB Variant Filter Script</summary>
+<summary>🧬 TB Variant Filter Script Explanation</summary>
 
-- `#!/bin/bash`  
-  Runs the script with Bash.
-
-- `set -euo pipefail`  
-  Exits on errors, undefined variables, or pipeline failures.
-
-- `source $(conda info --base)/etc/profile.d/conda.sh`  
-  Loads Conda shell functions to allow environment activation within a script.
-
-- `conda activate tb_variant_filter_env`  
-  Activates the environment containing `tb_variant_filter`.
-
-- `CURDIR=$(pwd)`  
-  Saves the current working directory.
-
-- `OUTDIR="$CURDIR/tb_variant_filter_results"`  
-  Sets the output directory for filtered VCFs.
-
-- `mkdir -p "$OUTDIR"`  
-  Creates the output directory if it does not exist.
-
-- `for vcf in "$CURDIR/snippy_results"/*.vcf; do ... done`  
-  Loops through all VCF files generated by Snippy.
-
-- `sample=$(basename "$vcf")`  
-  Extracts the filename of the VCF to use for naming outputs.
-
-- `tb_variant_filter "$vcf" "$OUTDIR/${sample%.vcf}.filtered.vcf"`  
-  Runs TB variant filtering and saves the filtered VCF in the output folder.
-
-- `echo "✅ All VCFs filtered and saved in $OUTDIR"`  
-  Prints a completion message.
+- `#!/bin/bash` → Run script with Bash.  
+- `set -euo pipefail` → Exit on errors or undefined variables.  
+- `source $(conda info --base)/etc/profile.d/conda.sh` → Load Conda functions for environment activation.  
+- `conda activate tb_variant_filter_env` → Activate environment with `tb_variant_filter`.  
+- `CURDIR=$(pwd)` → Save current working directory.  
+- `OUTDIR="$CURDIR/tb_variant_filter_results"` → Output folder for filtered VCFs.  
+- `mkdir -p "$OUTDIR"` → Ensure output directory exists.  
+- `for vcf in "$CURDIR/snippy_results"/*.vcf; do ... done` → Loop through all Snippy VCFs.  
+- `sample=$(basename "$vcf")` → Extract filename for naming outputs.  
+- `tb_variant_filter "$vcf" "$OUTDIR/${sample%.vcf}.filtered.vcf"` → Run filtering and save result.  
+- `echo "✅ All VCFs filtered and saved in $OUTDIR"` → Completion message.
 
 </details>
 
@@ -1220,40 +1063,19 @@ done
 echo "🎯 All tb-profiler runs completed. Results saved in $OUTDIR"
 ```
 <details>
-<summary>📖 Explanation of TB-Profiler Script</summary>
+<summary>🧪 TB-Profiler Script Explanation</summary>
 
-- `#!/bin/bash`  
-  Runs the script using Bash.
-
-- `set -euo pipefail`  
-  Exits on errors, undefined variables, or pipeline failures.
-
-- `FASTQ_DIR="raw_data"`  
-  Directory containing paired-end FASTQ files.
-
-- `OUTDIR="tbprofiler_results"`  
-  Directory where TB-Profiler outputs will be stored.
-
-- `mkdir -p "$OUTDIR"`  
-  Creates the output directory if it does not exist.
-
-- `for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do ... done`  
-  Loops through all R1 FASTQ files.
-
-- `SAMPLE=$(basename "$R1" _1.fastq.gz)`  
-  Extracts sample name from the R1 filename.
-
-- `R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"`  
-  Constructs the path to the corresponding R2 file.
-
-- `if [[ ! -f "$R2" ]]; then ... fi`  
-  Skips the sample if the R2 file is missing.
-
-- `tb-profiler profile --read1 "$R1" --read2 "$R2" --prefix "$OUTDIR/$SAMPLE" --txt`  
-  Runs TB-Profiler on the paired-end reads, outputting results in TXT format.
-
-- `echo "🎯 All tb-profiler runs completed. Results saved in $OUTDIR"`  
-  Prints a completion message.
+- `#!/bin/bash` → Run script with Bash.  
+- `set -euo pipefail` → Exit on errors or undefined variables.  
+- `FASTQ_DIR="raw_data"` → Folder with paired-end FASTQ files.  
+- `OUTDIR="tbprofiler_results"` → Folder for TB-Profiler outputs.  
+- `mkdir -p "$OUTDIR"` → Ensure output directory exists.  
+- `for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do ... done` → Loop through all R1 files.  
+- `SAMPLE=$(basename "$R1" _1.fastq.gz)` → Extract sample name.  
+- `R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"` → Construct paired R2 path.  
+- `if [[ ! -f "$R2" ]]; then ... fi` → Skip if R2 is missing.  
+- `tb-profiler profile --read1 "$R1" --read2 "$R2" --prefix "$OUTDIR/$SAMPLE" --txt` → Run TB-Profiler on paired reads, output TXT.  
+- `echo "🎯 All tb-profiler runs completed. Results saved in $OUTDIR"` → Completion message.
 
 </details>
 
@@ -1314,48 +1136,24 @@ echo "🎉 All consensus sequences saved in $OUTDIR."
 
 ```
 <details>
-<summary>📖 Explanation of VCF-to-Consensus Script</summary>
+<summary>🧬 VCF-to-Consensus Script Explanation</summary>
 
-- `#!/bin/bash`  
-  Runs the script with Bash.
+- `#!/bin/bash` → Run script with Bash.  
+- `set -euo pipefail` → Exit on errors or undefined variables.  
+- `CURDIR=$(pwd)` → Save current working directory.  
+- `VCFDIR="$CURDIR/tb_variant_filter_results"` → Folder with filtered VCFs.  
+- `OUTDIR="$CURDIR/consensus_sequences"` → Folder for consensus FASTA sequences.  
+- `mkdir -p "$OUTDIR"` → Ensure output directory exists.  
+- `for vcf in "$VCFDIR"/*.vcf; do ... done` → Loop through all filtered VCF files.  
+- `sample=$(basename "$vcf" .vcf)` → Extract sample name.  
+- `bgzip -c "$vcf" > "$vcf.gz"` → Compress VCF with bgzip.  
+- `bcftools index "$vcf.gz"` → Index compressed VCF.  
+- `bcftools consensus -f "$CURDIR/H37Rv.fasta" "$vcf.gz" | sed "1s/.*/>$sample/" > "$OUTDIR/${sample}.consensus.fasta"` → Generate consensus FASTA and replace header with sample name.  
+- `echo "✅ $sample consensus generated"` → Confirmation per sample.  
+- `echo "🎉 All consensus sequences saved in $OUTDIR"` → Final message.  
 
-- `set -euo pipefail`  
-  Exits on errors, undefined variables, or pipeline failures.
+**⚠ Note:** Activate the `tb_consensus_env` before running this script.
 
-- `CURDIR=$(pwd)`  
-  Saves the current working directory.
-
-- `VCFDIR="$CURDIR/tb_variant_filter_results"`  
-  Directory containing filtered VCFs.
-
-- `OUTDIR="$CURDIR/consensus_sequences"`  
-  Directory for storing consensus FASTA sequences.
-
-- `mkdir -p "$OUTDIR"`  
-  Creates the output directory if it does not exist.
-
-- `for vcf in "$VCFDIR"/*.vcf; do ... done`  
-  Loops through all filtered VCF files.
-
-- `sample=$(basename "$vcf" .vcf)`  
-  Extracts sample name from the VCF filename.
-
-- `bgzip -c "$vcf" > "$vcf.gz"`  
-  Compresses the VCF file with `bgzip`.
-
-- `bcftools index "$vcf.gz"`  
-  Indexes the compressed VCF for consensus generation.
-
-- `bcftools consensus -f "$CURDIR/H37Rv.fasta" "$vcf.gz" | sed "1s/.*/>$sample/" > "$OUTDIR/${sample}.consensus.fasta"`  
-  Generates a consensus FASTA using the reference genome and replaces the FASTA header with the sample name.
-
-- `echo "✅ $sample consensus generated with sample-based header."`  
-  Prints a confirmation for each sample.
-
-- `echo "🎉 All consensus sequences saved in $OUTDIR."`  
-  Prints a final completion message.
-
-**Note:** Make sure the `tb_consensus_env` (or equivalent) is already activated before running this script.
 </details>
 
 ##### Step 4: Make the script executable
@@ -1433,15 +1231,13 @@ done
 echo "✅ All consensus FASTA files have been renamed."
 
 ```
-<details> <summary>📖 Explanation of rename the FASTA files</summary>
+<details>
+<summary>📝 Rename Consensus FASTA Files</summary>
 
-FASTA_DIR="consensus_sequences" → sets the directory containing consensus FASTA files.
-
-for f in "$FASTA_DIR"/*.snps.filtered.consensus.fasta; do ... done → loops over all FASTA files ending with .snps.filtered.consensus.fasta.
-
-mv "$f" "${f/.snps.filtered.consensus/}" → renames each file by removing the .snps.filtered.consensus part from its filename.
-
-echo "✅ All consensus FASTA files have been renamed." → prints a confirmation message when renaming is complete.
+- `FASTA_DIR="consensus_sequences"` → Directory containing consensus FASTA files.  
+- `for f in "$FASTA_DIR"/*.snps.filtered.consensus.fasta; do ... done` → Loop over all FASTA files ending with `.snps.filtered.consensus.fasta`.  
+- `mv "$f" "${f/.snps.filtered.consensus/}"` → Rename each file by removing `.snps.filtered.consensus` from filename.  
+- `echo "✅ All consensus FASTA files have been renamed."` → Confirmation message after renaming.
 
 </details>
 
@@ -1457,20 +1253,15 @@ for f in "$FASTA_DIR"/*.fasta; do
 done
 echo "🎉 All FASTA headers have been successfully updated."
 ```
-<details> 
-<summary>📖 Explanation of rename headers inside the FASTA files</summary>
+<details>
+<summary>📝 Update FASTA Headers with Sample Names</summary>
 
-- `FASTA_DIR="consensus_sequences"` → sets the directory containing FASTA files.
-
-- `for f in "$FASTA_DIR"/*.fasta; do ... done` → loops over all FASTA files in the directory.
-
-- `sample=$(basename "$f" .fasta)` → extracts the sample name from the filename (without `.fasta`).
-
-- `awk -v s="$sample" '/^>/{print ">" s; next} {print}' "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"` → replaces the header line in each FASTA with `>sample` while keeping the sequence lines unchanged, writes to a temporary file, and replaces the original.
-
-- `echo "✅ Updated header in: $(basename "$f")"` → prints which file was updated.
-
-- `echo "🎉 All FASTA headers have been successfully updated."` → prints a completion message when all headers are updated.
+- `FASTA_DIR="consensus_sequences"` → Directory containing FASTA files.  
+- `for f in "$FASTA_DIR"/*.fasta; do ... done` → Loop through all FASTA files.  
+- `sample=$(basename "$f" .fasta)` → Extract sample name from filename.  
+- `awk -v s="$sample" '/^>/{print ">" s; next} {print}' "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"` → Replace FASTA header with `>sample`, keep sequence lines unchanged.  
+- `echo "✅ Updated header in: $(basename "$f")"` → Logs each updated file.  
+- `echo "🎉 All FASTA headers have been successfully updated."` → Completion message after all files processed.
 
 </details>
 
@@ -1501,12 +1292,12 @@ fast and TB-suitable command
 mafft --retree 2 --maxiterate 0 --thread -1 consensus_sequences/all_consensus.fasta > consensus_sequences/aligned_consensus.fasta
 ```
 <details>
-<summary>🔹 Why this is good for TB</summary>
+<summary>🔹 Why these settings are suitable for TB</summary>
 
-- `--retree 2` → guide tree rebuilt twice (enough for closely related genomes).  
-- `--maxiterate 0` → skips iterative refinement (much faster).  
-- `--thread -1` → automatically uses **all available CPU cores**.  
-- Accuracy loss is negligible for TB because sequences are >99% identical.  
+- `--retree 2` → Rebuilds the guide tree twice (sufficient for closely related TB genomes).  
+- `--maxiterate 0` → Skips iterative refinement (speeds up alignment).  
+- `--thread -1` → Uses all available CPU cores automatically.  
+- Accuracy loss is minimal because MTBC genomes are >99% identical.
 
 </details>
 
@@ -1588,57 +1379,39 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
   done
 done
 ```
-<details> <summary>📖 Explanation of Shovill Pipeline Script</summary>
+<details>
+<summary>📖 Explanation of Shovill Pipeline Script</summary>
 
-INPUT_DIR="fastp_results_min_50" → directory with preprocessed FASTQ files.
+- `INPUT_DIR="fastp_results_min_50"` → directory with preprocessed FASTQ files.  
+- `OUTDIR="shovill_results"` → directory to store Shovill assemblies.  
+- `mkdir -p "$OUTDIR"` → ensures output directory exists.  
+- `GSIZE=4411532` → approximate genome size for M. tuberculosis (~4.41 Mb).  
+- `shopt -s nullglob` → makes the loop skip if no matching files exist.  
 
-OUTDIR="shovill_results" → directory to store Shovill assemblies.
+**Loop over samples:**  
+- `for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do ... done` → loops over all R1 FASTQ files.  
+- `R2="${R1/_1.trim.fastq.gz/_2.trim.fastq.gz}"` → guesses corresponding R2 file.  
+- `if [[ ! -f "$R2" ]]; then ... fi` → skips sample if R2 is missing.  
+- `sample=$(basename "$R1" _1.trim.fastq.gz)` → extracts sample name.  
+- `sample_out="$OUTDIR/$sample"` → defines sample-specific output folder.  
+- `if [[ -f "$sample_out/${sample}_contigs.fa" ]]; then ... fi` → skips assembly if contigs already exist.  
 
-mkdir -p "$OUTDIR" → creates output directory if it doesn’t exist.
+**Shovill command parameters:**  
+- `--R1/--R2` → input paired-end reads  
+- `--gsize` → genome size  
+- `--outdir` → output directory  
+- `--assembler skesa` → use SKESA assembler  
+- `--minlen 500` → minimum contig length  
+- `--mincov 5` → minimum coverage  
+- `--depth 100` → target depth  
+- `--namefmt "${sample}_%05d"` → output naming format  
+- `--cpus 4` → CPU threads  
+- `--ram 16` → RAM in GB  
+- `--tmpdir` → temporary directory  
+- `--force` → overwrite existing files  
 
-GSIZE=4411532 → approximate genome size for M. tuberculosis (~4.41 Mb).
-
-shopt -s nullglob → ensures the for loop skips if no matching files exist.
-
-for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do ... done → loops over all R1 FASTQ files.
-
-R2="${R1/_1.trim.fastq.gz/_2.trim.fastq.gz}" → guesses the corresponding R2 file name.
-
-if [[ ! -f "$R2" ]]; then ... fi → skips the sample if R2 is missing.
-
-sample=$(basename "$R1" _1.trim.fastq.gz) → extracts sample name from R1 file.
-
-sample_out="$OUTDIR/$sample" → defines output folder for the sample.
-
-if [[ -f "$sample_out/${sample}_contigs.fa" ]]; then ... fi → skips assembly if contigs already exist.
-
-shovill \ ... → runs Shovill assembler with parameters:
-
---R1/--R2 → paired-end reads
-
---gsize → genome size
-
---outdir → output directory
-
---assembler skesa → chooses SKESA assembler
-
---minlen 500 → minimum contig length
-
---mincov 5 → minimum coverage
-
---depth 100 → target depth
-
---namefmt "${sample}_%05d" → output naming
-
---cpus 4 → CPU threads
-
---ram 16 → RAM in GB
-
---tmpdir → temporary directory
-
---force → overwrite existing files
-
-for f in "$sample_out"/*; do ... done → renames all files in output folder to include sample prefix.
+**Post-processing:**  
+- `for f in "$sample_out"/*; do ... done` → renames all files to include sample prefix.
 
 </details>
 
@@ -1725,7 +1498,6 @@ for f in "$CONTIG_DIR"/*/*_contigs.fa; do
 done
 
 echo "✅ Assembly stats saved to $OUTPUT_CSV"
-
 ```
 ###### Step 3: Make the script executable
 ``` bash
@@ -1802,37 +1574,32 @@ done
 
 echo "✅ All QUAST stats saved in $CSV_FILE"
 ```
-<details> <summary>Click to expand explanation</summary>
+<details>
+<summary>📖 Explanation of Assembly Statistics Script</summary>
 
-CONTIG_DIR="./shovill_results" → directory containing contig FASTA files.
+- `CONTIG_DIR="./shovill_results"` → directory containing contig FASTA files.  
+- `OUTPUT_CSV="assembly_stats.csv"` → CSV file to save assembly statistics.  
+- `echo "Sample,Total_Bases,...,GC_Content" > "$OUTPUT_CSV"` → writes CSV header.  
 
-OUTPUT_CSV="assembly_stats.csv" → CSV file to save assembly statistics.
+**Loop over contigs:**  
+- `for f in "$CONTIG_DIR"/*/*_contigs.fa; do ... done` → loops over all contig FASTA files in subdirectories.  
+- `sample=$(basename "$f" _contigs.fa)` → extracts sample name from filename.  
+- `stats_output=$(stats.sh in="$f" format=tsv 2>/dev/null | tail -n 1)` → runs `stats.sh` to get assembly metrics in TSV format and takes the last line.  
 
-echo "Sample,Total_Bases,...,GC_Content" > "$OUTPUT_CSV" → writes CSV header.
+**Extract metrics:**  
+- `total=$(echo "$stats_output" | cut -f1)` → total bases.  
+- `num=$(echo "$stats_output" | cut -f3)` → number of contigs.  
+- `min=$(echo "$stats_output" | cut -f4)` → minimum contig length.  
+- `max=$(echo "$stats_output" | cut -f5)` → maximum contig length.  
+- `n50=$(echo "$stats_output" | cut -f6)` → N50 statistic.  
+- `gc=$(echo "$stats_output" | cut -f8)` → GC content percentage.  
 
-for f in "$CONTIG_DIR"/*/*_contigs.fa; do ... done → loops over all contig FASTA files in subdirectories.
-
-sample=$(basename "$f" _contigs.fa) → extracts sample name from filename.
-
-stats_output=$(stats.sh in="$f" format=tsv 2>/dev/null | tail -n 1) → runs stats.sh to get assembly metrics in TSV format and takes the last line (numeric stats).
-
-total=$(echo "$stats_output" | cut -f1) → total bases in contigs.
-
-num=$(echo "$stats_output" | cut -f3) → number of contigs.
-
-min=$(echo "$stats_output" | cut -f4) → minimum contig length.
-
-max=$(echo "$stats_output" | cut -f5) → maximum contig length.
-
-n50=$(echo "$stats_output" | cut -f6) → N50 statistic.
-
-gc=$(echo "$stats_output" | cut -f8) → GC content percentage.
-
-echo "$sample,$total,$num,$min,$max,$n50,$gc" >> "$OUTPUT_CSV" → appends the stats to the CSV.
-
-echo "✅ Assembly stats saved to $OUTPUT_CSV" → prints completion message.
+**Append to CSV:**  
+- `echo "$sample,$total,$num,$min,$max,$n50,$gc" >> "$OUTPUT_CSV"` → adds the stats as a new row.  
+- `echo "✅ Assembly stats saved to $OUTPUT_CSV"` → prints completion message.
 
 </details>
+
 ##### Step 3: Make the script executable
 ```bash
 chmod +x run_seqkit_on_shovill.sh
@@ -1950,8 +1717,6 @@ chmod +x run_prokka.sh
 conda activate prokka_env
 ./run_prokka.sh
 ```
-
-
 
 
 
