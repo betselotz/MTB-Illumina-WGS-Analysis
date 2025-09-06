@@ -149,10 +149,11 @@ The pipeline includes the following steps:
 
 </details>
 
-### Download Data from NCBI and ENA
 
+# Download Data from bioinformatics data base and checking the content of fastq files downloaded
+
+##  Download Data from NCBI and ENA
 Raw sequencing data for *Mycobacterium tuberculosis* can be accessed from public repositories such as **NCBI Sequence Read Archive (SRA)** and **European Nucleotide Archive (ENA) / EBI**. These repositories provide high-throughput sequencing datasets submitted by researchers worldwide.  
-
 Key points:  
 - **NCBI SRA** (https://www.ncbi.nlm.nih.gov/sra): Provides raw FASTQ or SRA files that can be downloaded using the `sra-tools` (`prefetch`, `fasterq-dump`) or via FTP.  
 - **EBI / ENA** (https://www.ebi.ac.uk/ena/browser/home): Offers raw sequencing files (FASTQ) and metadata for projects submitted to Europe’s archive. Supports both browser-based and command-line downloads.  
@@ -164,19 +165,15 @@ Key points:
 There are multiple ways to download *Mycobacterium tuberculosis* sequencing data, depending on the dataset size and source. Below are two practical methods.
 
 ---
-
 #### Method 1: Using **SRA Explorer** (for small datasets)
-
 1. Go to **[SRA Explorer](https://sra-explorer.info/#)**  
 2. Search for a **BioProject number**, e.g., `PRJNA1201357`  
 3. Set **Max Results** to `500`  
-
 4. In the search results, check the following options:  
 - ✅ *WGS of Mycobacterium tuberculosis*  
 - ✅ *Add to collection*  
 - ✅ *Go to data saved*  
 - ✅ *Bash script for downloading FASTQ files*  
-
 5. Download the generated Bash script (e.g., `sra_download.sh`)  
 6. Run the script to download the FASTQ files:  
 
@@ -242,7 +239,6 @@ echo "🎉 All done!"
 </details>
 
 
-
 > **Tips for large-scale projects:**
 > 
 > - Adjust `THREADS` according to your CPU cores for faster downloads.
@@ -266,33 +262,9 @@ Check if the script is still running
 ps aux | grep download_sra.sh
 ```
 
-
-# 🧬 FASTQ Pair Checking and Download Workflow for MTB WGS
-
-This guide demonstrates how to:
-
-1. Check that all your FASTQ files are correctly paired.
-2. Download *Mycobacterium tuberculosis* raw sequencing data using **SRA Explorer** or **SRA Toolkit / ENA**.
-3. Run the download scripts in the background for large datasets.
-
----
-
-## Initial Notes
-
-Before starting, make sure you have:
-
-- `sra-tools` installed (`prefetch`, `fasterq-dump`, `esearch`, `efetch`)
-- `pigz` for parallel compression (optional, but recommended for large files)
-- Enough disk space for raw and compressed FASTQ files
-- Access to your working directory for downloads
-
----
-
-
-## 1️⃣ Checking FASTQ Pairing
-###  FASTQ Visualization and Summary for ET3_S55
-
-This repository contains scripts and commands to **explore and summarize paired-end FASTQ files** for sample `ET3_S55` in a bioinformatically meaningful way.
+##  Checking FASTQ 
+###  FASTQ Visualization and Summary
+This repository contains scripts and commands to **explore and summarize paired-end FASTQ files** for fastq sample and also individual single sample in a bioinformatically meaningful way.
 
 ---
 
