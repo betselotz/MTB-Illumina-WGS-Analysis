@@ -323,19 +323,17 @@ nano check_fastq_pairs.sh
 ```
 ##### Step 3: Paste the following into `check_fastq_pairs.sh`
 ```bash
-```bash
 #!/bin/bash
 set -euo pipefail
 
 INDIR="raw_data"
-OUTFILE="pairing_summary.csv"
-
 cd "$INDIR" || { echo "❌ raw_data directory not found"; exit 1; }
 
-echo "Sample,Status" > "../$OUTFILE"
+echo "Sample Status"
 
 for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do
     [[ -f "$R1" ]] || continue
+
     SAMPLE=${R1%_1.fastq.gz}
     SAMPLE=${SAMPLE%_R1.fastq.gz}
     SAMPLE=${SAMPLE%_R1_*.fastq.gz}
@@ -343,14 +341,13 @@ for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do
     SAMPLE=${SAMPLE%_R1_001.fastq.gz}
 
     if [[ -f "${SAMPLE}_2.fastq.gz" || -f "${SAMPLE}_R2.fastq.gz" || -f "${SAMPLE}_R2_*.fastq.gz" || -f "${SAMPLE}_002.fastq.gz" ]]; then
-        echo "$SAMPLE,Paired" >> "../$OUTFILE"
+        echo "$SAMPLE Paired"
     else
-        echo "$SAMPLE,Missing_R2" >> "../$OUTFILE"
+        echo "$SAMPLE Missing_R2"
     fi
 done
 
-echo "✅ Pairing check completed. See $OUTFILE for details."
-
+echo "✅ Pairing check completed."
 ```
 <details>
 <summary>📖 Explanation of FASTQ Pairing Check Script</summary>
@@ -360,28 +357,28 @@ echo "✅ Pairing check completed. See $OUTFILE for details."
 
 **Setup:**  
 - `INDIR="raw_data"` → directory containing raw FASTQ files.  
-- `OUTFILE="pairing_summary.csv"` → CSV file to store pairing results.  
-- `cd "$INDIR" || { echo "❌ ..."; exit 1; }` → change directory, exit if not found.  
+- `cd "$INDIR" || { echo "❌ raw_data directory not found"; exit 1; }` → changes to the directory, exits if missing.  
 
-**CSV initialization:**  
-- `echo "Sample,Status" > "../$OUTFILE"` → writes header to CSV in parent folder.  
+**Prepare output CSV:**  
+- `echo "Sample,Status" > pairing_summary.csv` → initializes CSV with header.  
 
-**Loop through R1 files:**  
-- `for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do ...` → loops over common R1 naming patterns.  
+**Loop over R1 FASTQ files:**  
+- `for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do ... done` → loops over common R1 naming patterns.  
 - `[[ -f "$R1" ]] || continue` → skip if file does not exist.  
 
 **Extract sample name:**  
-- `SAMPLE=...` → removes different R1 suffixes (`_1.fastq.gz`, `_R1.fastq.gz`, `_R1_*.fastq.gz`, `_001.fastq.gz`, `_R1_001.fastq.gz`) to get base sample name.  
+- `SAMPLE=...` → strips different R1 suffixes (`_1.fastq.gz`, `_R1.fastq.gz`, `_R1_*.fastq.gz`, `_001.fastq.gz`) to get the base sample name.  
 
 **Check for paired R2 file:**  
-- `if [[ -f "${SAMPLE}_2.fastq.gz" || -f "${SAMPLE}_R2.fastq.gz" || -f "${SAMPLE}_R2_*.fastq.gz" || -f "${SAMPLE}_002.fastq.gz" ]]; then ... else ... fi` → checks multiple R2 naming conventions.  
-- `echo "$SAMPLE,Paired" >> "../$OUTFILE"` → log paired samples.  
-- `echo "$SAMPLE,Missing_R2" >> "../$OUTFILE"` → log missing pairs.  
+- `if [[ -f "${SAMPLE}_2.fastq.gz" || ... ]]; then ... else ... fi` → checks multiple naming conventions for corresponding R2 file.  
+- `echo "$SAMPLE,Paired" | tee -a pairing_summary.csv` → logs paired samples.  
+- `echo "$SAMPLE,Missing_R2" | tee -a pairing_summary.csv` → logs samples with missing R2.  
 
 **Completion message:**  
-- `echo "✅ Pairing check completed. See $OUTFILE for details."` → prints summary after processing all samples.
+- `echo "✅ Pairing check completed. See pairing_summary.csv for details."` → prints summary.
 
 </details>
+
 
 
 ##### Step 4: Make the script executable
