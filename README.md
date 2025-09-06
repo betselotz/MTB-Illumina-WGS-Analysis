@@ -334,9 +334,6 @@ For batch processing
 nano count_reads.sh
 ```
 ##### Step 2: Paste the following code
-```bash
-# FastQ Read Count Script
-
 This script counts reads in paired-end FASTQ files and saves results to a CSV.
 
 ```bash
@@ -347,32 +344,22 @@ INDIR="raw_data"
 OUTFILE="fastq_read_counts.csv"
 
 echo "Sample,R1_reads,R2_reads" > "$OUTFILE"
+echo "📊 Counting reads in FASTQ files from '$INDIR'..."
 
 for R1 in "$INDIR"/*_1.fastq.gz "$INDIR"/*_R1.fastq.gz; do
     [[ -f "$R1" ]] || continue
-
     SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.fastq\.gz//')
-
     R2=""
     for suffix in "_2.fastq.gz" "_R2.fastq.gz" "_R2_*.fastq.gz"; do
         [[ -f "$INDIR/${SAMPLE}${suffix}" ]] && R2="$INDIR/${SAMPLE}${suffix}" && break
     done
-
-    R1_COUNT=$(zcat "$R1" | wc -l)
-    R1_COUNT=$((R1_COUNT / 4))
-
-    if [[ -n "$R2" ]]; then
-        R2_COUNT=$(zcat "$R2" | wc -l)
-        R2_COUNT=$((R2_COUNT / 4))
-    else
-        R2_COUNT="NA"
-    fi
-
+    R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))
+    R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")
     echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTFILE"
+    echo "✅ $SAMPLE → R1: $R1_COUNT | R2: $R2_COUNT"
 done
 
-echo "✅ Read counts saved to $OUTFILE"
-
+echo "🎉 All done! Read counts saved to '$OUTFILE'"
 ```
 # 📊 FASTQ Read Count Script – Explanations
 
