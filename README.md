@@ -1104,8 +1104,30 @@ cat consensus_sequences/*.fasta > consensus_sequences/all_consensus.fasta
 ```
 ##### Step 2: Run MAFFT
 Perform multiple sequence alignment on the merged file:
+Use a faster algorithm than --auto
+
+--auto lets MAFFT decide, but for hundreds/thousands of sequences, it often picks a slower iterative refinement.
+You can explicitly pick faster modes:
+
+Since Mycobacterium tuberculosis genomes are highly conserved and we care more about speed than very small accuracy gains, we can safely drop the expensive iterative refinement steps in MAFFT.
+fast and TB-suitable command
+
 ```bash
-mafft --auto --reorder --thread -1 consensus_sequences/all_consensus.fasta > consensus_sequences/aligned_consensus.fasta
+mafft --retree 2 --maxiterate 0 --thread -1 consensus_sequences/all_consensus.fasta > consensus_sequences/aligned_consensus.fasta
+```
+<details>
+<summary>🔹 Why this is good for TB</summary>
+
+- `--retree 2` → guide tree rebuilt twice (enough for closely related genomes).  
+- `--maxiterate 0` → skips iterative refinement (much faster).  
+- `--thread -1` → automatically uses **all available CPU cores**.  
+- Accuracy loss is negligible for TB because sequences are >99% identical.  
+
+</details>
+
+If we have very many genomes ( >1000 ) and want maximum speed, switch to:
+```bash
+mafft --parttree --retree 2 --maxiterate 0 --thread -1 consensus_sequences/all_consensus.fasta > consensus_sequences/aligned_consensus.fasta
 ```
 
 ##### Step 3: Verify the alignment
