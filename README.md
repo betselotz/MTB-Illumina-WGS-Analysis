@@ -190,7 +190,7 @@ The pipeline includes the following steps:
 </details>
 
 
-# Download Data from bioinformatics data base and checking the content of fastq files downloaded
+# 1️⃣ Download and Inspect FASTQ Data
 
 ##  Download Data from NCBI and ENA
 Raw sequencing data for *Mycobacterium tuberculosis* can be accessed from public repositories such as **NCBI Sequence Read Archive (SRA)** and **European Nucleotide Archive (ENA) / EBI**. These repositories provide high-throughput sequencing datasets submitted by researchers worldwide.  
