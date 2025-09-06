@@ -215,8 +215,9 @@ esearch -db sra -query PRJNA1104194 | efetch -format runinfo | cut -d',' -f1 | g
 - `> runs.txt` → Saves the list of accession numbers into `runs.txt`.  
 
 📂 The result is a clean file (`runs.txt`) with one **SRR accession per line**, ready for download.  
-
 </details>
+
+After we first collect all run accession numbers (SRR/ERR/DRR) from ENA or NCBI SRA and save them into `runs.txt`. Using this list, we download raw sequencing data with `prefetch`, convert `.sra` files to paired-end FASTQ using `fasterq-dump`, compress them with `pigz`/`gzip`, and automatically remove the original `.sra` files once FASTQs are safely stored. Finally, we verify that every sample has both R1 and R2 FASTQ files, leaving us with a clean `raw_data/` directory containing paired and compressed FASTQ files ready for downstream analysis.  
 
 
 ##### Step 1:  Once `runs.txt` is ready, create a download script:
