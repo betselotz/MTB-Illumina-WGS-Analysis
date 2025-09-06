@@ -359,6 +359,27 @@ This repository contains scripts and commands to **explore and summarize paired-
 zcat raw_data/ET3_S55_1.fastq.gz | head -n 16
 zcat raw_data/ET3_S55_2.fastq.gz | head -n 16
 ```
+<details>
+<summary>🔍 Inspect First Reads of FASTQ Files</summary>
+- `zcat` is a Linux/Unix command used to **view the contents of compressed files** without manually uncompressing them.  
+- Works primarily with `.gz` files (gzip-compressed).  
+- Unlike `gunzip`, it **prints the uncompressed data to standard output** instead of creating a new file.  
+- Example workflow:  
+  - `zcat raw_data/ET3_S55_1.fastq.gz | head -n 16` →  Show the first 16 lines of R1 (forward) FASTQ file of a compressed file without extracting it. 
+
+
+- Each read in FASTQ format consists of 4 lines:  
+  1. Header line (`@`) with read ID  
+  2. Sequence line  
+  3. Separator line (`+`)  
+  4. Quality scores line  
+  - Useful for:  
+  - Checking file format  
+  - Inspecting sequences and quality  
+  - Ensuring R1 and R2 files are correctly paired  
+</details>
+
+
 ### 2. Count total reads
 For single sample
 ```bash
