@@ -1166,7 +1166,12 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
     --force
 
   echo "==> Renaming output files in: $sample_out"
-  # Rename all files inside output directory by prefixing with sample na
+  # Rename all files inside output directory by prefixing with sample name
+  for f in "$sample_out"/*; do
+    base=$(basename "$f")
+    mv "$f" "$sample_out/${sample}_$base"
+  done
+done
 
 
 ```
