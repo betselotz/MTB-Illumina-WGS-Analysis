@@ -205,6 +205,13 @@ Key points:
 There are multiple ways to download *Mycobacterium tuberculosis* sequencing data, depending on the dataset size and source. Below are two practical methods.
 
 ---
+
+##### Change directory into your working directory
+in our setting `~/Genomics_project/TB/fastq_data/f_invio` is our working directory all bioinformatics analysis conducted from this directory 
+```bash
+cd ~/Genomics_project/TB/fastq_data/f_invio
+```
+
 #### Method 1: Using **SRA Explorer** (for small datasets)
 1. Go to **[SRA Explorer](https://sra-explorer.info/#)**  
 2. Search for a **BioProject number**, e.g., `PRJNA1201357`  
@@ -459,6 +466,9 @@ echo "🎉 All done! Read counts saved to '$OUTFILE'"
 
 </details>
 
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
 
 ##### Step 3: Make the script executable
 ```bash
@@ -468,7 +478,6 @@ chmod +x count_reads.sh
 ```bash
 ./count_reads.sh
 ```
-
 ### 3. Base composition
 
 - **Assess sequencing quality** → Balanced A, T, G, C indicates good data.  
@@ -546,16 +555,12 @@ zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i
 
 We ensured all our FASTQ files are correctly paired before running any bioinformatics analysis.
 
-##### Step 1: Change directory into your working directory
-in our setting `~/Genomics_project/TB/fastq_data/f_invio` is our working directory all bioinformatics analysis conducted from this directory 
-```bash
-cd ~/Genomics_project/TB/fastq_data/f_invio
-```
-##### Step 2: Create the script
+
+##### Step 1: Create the script
 ```bash
 nano check_fastq_pairs.sh
 ```
-##### Step 3: Paste the following into `check_fastq_pairs.sh`
+##### Step 2: Paste the following into `check_fastq_pairs.sh`
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -608,6 +613,7 @@ $MISSING && echo "⚠ Some samples are missing pairs. Fix before running fastp."
   - `✅ All FASTQ files are correctly paired` → Confirms all samples are paired.  
 
 </details>
+
 
 ##### Step 4: Make the script executable
 ```bash
