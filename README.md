@@ -191,11 +191,11 @@ curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB3334&res
 ```bash
 esearch -db sra -query PRJNA1104194 | efetch -format runinfo | cut -d',' -f1 | grep ^SRR > runs.txt
 ```
-Once `runs.txt` is ready, create a download script:
+##### Step 2:  Once `runs.txt` is ready, create a download script:
 ```bash
 nano download_sra.sh
 ```
-Paste the following into the file:
+##### Step 2: Paste the following into the file:
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -260,6 +260,18 @@ echo "🎉 All done!"
 > - Use `pigz` for parallel compression to speed up gzip operations.
 > - This method is reproducible and scalable for **hundreds to thousands of samples**.
 
+
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+##### Step 4: Make the script executable
+```bash
+chmod +x download_sra.sh
+```
+##### Step 5: Run the script
+```bash
+./download_sra.sh
+```
 ### Running the Download Script in the Background
 
 To run your script in the background and keep it running even if you close the terminal, use `nohup`. All output and errors will be saved to `run.log`.
@@ -884,7 +896,6 @@ echo "Snippy results are in: ${OUTDIR}/"
 
 </details>
 
-
 ##### Step 3: Save and exit nano
 Press Ctrl + O, then Enter (save)
 Press Ctrl + X (exit)
@@ -1073,11 +1084,15 @@ echo "✅ All VCFs filtered and saved in $OUTDIR"
 
 </details>
 
-##### Step 3: Make the script executable
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+##### Step 4: Make the script executable
 ```bash
 chmod +x run_tb_variant_filter.sh
 ```
-##### Step 4: Activate environment and run
+##### Step 5: Activate environment and run
 ```bash
 conda activate tb_variant_filter_env
 ./run_tb_variant_filter.sh
@@ -1154,11 +1169,15 @@ echo "🎯 All tb-profiler runs completed. Results saved in $OUTDIR"
 
 </details>
 
-##### Step 3: Make the script executable
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+##### Step 4: Make the script executable
 ```bash
 chmod +x run_tbprofiler.sh
 ```
-##### Step 4: Activate environment and run
+##### Step 5: Activate environment and run
 ```bash
 conda activate tbprofiler_env
 ./run_tbprofiler.sh
@@ -1231,11 +1250,16 @@ echo "🎉 All consensus sequences saved in $OUTDIR."
 
 </details>
 
-##### Step 4: Make the script executable
+
+##### Step 4: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+##### Step 5: Make the script executable
 ```bash
 chmod +x generate_consensus_all.sh
 ```
-##### Step 5: Run the script
+##### Step 6: Run the script
 ```bash
 conda activate tb_consensus_env
 ./generate_consensus_all.sh
@@ -1495,11 +1519,15 @@ done
 
 </details>
 
-###### Step 3: Make the script executable
+
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+###### Step 4: Make the script executable
 ``` bash
 chmod +x run_shovill.sh
 ```
-###### Step 4: Activate environment and run
+###### Step 5: Activate environment and run
 ``` bash
 conda activate shovill_env
 ./run_shovill.sh
@@ -1588,11 +1616,16 @@ done
 
 echo "✅ Assembly stats saved to $OUTPUT_CSV"
 ```
-###### Step 3: Make the script executable
+
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+###### Step 4: Make the script executable
 ``` bash
 chmod +x run_assembly_stats.sh
 ```
-###### Step 4: Activate environment and run
+###### Step 5: Activate environment and run
 ``` bash
 conda activate bbmap_env
 ./run_assembly_stats.sh
@@ -1689,11 +1722,15 @@ echo "✅ All QUAST stats saved in $CSV_FILE"
 
 </details>
 
-##### Step 3: Make the script executable
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+##### Step 4: Make the script executable
 ```bash
 chmod +x run_seqkit_on_shovill.sh
 ```
-##### Step 4: Activate environment and run
+##### Step 5: Activate environment and run
 ```bash
 conda activate tbprofiler_env
 ./run_seqkit_on_shovill.sh
@@ -1795,13 +1832,16 @@ done
 
 </details>
 
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
 
 
-###### Step 3: Make the script executable
+###### Step 4: Make the script executable
 ``` bash
 chmod +x run_prokka.sh
 ```
-###### Step 4: Activate environment and run
+###### Step 5: Activate environment and run
 ``` bash
 conda activate prokka_env
 ./run_prokka.sh
