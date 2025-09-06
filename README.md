@@ -169,24 +169,15 @@ Paste the following into the file:
 #!/bin/bash
 set -euo pipefail
 
-# Number of threads for fasterq-dump / pigz
 THREADS=4
-
-# Directory for FASTQ files
 OUTDIR="fastq_files"
 mkdir -p "$OUTDIR"
-
-# File containing run accessions
 RUNS="SRR_Acc_List.txt"
-
-# Directory where SRA files are stored by default
 SRADIR=~/ncbi/public/sra
 
-# Loop over each accession
 while read -r ACC; do
     echo "==> Processing $ACC ..."
 
-    # Skip download if SRA file already exists
     if [ -f "$SRADIR/$ACC.sra" ]; then
         echo "SRA file $ACC.sra already exists, skipping prefetch."
     else
@@ -194,14 +185,11 @@ while read -r ACC; do
         prefetch --max-size 100G "$ACC"
     fi
 
-    # Skip conversion if FASTQ already exists
     if ls "$OUTDIR"/${ACC}*.fastq.gz 1> /dev/null 2>&1; then
         echo "FASTQ for $ACC already exists, skipping fasterq-dump."
     else
-        # Convert to FASTQ (split paired-end reads)
         fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"
 
-        # Compress FASTQ files
         if command -v pigz &> /dev/null; then
             pigz -p "$THREADS" "$OUTDIR"/${ACC}*.fastq
         else
@@ -209,7 +197,6 @@ while read -r ACC; do
         fi
     fi
 
-    # Optional: remove SRA file after successful FASTQ creation
     if ls "$OUTDIR"/${ACC}*.fastq.gz 1> /dev/null 2>&1; then
         rm -f "$SRADIR/$ACC.sra"
     fi
@@ -221,6 +208,50 @@ done < "$RUNS"
 echo "🎉 All downloads and conversions completed!"
 
 ```
+
+<details>
+<summary>📖 Explanation of the FASTQ Download Script</summary>
+
+- `#!/bin/bash`  
+  Runs the script with Bash shell.
+
+- `set -euo pipefail`  
+  Makes the script safer by exiting on errors, unset variables, or failed pipelines.
+
+- `THREADS=4`  
+  Number of CPU threads used by `fasterq-dump` and `pigz`.
+
+- `OUTDIR="fastq_files"`  
+  Directory where the FASTQ files will be saved.
+
+- `RUNS="SRR_Acc_List.txt"`  
+  File containing the list of SRR accession numbers to download.
+
+- `SRADIR=~/ncbi/public/sra`  
+  Default folder where `prefetch` stores downloaded `.sra` files.
+
+- `while read -r ACC; do ... done < "$RUNS"`  
+  Loops through each accession in the list.
+
+- `if [ -f "$SRADIR/$ACC.sra" ]; then ... fi`  
+  Skips downloading if the SRA file already exists, otherwise downloads with `prefetch`.
+
+- `if ls "$OUTDIR"/${ACC}*.fastq.gz ...`  
+  Skips FASTQ conversion if files already exist.
+
+- `fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"`  
+  Converts `.sra` to paired-end FASTQ files using multiple threads.
+
+- Compression step:  
+  - Uses `pigz` if available (multi-threaded gzip), else falls back to `gzip`.
+
+- `rm -f "$SRADIR/$ACC.sra"`  
+  Deletes the original `.sra` file after successful FASTQ creation.
+
+- `echo` statements  
+  Provide progress updates for each accession.
+
+</details>
 
 > **Tips for large-scale projects:**
 > 
