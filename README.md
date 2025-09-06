@@ -189,7 +189,7 @@ curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB3334&res
 ```
 #####  B. Get SRR run accessions from NCBI SRA
 ```bash
-esearch -db sra -query PRJNA1201357 | efetch -format runinfo | cut -d',' -f1 | grep ^SRR > runs.txt
+esearch -db sra -query PRJNA1104194 | efetch -format runinfo | cut -d',' -f1 | grep ^SRR > runs.txt
 ```
 Once `runs.txt` is ready, create a download script:
 ```bash
@@ -201,7 +201,7 @@ Paste the following into the file:
 set -euo pipefail
 THREADS=4
 OUTDIR="raw_data"; mkdir -p "$OUTDIR"
-RUNS="SRR_Acc_List.txt"
+RUNS="runs.txt"
 SRADIR=~/ncbi/public/sra
 
 while read -r ACC; do
