@@ -577,7 +577,6 @@ mkdir -p "$OUTDIR"
 
 SAMPLES=()
 
-# Detect R1 files under common naming schemes
 for R1 in "$INDIR"/*_1.fastq.gz "$INDIR"/*_R1.fastq.gz "$INDIR"/*_001.fastq.gz "$INDIR"/*_R1_001.fastq.gz; do
     [[ -f "$R1" ]] || continue
 
@@ -587,7 +586,6 @@ for R1 in "$INDIR"/*_1.fastq.gz "$INDIR"/*_R1.fastq.gz "$INDIR"/*_001.fastq.gz "
     SAMPLE=${SAMPLE%%_001.fastq.gz}
     SAMPLE=${SAMPLE%%_R1_001.fastq.gz}
 
-    # Find R2 match
     if   [[ -f "$INDIR/${SAMPLE}_2.fastq.gz" ]]; then R2="$INDIR/${SAMPLE}_2.fastq.gz"
     elif [[ -f "$INDIR/${SAMPLE}_R2.fastq.gz" ]]; then R2="$INDIR/${SAMPLE}_R2.fastq.gz"
     elif [[ -f "$INDIR/${SAMPLE}_002.fastq.gz" ]]; then R2="$INDIR/${SAMPLE}_002.fastq.gz"
@@ -597,7 +595,6 @@ for R1 in "$INDIR"/*_1.fastq.gz "$INDIR"/*_R1.fastq.gz "$INDIR"/*_001.fastq.gz "
         continue
     fi
 
-    # Skip if already processed
     if [[ -f "$OUTDIR/${SAMPLE}_1.trim.fastq.gz" && -f "$OUTDIR/${SAMPLE}_2.trim.fastq.gz" ]]; then
         echo "⏩ Skipping $SAMPLE (already processed)."
         continue
@@ -630,18 +627,6 @@ run_fastp() {
         --qualified_quality_phred 20 \
         --detect_adapter_for_pe \
         --thread $FASTP_THREADS \
-        \
-        # 1. UMI preprocessing (if UMI data) → add: --umi
-        # 2. Global trim front → add: --trim_front1, --trim_front2
-        # 3. Global trim tail → add: --trim_tail1, --trim_tail2
-        # 4. Quality prune 5' → add: --cut_front
-        # 5. Sliding window pruning → add: --cut_right
-        # 6. Quality prune 3' → add: --cut_tail
-        # 7. PolyG trimming (default for NovaSeq/NextSeq)
-        # 8. Adapter trimming by overlap (default for PE data)
-        # 9. Adapter trimming by sequence → add: --adapter_sequence <seq>
-        # 10. PolyX trimming → add: --trim_poly_x
-        # 11. Max length (if really needed) → add: --max_len1, --max_len2 \
         &> "$OUTDIR/${SAMPLE}_fastp.log"
 }
 
@@ -651,7 +636,72 @@ export OUTDIR FASTP_THREADS
 printf "%s\n" "${SAMPLES[@]}" | parallel -j 3 --colsep ',' run_fastp {1} {2} {3}
 
 echo "🎉 Completed fastp for $(ls "$OUTDIR"/*_fastp.json | wc -l) samples."
+
 ```
+<details>
+<summary>📖 Explanation of fastp Trimming Script</summary>
+
+- `#!/bin/bash`  
+  Runs the script with Bash shell.
+
+- `set -euo pipefail`  
+  Exits on errors, undefined variables, or pipeline failures.
+
+- `INDIR="raw_data"`  
+  Directory containing raw FASTQ files.
+
+- `OUTDIR="fastp_results_min_50"`  
+  Directory for trimmed FASTQ files.
+
+- `mkdir -p "$OUTDIR"`  
+  Creates the output directory if it doesn’t exist.
+
+- `SAMPLES=()`  
+  Initializes an array to store sample names and FASTQ paths.
+
+- `for R1 in ...`  
+  Loops over common R1 naming patterns.
+
+- `SAMPLE=...`  
+  Strips suffixes from R1 filenames to get the sample name.
+
+- `if ... elif ... else`  
+  Searches for corresponding R2 file under multiple naming conventions.
+
+- `if [[ -f "$OUTDIR/${SAMPLE}_1.trim.fastq.gz" && ... ]]`  
+  Skips the sample if it has already been processed.
+
+- `SAMPLES+=("$SAMPLE,$R1,$R2")`  
+  Stores sample and file paths in the array for parallel processing.
+
+- `THREADS=$(nproc)`  
+  Detects the total number of CPU cores.
+
+- `FASTP_THREADS=$(( THREADS / 2 ))`  
+  Uses half the cores per fastp process to prevent overloading.
+
+- `run_fastp() { ... }`  
+  Function to run `fastp` for a single sample:
+  - `-i` / `-I` → input R1/R2 files
+  - `-o` / `-O` → output trimmed FASTQ files
+  - `-h` → HTML report
+  - `-j` → JSON report
+  - `--length_required 50` → discard reads shorter than 50 bp
+  - `--qualified_quality_phred 20` → minimum quality threshold
+  - `--detect_adapter_for_pe` → automatic adapter trimming
+  - `--thread` → number of threads
+
+- `export -f run_fastp`  
+  Makes the function available to GNU Parallel.
+
+- `printf "%s\n" "${SAMPLES[@]}" | parallel -j 3 --colsep ',' run_fastp {1} {2} {3}`  
+  Runs fastp in parallel for 3 samples at a time.
+
+- `echo "🎉 Completed fastp ..."`  
+  Prints total number of processed samples.
+
+</details>
+
 ##### Step 3: Save & exit nano
 Press CTRL+O, Enter (save)
 Press CTRL+X (exit)
@@ -674,7 +724,6 @@ After preprocessing with `fastp`, we often end up with dozens or even hundreds o
 - **Consistency check**: Helps us quickly detect outlier samples (e.g., unusually short reads, poor quality, or failed trimming).  
 - **Scalable**: Works seamlessly for hundreds or thousands of TB isolates.  
 - **Standardized reporting**: Essential for sharing results across teams or publications.  
-
 ---
 
 ### Script: Run MultiQC
@@ -693,6 +742,29 @@ OUTPUT_DIR="multiqc_output"
 mkdir -p "$OUTPUT_DIR"
 multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"
 ```
+<details>
+<summary>📖 Explanation of MultiQC Script</summary>
+
+- `#!/bin/bash`  
+  Runs the script with Bash shell.
+
+- `set -euo pipefail`  
+  Exits on errors, undefined variables, or pipeline failures.
+
+- `INPUT_DIR="fastp_results_min_50"`  
+  Directory containing input QC reports (fastp JSON/HTML outputs).
+
+- `OUTPUT_DIR="multiqc_output"`  
+  Directory where MultiQC will save the aggregated report.
+
+- `mkdir -p "$OUTPUT_DIR"`  
+  Creates the output directory if it doesn’t exist.
+
+- `multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"`  
+  Runs MultiQC on all files in `INPUT_DIR` and outputs the combined HTML/JSON report into `OUTPUT_DIR`.
+
+</details>
+
 ##### Step 3: Save & exit nano
 Press CTRL+O, Enter (save)
 Press CTRL+X (exit)
@@ -705,7 +777,6 @@ chmod +x run_multiqc.sh
 conda activate multiqc_env
 ./run_multiqc.sh
 ```
-
 
 # 5️⃣ Snippy
 
@@ -727,18 +798,15 @@ nano run_snippy.sh
 #!/bin/bash
 set -euo pipefail
 
-# ======== CONFIG ========
 REF="H37Rv.fasta"
 FASTP_DIR="fastp_results_min_70"
 OUTDIR="snippy_results"
-THREADS=8         # threads *inside* each Snippy job
+THREADS=8
 BWA_THREADS=30
-JOBS=4            # how many samples to run at once
-# ========================
+JOBS=4
 
 mkdir -p "$OUTDIR"
 
-# Function: run snippy for a single sample
 run_snippy_sample() {
     SAMPLE="$1"
     R1="${FASTP_DIR}/${SAMPLE}_1.trim.fastq.gz"
@@ -752,7 +820,6 @@ run_snippy_sample() {
         snippy --cpus "$THREADS" --outdir "$TMP_DIR" --ref "$REF" \
                --R1 "$R1" --R2 "$R2" --force --bwaopt "-T $BWA_THREADS"
 
-        # Rename and move outputs
         for f in "$TMP_DIR"/*; do
             base=$(basename "$f")
             case "$base" in
@@ -781,13 +848,10 @@ run_snippy_sample() {
 export -f run_snippy_sample
 export REF FASTP_DIR OUTDIR THREADS BWA_THREADS
 
-# Run samples in parallel
 ls "${FASTP_DIR}"/*_1.trim.fastq.gz \
     | sed 's|.*/||; s/_1\.trim\.fastq\.gz//' \
     | parallel -j "$JOBS" run_snippy_sample {}
 
-# Step 2: Verification
-echo "Verifying completeness..."
 ls "${FASTP_DIR}"/*_1.trim.fastq.gz \
     | sed 's|.*/||; s/_1\.trim\.fastq\.gz//' | sort > fastq_samples.txt
 ls "${OUTDIR}"/*.snps.vcf 2>/dev/null \
@@ -807,8 +871,58 @@ rm -f fastq_samples.txt snippy_samples.txt
 
 echo "🎯 All steps completed!"
 echo "Snippy results are in: ${OUTDIR}/"
-
 ```
+<details>
+<summary>📖 Explanation of Snippy Pipeline Script</summary>
+
+- `#!/bin/bash`  
+  Runs the script using Bash shell.
+
+- `set -euo pipefail`  
+  Exits on errors, undefined variables, or pipeline failures.
+
+- `REF="H37Rv.fasta"`  
+  Reference genome for Snippy variant calling.
+
+- `FASTP_DIR="fastp_results_min_70"`  
+  Directory containing trimmed FASTQ files.
+
+- `OUTDIR="snippy_results"`  
+  Directory for Snippy outputs.
+
+- `THREADS` and `BWA_THREADS`  
+  Threads for Snippy internal processes and BWA alignment.
+
+- `JOBS=4`  
+  Number of samples to run in parallel.
+
+- `run_snippy_sample() { ... }`  
+  Function to run Snippy for a single sample:
+  - Checks if R1/R2 FASTQ files exist.
+  - Creates a temporary directory for Snippy outputs.
+  - Runs Snippy with specified threads and BWA options.
+  - Renames and moves output files (`*.vcf`, `*.bam`, `consensus.fa`) to a standardized format with the sample name.
+  - Deletes temporary files.
+  - Verifies that the VCF was generated.
+
+- `export -f run_snippy_sample`  
+  Makes the function available to GNU Parallel.
+
+- `ls "${FASTP_DIR}"/*_1.trim.fastq.gz | sed ... | parallel -j "$JOBS" run_snippy_sample {}`  
+  Detects all R1 FASTQ files and runs Snippy in parallel for multiple samples.
+
+- Verification steps:  
+  - Lists FASTQ samples and generated VCFs.  
+  - Compares both lists to ensure all samples were processed.  
+  - Prints counts and warnings if samples are missing.
+
+- `rm -f fastq_samples.txt snippy_samples.txt`  
+  Cleans up temporary verification files.
+
+- `echo "🎯 All steps completed!"`  
+  Prints completion message with output directory location.
+
+</details>
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O, then Enter (save)
@@ -844,10 +958,7 @@ nano run_qualimap.sh
 #!/bin/bash
 set -euo pipefail
 
-# Directory with Snippy BAM files
 SNIPPY_DIR="all_bams"
-
-# Output directory for Qualimap reports
 QUALIMAP_OUT="qualimap_reports"
 mkdir -p "$QUALIMAP_OUT"
 
@@ -858,16 +969,51 @@ for bam in "$SNIPPY_DIR"/*.bam; do
     outdir="${QUALIMAP_OUT}/${sample}"
     mkdir -p "$outdir"
 
-    # Run Qualimap (both HTML and PDF for completeness)
     qualimap bamqc \
         -bam "$bam" \
         -outdir "$outdir" \
         -outformat pdf:html \
         --java-mem-size=4G
-
-    # MultiQC will later scan these reports
 done
 ```
+<details>
+<summary>📖 Explanation of Qualimap BAM QC Script</summary>
+
+- `#!/bin/bash`  
+  Runs the script using Bash.
+
+- `set -euo pipefail`  
+  Exits on errors, undefined variables, or pipeline failures.
+
+- `SNIPPY_DIR="all_bams"`  
+  Directory containing Snippy-generated BAM files.
+
+- `QUALIMAP_OUT="qualimap_reports"`  
+  Directory to store Qualimap QC outputs.
+
+- `mkdir -p "$QUALIMAP_OUT"`  
+  Creates output directory if it does not exist.
+
+- `for bam in "$SNIPPY_DIR"/*.bam; do ... done`  
+  Loops over all BAM files in the Snippy directory.
+
+- `sample=$(basename "$bam" .bam)`  
+  Extracts the sample name from the BAM filename.
+
+- `outdir="${QUALIMAP_OUT}/${sample}"`  
+  Creates a unique output folder for each sample.
+
+- `qualimap bamqc -bam "$bam" -outdir "$outdir" -outformat pdf:html --java-mem-size=4G`  
+  Runs Qualimap QC on the BAM file:
+  - Generates both PDF and HTML reports.
+  - Allocates 4 GB of Java memory for processing.
+
+- `echo "Running Qualimap BAM QC for sample: $sample"`  
+  Prints status messages.
+
+</details>
+
+
 ##### Step 3: Save and exit nano
 
 Press Ctrl + O, then Enter (save)
@@ -941,7 +1087,6 @@ This tool applies a series of filters tailored to *M. tuberculosis*. The main st
 - **Reliable resistance prediction**: Only keeps SNPs truly linked to drug resistance.  
 - **Cleaner phylogenies**: Results in more robust clustering and outbreak inference.  
 - **Standardization**: Widely adopted in TB genomic epidemiology pipelines, making results comparable across studies.  
-
 ---
 
 ## Steps
