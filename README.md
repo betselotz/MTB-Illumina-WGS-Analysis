@@ -187,11 +187,39 @@ bash sra_download.sh
 ```bash
 curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB3334&result=read_run&fields=run_accession" | tail -n +2 > runs.txt
 ```
+<details>
+<summary>🌍 Get Run Accessions from ENA</summary>
+
+- `curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?...` → Queries the ENA API for metadata.  
+- `accession=PRJEB3334` → Specifies the BioProject accession (**PRJEB3334** in this case).  
+- `result=read_run` → Requests run-level information (one row per sequencing run).  
+- `fields=run_accession` → Limits the output to just the **run accession IDs** (SRR/ERR/DRR).  
+- `tail -n +2` → Removes the first header line from the API output.  
+- `> runs.txt` → Saves all run accession numbers into `runs.txt`.  
+
+📂 The output is a simple text file (`runs.txt`) with one run accession per line, ready for downstream use.  
+
+</details>
+
 #####  B. Get SRR run accessions from NCBI SRA
 ```bash
 esearch -db sra -query PRJNA1104194 | efetch -format runinfo | cut -d',' -f1 | grep ^SRR > runs.txt
 ```
-##### Step 2:  Once `runs.txt` is ready, create a download script:
+<details>
+<summary>🔎 Get SRR Accessions from NCBI SRA</summary>
+
+- `esearch -db sra -query PRJNA1104194` → Searches the NCBI SRA database for the BioProject ID **PRJNA1104194**.  
+- `efetch -format runinfo` → Fetches detailed run metadata in CSV format.  
+- `cut -d',' -f1` → Extracts the **first column** (which contains SRR accession numbers).  
+- `grep ^SRR` → Filters only rows starting with "SRR".  
+- `> runs.txt` → Saves the list of accession numbers into `runs.txt`.  
+
+📂 The result is a clean file (`runs.txt`) with one **SRR accession per line**, ready for download.  
+
+</details>
+
+
+##### Step 1:  Once `runs.txt` is ready, create a download script:
 ```bash
 nano download_sra.sh
 ```
