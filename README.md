@@ -506,30 +506,49 @@ done
 
 ### 4. Quality score summary
 ```bash
-# First 10 quality lines
+ First 10 quality lines
 zcat raw_data/ET3_S55_1.fastq.gz | sed -n '4~4p' | head -n 10
 zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | head -n 10
+```
+### 4. Inspect Quality Lines
+its good practice to quickly inspect base quality scores for the first few reads before full QC or analysis
+- We may spot unusual patterns in base quality that may indicate issues with the sequencing run.
+<details>
+<summary>🔍 View FASTQ Quality Scores</summary>
 
-# Count ASCII characters in quality lines
+- `zcat raw_data/ET3_S55_1.fastq.gz | sed -n '4~4p' | head -n 10`  
+  - Decompresses R1 FASTQ.  
+  - `sed -n '4~4p'` → Prints every 4th line starting from line 4 (the **quality score line** for each read).  
+  - `head -n 10` → Shows only the first 10 quality lines for quick inspection.  
+
+- `zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | head -n 10`  
+  - Same as above, but for R2 FASTQ.  
+</details>
+
+ Count ASCII characters in quality lines
+```bash
 zcat raw_data/ET3_S55_1.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
 zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
 ```
+<details>
+<summary>🔢 Count Quality Score Frequencies</summary>
 
-### 5. Quick paired-end summary
-```bash
-R1="raw_data/ET3_S55_1.fastq.gz"
-R2="raw_data/ET3_S55_2.fastq.gz"
+- `zcat raw_data/ET3_S55_1.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'`  
+  - Decompresses R1 FASTQ.  
+  - `sed -n '4~4p'` → Selects every 4th line (the **quality line**).  
+  - `awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'` → Counts occurrences of each quality score character.  
 
-echo "Sample: ET3_S55"
-echo "R1 reads: $(zcat "$R1" | echo $(( $(wc -l)/4 )))"
-echo "R2 reads: $(zcat "$R2" | echo $(( $(wc -l)/4 )))"
-```
+- `zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'`  
+  - Same as above, but for R2 FASTQ.  
+</details>
 
-### 6.   Checking FASTQ Pairing 
 
-Ensure all FASTQ files are correctly paired before running any trimming or analysis.
+### 5.   Checking FASTQ Pairing 
+
+We ensured all our FASTQ files are correctly paired before running any bioinformatics analysis.
 
 ##### Step 1: Change directory into your working directory
+in our setting `~/Genomics_project/TB/fastq_data/f_invio` is our working directory all bioinformatics analysis conducted from this directory 
 ```bash
 cd ~/Genomics_project/TB/fastq_data/f_invio
 ```
@@ -605,19 +624,15 @@ chmod +x check_fastq_pairs.sh
 
 # 2️⃣Calculating Minimum, Maximum, and Average Read Lengths for Paired-End Reads
 
-Before performing any downstream bioinformatics analysis, it is important to understand the quality and characteristics of your sequencing data. One key metric is the **read length** of your FASTQ files. 
-
+Before performing any downstream bioinformatics analysis, it is important to understand the quality and characteristics of your sequencing data. One key metric is the **read length** of our FASTQ files. 
 - **Minimum read length:** Helps identify very short reads that may result from sequencing errors or trimming. Extremely short reads can cause mapping errors or low-quality variant calls.  
-- **Maximum read length:** Confirms whether reads were sequenced to the expected length and identifies unusually long reads that may indicate adapter contamination or sequencing artifacts.  
-- **Average read length:** Provides an overall measure of the sequencing quality and consistency across the dataset.
-
+- **Maximum read length:** Confirms whether reads were sequenced to the expected length and identifies unusually long reads that may indicate adapter contamination or sequencing artifacts. - **Average read length:** Provides an overall measure of the sequencing quality and consistency across the dataset.
 Calculating these metrics for **both R1 and R2 reads** is particularly important in paired-end sequencing:
-
 - Ensures that both reads in a pair are of comparable lengths, which is crucial for accurate alignment and variant calling.  
 - Detects any discrepancies between forward and reverse reads that could indicate technical issues during sequencing or library preparation.  
 - Allows early filtering of problematic samples before running computationally intensive steps such as mapping, variant calling, or assembly.  
 
-By summarizing read lengths in a **CSV file**, you can quickly inspect your dataset, compare samples, and make informed decisions on trimming, filtering, or quality control. This step improves the reliability and reproducibility of downstream analyses.
+By summarizing read lengths in a **CSV file**, we could able to quickly inspect our dataset, compare samples, and make informed decisions on trimming, filtering, or quality control. This step improves the reliability and reproducibility of downstream analyses.
 
 ---
 
@@ -683,7 +698,6 @@ echo "✅ Read length summary saved to $OUTPUT_CSV"
 
 </details>
 
-
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
 Press Ctrl + X → Exit nano
@@ -705,7 +719,6 @@ High-quality read preprocessing is crucial in *Mycobacterium tuberculosis* (TB) 
 - False-positive SNP calls
 - Mapping errors, especially in repetitive regions (e.g., PE/PPE genes)
 - Biased coverage, affecting downstream variant interpretation
-
 ### Advantages of fastp over Trimmomatic and other tools
 - **All-in-one solution**: Unlike Trimmomatic (which often requires extra tools for QC reports), `fastp` handles trimming, adapter detection, filtering, and QC in a single step.  
 - **Automatic adapter detection**: No need to manually supply adapter sequences, which reduces human error. This is especially helpful for large TB projects with mixed sequencing batches.  
@@ -722,7 +735,6 @@ High-quality read preprocessing is crucial in *Mycobacterium tuberculosis* (TB) 
 ---
 
 ### Steps to Run FASTP
-
 ##### Step 1: **Open nano to create the script**
 ```bash
 nano run_fastp.sh
