@@ -1359,7 +1359,7 @@ conda activate tbprofiler_env
 ./run_tbprofiler.sh
 ```
 
-# 10️⃣ BCFTools Consensus Generation
+# 1️⃣0️⃣ BCFTools Consensus Generation
 
 <details>
 <summary>🧬 Generate Sample-Specific Consensus Sequences</summary>
@@ -1590,7 +1590,7 @@ Quickly inspect the top of the aligned FASTA:
 head consensus_sequences/aligned_consensus.fasta
 ```
 
-# Shovill
+#1️⃣3️⃣ Shovill
 <details>
 <summary>🏗️ Shovill: Bacterial Genome Assembler</summary>
 
@@ -1943,7 +1943,7 @@ grep 'contig_percent_[cg]' \
   | awk -F '\t' '{sum+=$3} END {print "GC%=",sum}'
 ```
 
-# Prokka
+#1️⃣4️⃣ Prokka
 Prokka is a rapid **prokaryotic genome annotation tool** that predicts genes, coding sequences (CDS), rRNAs, tRNAs, and other genomic features from assembled contigs or genomes.  
 
 Key points for TB genomes:
