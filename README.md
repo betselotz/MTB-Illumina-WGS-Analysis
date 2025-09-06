@@ -650,7 +650,7 @@ nano fastq_read_length_summary.sh
 ```bash
 #!/bin/bash
 
-FASTQ_DIR="."
+FASTQ_DIR="raw_data"
 OUTDIR="read_length_summary"
 OUTPUT_CSV="${OUTDIR}/read_length_summary.csv"
 
@@ -685,7 +685,7 @@ echo "✅ Read length summary saved to $OUTPUT_CSV"
 <summary>📊 Read Length Summary Script Explanation</summary>
 
 - `#!/bin/bash` → Run script with Bash.  
-- `FASTQ_DIR="."` → Directory containing FASTQ files.  
+- `FASTQ_DIR="raw_data"` → Directory containing FASTQ files.  
 - `OUTDIR="read_length_summary"` → Directory to save CSV output.  
 - `OUTPUT_CSV="${OUTDIR}/read_length_summary.csv"` → Output CSV file path.  
 - `mkdir -p "$OUTDIR"` → Create output directory if missing.  
@@ -870,6 +870,7 @@ Count R1 trimmed files
 ```bash
 ls -lth fastp_results_min_50/*_1.trim.fastq.gz | wc -l
 ```
+Count R2 trimmed files
 ```bash
 ls -lth fastp_results_min_50/*_2.trim.fastq.gz | wc -l
 ```
@@ -907,7 +908,143 @@ This helps quickly identify if the quality encoding is correct (usually Phred+33
 
 </details>
 
+For batch processing trimmed FASTQ
+##### Step 1: Open a new script
+```bash
+nano count_trimmed_reads.sh
+```
+##### Step 2: Paste the following code
+This script counts reads in trimmed paired-end FASTQ files and saves results to a CSV.
+```bash
+#!/bin/bash
+set -euo pipefail
 
+INDIR="fastp_results_min_50"
+OUTFILE="trimmed_fastq_read_counts.csv"
+
+echo "Sample,R1_reads,R2_reads" > "$OUTFILE"
+echo "📊 Counting reads in trimmed FASTQ files from '$INDIR'..."
+
+for R1 in "$INDIR"/*_1.trim.fastq.gz "$INDIR"/*_R1.trim.fastq.gz; do
+    [[ -f "$R1" ]] || continue
+    SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.trim\.fastq\.gz//')
+    R2=""
+    for suffix in "_2.trim.fastq.gz" "_R2.trim.fastq.gz" "_R2_*.trim.fastq.gz"; do
+        [[ -f "$INDIR/${SAMPLE}${suffix}" ]] && R2="$INDIR/${SAMPLE}${suffix}" && break
+    done
+    R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))
+    R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")
+    echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTFILE"
+    echo "✅ $SAMPLE → R1: $R1_COUNT | R2: $R2_COUNT"
+done
+
+echo "🎉 All done! Read counts saved to '$OUTFILE'"
+```
+<details>
+  <summary>📊 Trimmed FASTQ Read Count Script Explanation</summary>
+
+- `#!/bin/bash` → Runs the script using Bash.  
+- `set -euo pipefail` → Exits on errors, unset variables, or failed commands.  
+- `INDIR="fastp_results_min_50"` → Directory containing trimmed FASTQ files.  
+- `OUTFILE="trimmed_fastq_read_counts.csv"` → CSV file to store read counts.  
+- `echo "Sample,R1_reads,R2_reads" > "$OUTFILE"` → Creates CSV header.  
+- `echo "📊 Counting reads in trimmed FASTQ files from '$INDIR'..."` → Prints starting message.  
+- `for R1 in "$INDIR"/*_1.trim.fastq.gz "$INDIR"/*_R1.trim.fastq.gz; do ... done` → Loops through all R1 trimmed FASTQ files.  
+- `[[ -f "$R1" ]] || continue` → Skips if the R1 file does not exist.  
+- `SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.trim\.fastq\.gz//')` → Extracts sample name.  
+- `for suffix in "_2.trim.fastq.gz" "_R2.trim.fastq.gz" "_R2_*.trim.fastq.gz"; do ... done` → Finds corresponding R2 trimmed file.  
+- `R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))` → Counts reads in R1.  
+- `R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")` → Counts reads in R2 if present; else "NA".  
+- `echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTFILE"` → Appends counts to CSV.  
+- `echo "✅ $SAMPLE → R1: $R1_COUNT | R2: $R2_COUNT"` → Prints progress for each sample.  
+- `echo "🎉 All done! Read counts saved to '$OUTFILE'"` → Prints completion message.  
+
+</details>
+
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+##### Step 4: Make the script executable
+```bash
+chmod +x count_trimmed_reads.sh
+```
+##### Step 5: Run the script
+```bash
+./count_trimmed_reads.sh
+```
+
+##### Step 1: Open nano to create a new script
+```bash
+nano trimmed_fastq_read_length_summary.sh
+```
+##### Step 2: Paste the following code into nano
+```bash
+#!/bin/bash
+
+FASTQ_DIR="fastp_results_min_50"
+OUTDIR="read_length_summary_trimmed"
+OUTPUT_CSV="${OUTDIR}/trimmed_read_length_summary.csv"
+
+mkdir -p "$OUTDIR"
+
+echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"
+
+for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do
+    SAMPLE=$(basename "$R1" _1.trim.fastq.gz)
+    R2="${FASTQ_DIR}/${SAMPLE}_2.trim.fastq.gz"
+
+    if [[ -f "$R2" ]]; then
+        echo "Processing sample $SAMPLE"
+
+        calc_stats() {
+            zcat "$1" | awk 'NR%4==2 {len=length($0); sum+=len; if(min==""){min=len}; if(len<min){min=len}; if(len>max){max=len}; count++} END{avg=sum/count; printf "%d,%d,%.2f", min, max, avg}'
+        }
+
+        STATS_R1=$(calc_stats "$R1")
+        STATS_R2=$(calc_stats "$R2")
+
+        echo "$SAMPLE,$STATS_R1,$STATS_R2" >> "$OUTPUT_CSV"
+    else
+        echo "⚠ Missing R2 for $SAMPLE, skipping."
+    fi
+done
+
+echo "✅ Trimmed read length summary saved to $OUTPUT_CSV"
+```
+<details>
+  <summary>📊 Trimmed Read Length Summary Script Explanation</summary>
+
+- `#!/bin/bash` → Run script with Bash.  
+- `FASTQ_DIR="fastp_results_min_50"` → Directory containing trimmed FASTQ files.  
+- `OUTDIR="read_length_summary_trimmed"` → Directory to save CSV output.  
+- `OUTPUT_CSV="${OUTDIR}/trimmed_read_length_summary.csv"` → Output CSV file path.  
+- `mkdir -p "$OUTDIR"` → Create output directory if missing.  
+- `echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"` → CSV header.  
+- `for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do ...` → Loop over all R1 trimmed FASTQ files.  
+- `SAMPLE=$(basename "$R1" _1.trim.fastq.gz)` → Extract sample name.  
+- `R2="${FASTQ_DIR}/${SAMPLE}_2.trim.fastq.gz"` → Get paired R2 filename.  
+- `if [[ -f "$R2" ]]; then ... else ... fi` → Skip sample if R2 missing.  
+- `calc_stats() { ... }` → Function to calculate min, max, avg read lengths for a FASTQ.  
+- `STATS_R1=$(calc_stats "$R1")` → Stats for R1.  
+- `STATS_R2=$(calc_stats "$R2")` → Stats for R2.  
+- `echo "$SAMPLE,$STATS_R1,$STATS_R2" >> "$OUTPUT_CSV"` → Append sample stats to CSV.  
+- `echo "⚠ Missing R2 for $SAMPLE, skipping."` → Warning if R2 missing.  
+- `echo "✅ Trimmed read length summary saved to $OUTPUT_CSV"` → Final confirmation message.  
+
+</details>
+
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter
+Press Ctrl + X → Exit
+##### Step 4: Make the script executable
+```
+chmod +x trimmed_fastq_read_length_summary.sh
+```
+##### Step 5: Run the script
+```bash
+./trimmed_fastq_read_length_summary.sh
+```
 # 4️⃣ MultiQC
 
 <details>
