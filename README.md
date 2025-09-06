@@ -321,15 +321,6 @@ echo "🎉 All done!"
 
 </details>
 
-
-> **Tips for large-scale projects:**
-> 
-> - Adjust `THREADS` according to your CPU cores for faster downloads.
-> - Ensure enough disk space; SRA files can be large (~10–50 GB per sample).
-> - Use `pigz` for parallel compression to speed up gzip operations.
-> - This method is reproducible and scalable for **hundreds to thousands of samples**.
-
-
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
 Press Ctrl + X → Exit nano
