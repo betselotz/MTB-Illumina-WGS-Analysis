@@ -718,25 +718,32 @@ chmod +x fastq_read_length_summary.sh
 
 # 3️⃣ FASTP – Quality Control and Trimming
 
+<details>
+<summary>⚡ FASTQ Preprocessing with fastp</summary>
+
 [`fastp`](https://github.com/OpenGene/fastp) is a widely used **FASTQ preprocessor** for quality control (QC), read trimming, and adapter removal. It is efficient, multithreaded, and provides both **JSON and HTML reports** for each sample.  
-In this pipeline, `fastp` is used to ensure that only **high-quality reads** are retained before mapping and variant calling.  
-High-quality read preprocessing is crucial in *Mycobacterium tuberculosis* (TB) whole-genome sequencing (WGS) analysis. Poorly trimmed or unfiltered reads can lead to:
-- False-positive SNP calls
-- Mapping errors, especially in repetitive regions (e.g., PE/PPE genes)
-- Biased coverage, affecting downstream variant interpretation
+
+In this pipeline, `fastp` ensures that only **high-quality reads** are retained before mapping and variant calling. High-quality read preprocessing is crucial in *Mycobacterium tuberculosis* (TB) WGS analysis because poorly trimmed or unfiltered reads can lead to:
+- False-positive SNP calls  
+- Mapping errors, especially in repetitive regions (e.g., PE/PPE genes)  
+- Biased coverage, affecting downstream variant interpretation  
+
 ### Advantages of fastp over Trimmomatic and other tools
-- **All-in-one solution**: Unlike Trimmomatic (which often requires extra tools for QC reports), `fastp` handles trimming, adapter detection, filtering, and QC in a single step.  
-- **Automatic adapter detection**: No need to manually supply adapter sequences, which reduces human error. This is especially helpful for large TB projects with mixed sequencing batches.  
-- **Speed and multithreading**: `fastp` is written in C++ and is **much faster** than Trimmomatic (Java-based), making it well-suited for high-throughput TB datasets.  
-- **Comprehensive QC output**: Generates both HTML (interactive) and JSON (machine-readable) reports, giving insights into quality distribution, duplication rates, adapter content, and polyG/polyX tails.  
-- **Better polyG/polyX handling**: Important for Illumina NovaSeq/NextSeq data (common in TB studies), where artificial polyG tails are a known issue.  
-- **UMI (Unique Molecular Identifier) support**: Useful in advanced TB sequencing protocols where UMIs are used for error correction.  
-- **Minimal parameter tuning**: Default settings are optimized and generally require fewer manual adjustments than Trimmomatic, reducing complexity in standardized pipelines.  
+- **All-in-one solution**: Handles trimming, adapter detection, filtering, and QC in a single step.  
+- **Automatic adapter detection**: Reduces human error, especially for large TB projects with mixed sequencing batches.  
+- **Speed and multithreading**: Written in C++, much faster than Java-based Trimmomatic.  
+- **Comprehensive QC output**: HTML (interactive) and JSON (machine-readable) reports for quality distribution, duplication rates, adapter content, and polyG/polyX tails.  
+- **Better polyG/polyX handling**: Important for Illumina NovaSeq/NextSeq data.  
+- **UMI support**: Useful for advanced TB sequencing protocols using Unique Molecular Identifiers.  
+- **Minimal parameter tuning**: Default settings are optimized, reducing manual adjustments.  
 
 ### Why this matters for TB analysis
-- **Accurate SNP calling**: TB drug-resistance prediction relies on high-confidence SNPs; poor-quality reads increase false positives.  
-- **Low genetic diversity detection**: TB isolates often differ by only a handful of SNPs. Retaining true biological variants while filtering sequencing errors is critical.  
-- **Scalability for large cohorts**: Public datasets (e.g., thousands of TB isolates from ENA/NCBI) require efficient, reproducible, and automated preprocessing — a role where `fastp` excels.  
+- **Accurate SNP calling**: TB drug-resistance prediction relies on high-confidence SNPs.  
+- **Low genetic diversity detection**: TB isolates often differ by only a few SNPs. Filtering errors while retaining true variants is critical.  
+- **Scalability for large cohorts**: Efficient, reproducible preprocessing is essential for thousands of public TB isolates from ENA/NCBI.  
+
+</details>
+
 ---
 
 ### Steps to Run FASTP
@@ -861,13 +868,19 @@ conda activate fastp_env
 
 # 4️⃣ MultiQC
 
-After preprocessing with `fastp`, we often end up with dozens or even hundreds of per-sample QC reports (`.html` and `.json`). Instead of checking each report manually, **MultiQC** allows us to aggregate all results into a single interactive HTML report.  
+<details>
+<summary>📊 Aggregating QC with MultiQC</summary>
+
+After preprocessing with `fastp`, we often generate dozens or hundreds of per-sample QC reports (`.html` and `.json`). Instead of checking each report manually, **MultiQC** aggregates all results into a single interactive HTML report.  
 
 ### Why we use MultiQC in TB analysis
 - **Aggregated QC overview**: Summarizes all `fastp` results in one place.  
-- **Consistency check**: Helps us quickly detect outlier samples (e.g., unusually short reads, poor quality, or failed trimming).  
-- **Scalable**: Works seamlessly for hundreds or thousands of TB isolates.  
-- **Standardized reporting**: Essential for sharing results across teams or publications.  
+- **Consistency check**: Quickly detects outlier samples (e.g., unusually short reads, poor quality, or failed trimming).  
+- **Scalable**: Handles hundreds or thousands of TB isolates efficiently.  
+- **Standardized reporting**: Facilitates sharing results across teams or for publications.  
+
+</details>
+
 ---
 
 ### Script: Run MultiQC
@@ -914,12 +927,29 @@ conda activate multiqc_env
 
 # 5️⃣ Snippy
 
-`Snippy` is a rapid variant calling and consensus generation pipeline designed for bacterial genomes.  
-In **tuberculosis genomics**, Snippy is particularly useful because:  
-- It maps reads directly to a reference genome (e.g., *M. tuberculosis* H37Rv).  
-- It calls SNPs and produces high-quality consensus FASTA sequences.  
-- It is reproducible and lightweight, making it ideal for large TB WGS datasets.  
-- Outputs are standardized and easily used for downstream tools (phylogenetics, TBProfiler, etc.).  
+<details>
+<summary>🧬 Detailed Overview: Variant Calling with Snippy</summary>
+
+`Snippy` is a rapid and reproducible pipeline designed for bacterial genome variant calling and consensus sequence generation. It is particularly well-suited for **Mycobacterium tuberculosis (TB) WGS analysis** due to its efficiency and accuracy.
+
+### Key Features
+- **Reference-based mapping**: Maps raw sequencing reads directly to a reference genome (commonly *M. tuberculosis* H37Rv), ensuring accurate alignment even in repetitive regions.  
+- **High-confidence SNP calling**: Detects single nucleotide polymorphisms (SNPs) with stringent filtering criteria to minimize false positives.  
+- **Consensus sequence generation**: Produces high-quality consensus FASTA files per sample, which can be used for phylogenetic analysis or comparative genomics.  
+- **Reproducibility**: Standardized workflow ensures consistent results across multiple samples and datasets.  
+- **Lightweight and scalable**: Efficient for processing large cohorts of TB isolates without requiring extensive computational resources.  
+- **Standardized output files**: Outputs include VCF files for SNPs, consensus FASTA sequences, and optional alignment summaries, facilitating downstream analyses such as:
+  - Phylogenetic tree reconstruction  
+  - Drug resistance prediction using TBProfiler  
+  - Comparative genomics across multiple TB strains  
+- **Easy integration**: Works seamlessly with other bioinformatics tools and pipelines, allowing automated WGS analysis workflows.  
+
+### Importance in TB Analysis
+- Ensures accurate variant detection for **drug resistance prediction**.  
+- Allows monitoring of **microevolution** within TB outbreaks.  
+- Provides **reliable consensus sequences** for large-scale phylogenetic studies.  
+
+</details>
 
 ---
 
