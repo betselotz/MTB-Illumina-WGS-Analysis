@@ -1919,21 +1919,26 @@ for sample_out in "$SHOVILL_DIR"/*; do
 done
 
 ```
-<details><summary>📖 Explanation of Prokka Pipeline Script</summary>
+<details><summary>🧬 Prokka Pipeline Overview (Click to Expand)</summary>
 
-SHOVILL_DIR="shovill_results" → directory containing Shovill assemblies.  
-PROKKA_DIR="prokka_results" → directory to store Prokka annotation outputs.  
-mkdir -p "$PROKKA_DIR" → ensures the Prokka results directory exists.  
-for sample_out in "$SHOVILL_DIR"/*; do ... done → loops over each sample folder.  
-[[ -d "$sample_out" ]] || continue → skips files, only process directories.  
-sample=$(basename "$sample_out") → extracts sample name from directory.  
-contigs=$(ls "$sample_out"/*_contigs.fa 2>/dev/null | head -n 1) → finds contigs FASTA.  
-if [[ -z "$contigs" ]]; then ... fi → skip sample if no contigs found.  
-outdir="$PROKKA_DIR/$sample" → separate output directory per sample.  
-mkdir -p "$outdir" → ensures Prokka output directory exists.  
-prokka --outdir "$outdir" --prefix "$sample" --kingdom Bacteria --genus Mycobacterium --species tuberculosis --cpus 4 "$contigs" → runs Prokka with TB-specific settings.
+**📂 Input:** `SHOVILL_DIR="shovill_results"` → Shovill assemblies  
+**📁 Output:** `PROKKA_DIR="prokka_results"` → Prokka annotations  
+
+**⚙️ Steps:**  
+- `mkdir -p "$PROKKA_DIR"` → ensures output directory exists  
+- `for sample_out in "$SHOVILL_DIR"/*; do ... done` → loop over each sample folder  
+- `[[ -d "$sample_out" ]] || continue` → skip non-directories  
+- `sample=$(basename "$sample_out")` → extract sample name  
+- `contigs=$(ls "$sample_out"/*_contigs.fa 2>/dev/null | head -n 1)` → locate contigs FASTA  
+- `if [[ -z "$contigs" ]]; then ... fi` → skip sample if no contigs found  
+- `outdir="$PROKKA_DIR/$sample"` → create sample-specific output folder  
+- `mkdir -p "$outdir"` → ensure folder exists  
+- `prokka --outdir "$outdir" --prefix "$sample" --kingdom Bacteria --genus Mycobacterium --species tuberculosis --cpus 4 "$contigs"` → run Prokka with TB-specific annotation
+
+**✅ Result:** Each sample gets a fully annotated genome folder ready for downstream analysis.  
 
 </details>
+
 
 
 ###### Step 3: Make the script executable
@@ -1944,7 +1949,7 @@ chmod +x run_prokka.sh
 ``` bash
 conda activate prokka_env
 ./run_prokka.sh
-
+```
 
 
 
