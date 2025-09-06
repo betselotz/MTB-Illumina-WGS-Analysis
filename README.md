@@ -973,7 +973,19 @@ chmod +x count_trimmed_reads.sh
 ```bash
 ./count_trimmed_reads.sh
 ```
+Using zcat and wc (line counts)
+Each read in FASTQ has 4 lines, so dividing by 4 gives read count. 
+```bash
+RAW_R1_COUNT=$(( $(zcat raw_data/ET3_S55_1.fastq.gz | wc -l) / 4 ))
+RAW_R2_COUNT=$(( $(zcat raw_data/ET3_S55_2.fastq.gz | wc -l) / 4 ))
 
+TRIM_R1_COUNT=$(( $(zcat fastp_results_min_50/ET3_S55_1.trim.fastq.gz | wc -l) / 4 ))
+TRIM_R2_COUNT=$(( $(zcat fastp_results_min_50/ET3_S55_2.trim.fastq.gz | wc -l) / 4 ))
+
+echo "R1 trimmed reads: $(( RAW_R1_COUNT - TRIM_R1_COUNT ))"
+echo "R2 trimmed reads: $(( RAW_R2_COUNT - TRIM_R2_COUNT ))"
+```
+read length summary on trimmed FASTQ files
 ##### Step 1: Open nano to create a new script
 ```bash
 nano trimmed_fastq_read_length_summary.sh
