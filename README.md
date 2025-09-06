@@ -383,9 +383,27 @@ zcat raw_data/ET3_S55_2.fastq.gz | head -n 16
 ### 2. Count total reads
 For single sample
 ```bash
-zcat raw_data/ET3_S55_1.fastq.gz | echo $(( $(wc -l)/4 ))
-zcat raw_data/ET3_S55_2.fastq.gz | echo $(( $(wc -l)/4 ))
+echo $(( $(zcat raw_data/ET3_S55_1.fastq.gz | wc -l) / 4 ))
+echo $(( $(zcat raw_data/ET3_S55_2.fastq.gz | wc -l) / 4 ))
 ```
+<details>
+<summary>📊 Counting Reads in FASTQ Files</summary>
+
+- `zcat raw_data/ET3_S55_1.fastq.gz` → Decompresses the R1 FASTQ file and sends its content to standard output.  
+- `| wc -l` → Counts the total number of lines in the decompressed file.  
+- `$(( ... / 4 ))` → **Arithmetic expansion** in Bash: evaluates the expression inside `$(( ))`.  
+  - Divides the total number of lines by 4 because **each sequencing read occupies 4 lines** in a FASTQ file:  
+    1. Header line (`@`)  
+    2. Sequence line  
+    3. Separator line (`+`)  
+    4. Quality scores line  
+- `echo` → Prints the resulting number of reads.  
+- The second command works the same for the R2 (reverse) FASTQ file.  
+- Overall, these commands give a **quick read count** for paired-end sequencing files.  
+
+</details>
+
+
 For batch processing 
 ##### Step 1: Open a new script
 ```bash
@@ -452,22 +470,39 @@ chmod +x count_reads.sh
 ```
 
 ### 3. Base composition
-R1
+
+- **Assess sequencing quality** → Balanced A, T, G, C indicates good data.  
+- **Detect contamination or bias** → Overrepresented bases may signal adapters, low-complexity regions, or contaminants.  
+- **Guide quality control** → Helps decide if serious trimming or filtering is needed before analysis.  
+- **Prevent downstream errors** → Ensures accurate mapping, variant calling, or assembly.  
+✅ **Base composition check is a quick QC step that safeguards analysis quality.**
+
 ```bash
-zcat raw_data/ET3_S55_1.fastq.gz | sed -n '2~4p' | fold -w1 | sort | uniq -czcat raw_data/ET3_S55_1.fastq.gz | awk 'NR%4==2 {
-    for(i=1;i<=length($0);i++) b[substr($0,i,1)]++
-} END {
-    for(base in b) print base, b[base]
-}'
+#!/bin/bash
+for fq in raw_data/ET3_S55_1.fastq.gz raw_data/ET3_S55_2.fastq.gz; do
+    [ -f "$fq" ] || continue
+    echo "Counting bases in $fq..."
+    zcat "$fq" | awk 'NR%4==2 { for(i=1;i<=length($0);i++) b[substr($0,i,1)]++ } 
+    END { for(base in b) print base, b[base] }'
+    echo "----------------------"
+done
 ```
-R2
-```bash
-zcat raw_data/ET3_S55_2.fastq.gz | awk 'NR%4==2 {
-    for(i=1;i<=length($0);i++) b[substr($0,i,1)]++
-} END {
-    for(base in b) print base, b[base]
-}'
-```
+<details>
+<summary>🧬 Nucleotide Counting Script Explanation</summary>
+
+- `for fq in raw_data/ET3_S55_1.fastq.gz raw_data/ET3_S55_2.fastq.gz; do ... done` → Loops over the two specified FASTQ files (R1 and R2).  
+- `[ -f "$fq" ] || continue` → Skips the iteration if the file does not exist.  
+- `echo "Counting bases in $fq..."` → Prints which file is being processed.  
+- `zcat "$fq"` → Decompresses the FASTQ file and streams its content to standard output.  
+- `awk 'NR%4==2 { for(i=1;i<=length($0);i++) b[substr($0,i,1)]++ } END { for(base in b) print base, b[base] }'` → Counts nucleotides:  
+  - `NR%4==2` → Only processes the **sequence line** of each FASTQ read.  
+  - `for(i=1;i<=length($0);i++)` → Iterates over each nucleotide in the sequence line.  
+  - `b[substr($0,i,1)]++` → Increments a counter for each base (A, T, G, C, N, or other).  
+  - `END { for(base in b) print base, b[base] }` → Prints the total counts for each base after processing the file.  
+- `echo "----------------------"` → Adds a visual separator between files for readability.  
+
+</details>
+
 
 ### 4. Quality score summary
 ```bash
