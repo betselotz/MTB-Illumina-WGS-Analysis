@@ -317,7 +317,6 @@ set -euo pipefail
 
 INDIR="raw_data"
 
-# Only cd if not already in raw_data
 if [[ "$(basename "$PWD")" != "raw_data" ]]; then
     cd "$INDIR" || { echo "❌ raw_data directory not found"; exit 1; }
 fi
@@ -328,20 +327,17 @@ MISSING=false
 PAIRED_COUNT=0
 TOTAL_COUNT=0
 
-# Loop over common R1 patterns
 for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do
     [[ -f "$R1" ]] || continue
 
     TOTAL_COUNT=$((TOTAL_COUNT+1))
 
-    # Extract sample name by removing R1/1/001 suffix
     SAMPLE=${R1%_1.fastq.gz}
     SAMPLE=${SAMPLE%_R1.fastq.gz}
     SAMPLE=${SAMPLE%_R1_*.fastq.gz}
     SAMPLE=${SAMPLE%_001.fastq.gz}
     SAMPLE=${SAMPLE%_R1_001.fastq.gz}
 
-    # Look for corresponding R2
     if [[ -f "${SAMPLE}_2.fastq.gz" || -f "${SAMPLE}_R2.fastq.gz" || -f "${SAMPLE}_R2_*.fastq.gz" || -f "${SAMPLE}_002.fastq.gz" ]]; then
         echo "✅ $SAMPLE — paired"
         PAIRED_COUNT=$((PAIRED_COUNT+1))
@@ -359,7 +355,48 @@ if [ "$MISSING" = true ]; then
 else
     echo "✅ All FASTQ files are correctly paired."
 fi
+
 ```
+<details>
+<summary>📖 Explanation of FASTQ Pairing Check Script</summary>
+
+- `#!/bin/bash`  
+  Runs the script with Bash shell.
+
+- `set -euo pipefail`  
+  Makes the script safer by exiting on errors, unset variables, or failed pipelines.
+
+- `INDIR="raw_data"`  
+  Directory containing raw FASTQ files.
+
+- `if [[ "$(basename "$PWD")" != "raw_data" ]]; then cd "$INDIR"; fi`  
+  Changes to the `raw_data` directory if not already there. Exits with error if directory is missing.
+
+- `MISSING=false; PAIRED_COUNT=0; TOTAL_COUNT=0`  
+  Initializes variables to track missing pairs, number of paired samples, and total samples checked.
+
+- `for R1 in *_1.fastq.gz *_R1.fastq.gz *_R1_*.fastq.gz *_001.fastq.gz; do ...`  
+  Loops over common naming patterns for R1 FASTQ files.
+
+- `SAMPLE=...`  
+  Strips suffixes like `_1`, `_R1`, `_001` to get the base sample name.
+
+- `if [[ -f "${SAMPLE}_2.fastq.gz" || ... ]]; then ... fi`  
+  Checks if corresponding R2 file exists with several naming variations.
+
+- `echo "✅ $SAMPLE — paired"`  
+  Logs paired sample.
+
+- `echo "❌ $SAMPLE — missing R2 file"`  
+  Logs missing pair and sets `MISSING=true`.
+
+- Summary output:  
+  - `Total samples checked`  
+  - `Correctly paired samples`  
+  - Warning if any samples are missing pairs.
+
+</details>
+
 ##### Step 4: Make the script executable
 ```bash
 chmod +x check_fastq_pairs.sh
@@ -398,17 +435,15 @@ nano fastq_read_length_summary.sh
 
 ```bash
 #!/bin/bash
-FASTQ_DIR="."                          # Current directory with FASTQ files
-OUTDIR="read_length_summary"           # New output directory
+
+FASTQ_DIR="."
+OUTDIR="read_length_summary"
 OUTPUT_CSV="${OUTDIR}/read_length_summary.csv"
 
-# Create output directory if it doesn't exist
 mkdir -p "$OUTDIR"
 
-# CSV header
 echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"
 
-# Loop over all _1.fastq.gz files
 for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do
     SAMPLE=$(basename "$R1" _1.trim.fastq.gz)
     R2="${FASTQ_DIR}/${SAMPLE}_2.trim.fastq.gz"
@@ -416,16 +451,13 @@ for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do
     if [[ -f "$R2" ]]; then
         echo "Processing sample $SAMPLE"
 
-        # Function to calculate min, max, avg read length
         calc_stats() {
             zcat "$1" | awk 'NR%4==2 {len=length($0); sum+=len; if(min==""){min=len}; if(len<min){min=len}; if(len>max){max=len}; count++} END{avg=sum/count; printf "%d,%d,%.2f", min, max, avg}'
         }
 
-        # Calculate stats for R1 and R2
         STATS_R1=$(calc_stats "$R1")
         STATS_R2=$(calc_stats "$R2")
 
-        # Append results to CSV
         echo "$SAMPLE,$STATS_R1,$STATS_R2" >> "$OUTPUT_CSV"
     else
         echo "⚠ Missing R2 for $SAMPLE, skipping."
@@ -433,7 +465,63 @@ for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do
 done
 
 echo "✅ Read length summary saved to $OUTPUT_CSV"
+
 ```
+<details>
+<summary>📖 Explanation of Read Length Summary Script</summary>
+
+- `#!/bin/bash`  
+  Runs the script with Bash shell.
+
+- `FASTQ_DIR="."`  
+  Directory containing FASTQ files (current directory by default).
+
+- `OUTDIR="read_length_summary"`  
+  Directory where the summary CSV will be saved.
+
+- `OUTPUT_CSV="${OUTDIR}/read_length_summary.csv"`  
+  Path to the output CSV file.
+
+- `mkdir -p "$OUTDIR"`  
+  Creates the output directory if it doesn’t exist.
+
+- `echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"`  
+  Writes the header line of the CSV.
+
+- `for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do ...`  
+  Loops over all R1 FASTQ files matching the `_1.trim.fastq.gz` pattern.
+
+- `SAMPLE=$(basename "$R1" _1.trim.fastq.gz)`  
+  Extracts the sample name from the R1 filename.
+
+- `R2="${FASTQ_DIR}/${SAMPLE}_2.trim.fastq.gz"`  
+  Constructs the corresponding R2 filename.
+
+- `if [[ -f "$R2" ]]; then ... else ... fi`  
+  Checks that the paired R2 file exists; skips the sample if missing.
+
+- `calc_stats() { ... }`  
+  Function that calculates **minimum, maximum, and average read length** for a given FASTQ file:
+  - `NR%4==2` → only sequence lines in FASTQ.  
+  - `min`, `max`, `avg` → computed for all reads.  
+  - Output format: `min,max,avg`.
+
+- `STATS_R1=$(calc_stats "$R1")`  
+  Calculates read length stats for R1.
+
+- `STATS_R2=$(calc_stats "$R2")`  
+  Calculates read length stats for R2.
+
+- `echo "$SAMPLE,$STATS_R1,$STATS_R2" >> "$OUTPUT_CSV"`  
+  Appends the sample stats as a new row in the CSV.
+
+- `echo "⚠ Missing R2 for $SAMPLE, skipping."`  
+  Warning if R2 is missing.
+
+- `echo "✅ Read length summary saved to $OUTPUT_CSV"`  
+  Final message after all samples are processed.
+
+</details>
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
