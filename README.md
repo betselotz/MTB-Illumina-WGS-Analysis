@@ -1953,6 +1953,7 @@ stats.sh in=./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
 > - Minimum, maximum, and N50 contig lengths
 > - GC content
 
+We run `stats.sh` on all Shovill assemblies in your shovill_results directory and save the summary results into a CSV file
 
 loop over multiple assemblies:
 ```bash
