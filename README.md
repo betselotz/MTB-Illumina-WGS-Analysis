@@ -2202,11 +2202,11 @@ done
 - `sample=$(basename "$sample_out")` → extract sample name  
 - `contigs=$(ls "$sample_out"/*_contigs.fa 2>/dev/null | head -n 1)` → locate contigs FASTA  
 - `if [[ -z "$contigs" ]]; then ... fi` → skip sample if no contigs found  
-- `outdir="$PROKKA_DIR/$sample"` → create sample-specific output folder  
+- `outdir="$PROKKA_DIR/$sample"` → define sample-specific output folder  
 - `mkdir -p "$outdir"` → ensure folder exists  
-- `prokka --outdir "$outdir" --prefix "$sample" --kingdom Bacteria --genus Mycobacterium --species tuberculosis --cpus 4 "$contigs"` → run Prokka with TB-specific annotation
+- `prokka --outdir "$outdir" --prefix "$sample" --kingdom Bacteria --genus Mycobacterium --species tuberculosis --cpus 4 --force "$contigs"` → run Prokka with TB-specific annotation, **overwriting old results if present**  
 
-**✅ Result:** Each sample gets a fully annotated genome folder ready for downstream analysis.  
+**✅ Result:** Each sample gets a fully annotated genome folder ready for downstream analysis, with old results replaced automatically when re-running.  
 
 </details>
 
