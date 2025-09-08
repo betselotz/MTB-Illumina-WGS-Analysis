@@ -2184,8 +2184,10 @@ for sample_out in "$SHOVILL_DIR"/*; do
     --genus Mycobacterium \
     --species tuberculosis \
     --cpus 4 \
+    --force \
     "$contigs"
 done
+
 
 ```
 <details><summary>🧬 Prokka Pipeline Overview (Click to Expand)</summary>
