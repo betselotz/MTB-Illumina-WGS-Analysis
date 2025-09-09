@@ -363,8 +363,8 @@ This repository contains scripts and commands to **explore and summarize paired-
 
 ### 1. Peek at the first few reads
 ```bash
-zcat raw_data/ET3_S55_1.fastq.gz | head -n 16
-zcat raw_data/ET3_S55_2.fastq.gz | head -n 16
+zcat raw_data/SRR28821350_1.fastq.gz | head -n 16
+zcat raw_data/SRR28821350_2.fastq.gz | head -n 16
 ```
 <details>
 <summary>🔍 Inspect First Reads of FASTQ Files</summary>
@@ -372,7 +372,7 @@ zcat raw_data/ET3_S55_2.fastq.gz | head -n 16
 - Works primarily with `.gz` files (gzip-compressed).  
 - Unlike `gunzip`, it **prints the uncompressed data to standard output** instead of creating a new file.  
 - Example workflow:  
-  - `zcat raw_data/ET3_S55_1.fastq.gz | head -n 16` →  Show the first 16 lines of R1 (forward) FASTQ file of a compressed file without extracting it. 
+  - `zcat raw_data/SRR28821350_1.fastq.gz | head -n 16` →  Show the first 16 lines of R1 (forward) FASTQ file of a compressed file without extracting it. 
 
 
 - Each read in FASTQ format consists of 4 lines:  
@@ -390,13 +390,13 @@ zcat raw_data/ET3_S55_2.fastq.gz | head -n 16
 ### 2. Count total reads
 For single sample
 ```bash
-echo $(( $(zcat raw_data/ET3_S55_1.fastq.gz | wc -l) / 4 ))
-echo $(( $(zcat raw_data/ET3_S55_2.fastq.gz | wc -l) / 4 ))
+echo $(( $(zcat raw_data/SRR28821350_1.fastq.gz | wc -l) / 4 ))
+echo $(( $(zcat raw_data/SRR28821350_2.fastq.gz | wc -l) / 4 ))
 ```
 <details>
 <summary>📊 Counting Reads in FASTQ Files</summary>
 
-- `zcat raw_data/ET3_S55_1.fastq.gz` → Decompresses the R1 FASTQ file and sends its content to standard output.  
+- `zcat raw_data/SRR28821350_1.fastq.gz` → Decompresses the R1 FASTQ file and sends its content to standard output.  
 - `| wc -l` → Counts the total number of lines in the decompressed file.  
 - `$(( ... / 4 ))` → **Arithmetic expansion** in Bash: evaluates the expression inside `$(( ))`.  
   - Divides the total number of lines by 4 because **each sequencing read occupies 4 lines** in a FASTQ file:  
@@ -488,7 +488,7 @@ chmod +x count_reads.sh
 
 ```bash
 #!/bin/bash
-for fq in raw_data/ET3_S55_1.fastq.gz raw_data/ET3_S55_2.fastq.gz; do
+for fq in raw_data/SRR28821350_1.fastq.gz raw_data/SRR28821350_2.fastq.gz; do
     [ -f "$fq" ] || continue
     echo "Counting bases in $fq..."
     zcat "$fq" | awk 'NR%4==2 { for(i=1;i<=length($0);i++) b[substr($0,i,1)]++ } 
@@ -499,7 +499,7 @@ done
 <details>
 <summary>🧬 Nucleotide Counting Script Explanation</summary>
 
-- `for fq in raw_data/ET3_S55_1.fastq.gz raw_data/ET3_S55_2.fastq.gz; do ... done` → Loops over the two specified FASTQ files (R1 and R2).  
+- `for fq in raw_data/SRR28821350_1.fastq.gz raw_data/SRR28821350_2.fastq.gz; do ... done` → Loops over the two specified FASTQ files (R1 and R2).  
 - `[ -f "$fq" ] || continue` → Skips the iteration if the file does not exist.  
 - `echo "Counting bases in $fq..."` → Prints which file is being processed.  
 - `zcat "$fq"` → Decompresses the FASTQ file and streams its content to standard output.  
@@ -518,8 +518,8 @@ its good practice to quickly inspect base quality scores for the first few reads
 - We may spot unusual patterns in base quality that may indicate issues with the sequencing run.
 ```bash
  First 10 quality lines
-zcat raw_data/ET3_S55_1.fastq.gz | sed -n '4~4p' | head -n 10
-zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | head -n 10
+zcat raw_data/SRR28821350_1.fastq.gz | sed -n '4~4p' | head -n 10
+zcat raw_data/SRR28821350_2.fastq.gz | sed -n '4~4p' | head -n 10
 ```
 <details>
 <summary>🔍 View FASTQ Quality Scores</summary>
