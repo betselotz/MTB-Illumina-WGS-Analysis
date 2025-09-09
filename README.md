@@ -209,7 +209,7 @@ There are multiple ways to download *Mycobacterium tuberculosis* sequencing data
 ##### Change directory into your working directory
 in our setting `~/Genomics_project/TB/fastq_data/f_invio` is our working directory all bioinformatics analysis conducted from this directory 
 ```bash
-cd ~/Genomics_project/TB/fastq_data/f_invio
+/media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1104194
 ```
 
 #### Method 1: Using **SRA Explorer** (for small datasets)
