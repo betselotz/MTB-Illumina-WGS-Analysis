@@ -424,8 +424,10 @@ This script counts reads in paired-end FASTQ files and saves results to a CSV.
 set -euo pipefail
 
 INDIR="raw_data"
-OUTFILE="fastq_read_counts.csv"
+OUTDIR="csv_output"
+mkdir -p "$OUTDIR"
 
+OUTFILE="$OUTDIR/fastq_read_counts.csv"
 echo "Sample,R1_reads,R2_reads" > "$OUTFILE"
 echo "📊 Counting reads in FASTQ files from '$INDIR'..."
 
@@ -443,28 +445,29 @@ for R1 in "$INDIR"/*_1.fastq.gz "$INDIR"/*_R1.fastq.gz; do
 done
 
 echo "🎉 All done! Read counts saved to '$OUTFILE'"
+
 ```
 
 <details>
-<summary>📊 FASTQ Read Count Script Explanation</summary>
+<summary>📊 FASTQ Read Count Script Overview</summary>
 
-- `#!/bin/bash` → Runs the script using Bash.  
-- `set -euo pipefail` → Exits on errors, unset variables, or failed commands.  
 - `INDIR="raw_data"` → Directory containing input FASTQ files.  
-- `OUTFILE="fastq_read_counts.csv"` → CSV file to store read counts.  
-- `echo "Sample,R1_reads,R2_reads" > "$OUTFILE"` → Creates CSV header.  
+- `OUTDIR="csv_output"` → Directory where the CSV file will be saved; created automatically if it doesn’t exist.  
+- `OUTFILE="$OUTDIR/fastq_read_counts.csv"` → CSV file to store read counts.  
+- `echo "Sample,R1_reads,R2_reads" > "$OUTFILE"` → Creates the CSV header.  
 - `echo "📊 Counting reads in FASTQ files from '$INDIR'..."` → Prints starting message.  
 - `for R1 in "$INDIR"/*_1.fastq.gz "$INDIR"/*_R1.fastq.gz; do ... done` → Loops through all R1 FASTQ files.  
 - `[[ -f "$R1" ]] || continue` → Skips if the R1 file does not exist.  
-- `SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.fastq\.gz//')` → Extracts sample name from file name.  
-- `for suffix in "_2.fastq.gz" "_R2.fastq.gz" "_R2_*.fastq.gz"; do ... done` → Finds corresponding R2 file if it exists.  
+- `SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.fastq\.gz//')` → Extracts sample name from the file name.  
+- `for suffix in "_2.fastq.gz" "_R2.fastq.gz" "_R2_*.fastq.gz"; do ... done` → Finds the corresponding R2 file if it exists.  
 - `R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))` → Counts reads in R1 by dividing total lines by 4.  
-- `R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")` → Counts reads in R2 if present; else "NA".  
-- `echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTFILE"` → Appends counts to CSV file.  
+- `R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")` → Counts reads in R2 if present; otherwise outputs "NA".  
+- `echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTFILE"` → Appends counts to the CSV file.  
 - `echo "✅ $SAMPLE → R1: $R1_COUNT | R2: $R2_COUNT"` → Prints progress for each sample.  
 - `echo "🎉 All done! Read counts saved to '$OUTFILE'"` → Prints completion message.  
 
 </details>
+
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
