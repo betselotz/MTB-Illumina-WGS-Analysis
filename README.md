@@ -652,9 +652,10 @@ nano fastq_read_length_summary.sh
 
 ```bash
 #!/bin/bash
+set -euo pipefail
 
 FASTQ_DIR="raw_data"
-OUTDIR="read_length_summary"
+OUTDIR="csv_output"
 OUTPUT_CSV="${OUTDIR}/read_length_summary.csv"
 
 mkdir -p "$OUTDIR"
@@ -662,6 +663,7 @@ mkdir -p "$OUTDIR"
 echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"
 
 for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do
+    [[ -f "$R1" ]] || continue
     SAMPLE=$(basename "$R1" _1.trim.fastq.gz)
     R2="${FASTQ_DIR}/${SAMPLE}_2.trim.fastq.gz"
 
@@ -687,17 +689,17 @@ echo "✅ Read length summary saved to $OUTPUT_CSV"
 <details>
 <summary>📊 Read Length Summary Script Explanation</summary>
 
-- `#!/bin/bash` → Run script with Bash.  
 - `FASTQ_DIR="raw_data"` → Directory containing FASTQ files.  
-- `OUTDIR="read_length_summary"` → Directory to save CSV output.  
+- `OUTDIR="csv_output"` → Directory to save CSV output; created automatically if missing.  
 - `OUTPUT_CSV="${OUTDIR}/read_length_summary.csv"` → Output CSV file path.  
-- `mkdir -p "$OUTDIR"` → Create output directory if missing.  
+- `mkdir -p "$OUTDIR"` → Ensure output directory exists.  
 - `echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"` → CSV header.  
 - `for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do ...` → Loop over all R1 FASTQ files.  
+- `[[ -f "$R1" ]] || continue` → Skip if R1 file does not exist.  
 - `SAMPLE=$(basename "$R1" _1.trim.fastq.gz)` → Extract sample name.  
 - `R2="${FASTQ_DIR}/${SAMPLE}_2.trim.fastq.gz"` → Get paired R2 filename.  
-- `if [[ -f "$R2" ]]; then ... else ... fi` → Skip sample if R2 missing.  
-- `calc_stats() { ... }` → Function to calculate min, max, avg read lengths for a FASTQ.  
+- `if [[ -f "$R2" ]]; then ... else ... fi` → Skip sample if R2 is missing.  
+- `calc_stats() { ... }` → Function to calculate min, max, avg read lengths for a FASTQ file.  
 - `STATS_R1=$(calc_stats "$R1")` → Stats for R1.  
 - `STATS_R2=$(calc_stats "$R2")` → Stats for R2.  
 - `echo "$SAMPLE,$STATS_R1,$STATS_R2" >> "$OUTPUT_CSV"` → Append sample stats to CSV.  
@@ -705,6 +707,7 @@ echo "✅ Read length summary saved to $OUTPUT_CSV"
 - `echo "✅ Read length summary saved to $OUTPUT_CSV"` → Final confirmation message.
 
 </details>
+
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
