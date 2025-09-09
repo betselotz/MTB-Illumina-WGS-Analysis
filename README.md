@@ -1781,7 +1781,7 @@ Quickly inspect the top of the aligned FASTA:
 head consensus_sequences/aligned_consensus.fasta
 ```
 
-#1️⃣3️⃣ Shovill
+# 1️⃣3️⃣ Shovill
 <details>
 <summary>🏗️ Shovill: Bacterial Genome Assembler</summary>
 
@@ -1930,6 +1930,91 @@ awk -F'[ =]' '{print $1, $2, $3, $4, $5}'
 #  Assembly Evaluation
 
 Before downstream analyses, it is important to verify the quality of the assembled genome. This ensures reliable results in variant calling, consensus generation, and phylogenetic analyses.
+<details>
+<summary>🧪 Why Do We Evaluate Genome Assemblies in <i>Mycobacterium tuberculosis</i>? (Click to Expand)</summary>
+
+Evaluating genome assemblies is a **critical step** before using them for downstream analyses.  
+For *M. tuberculosis* (MTB), this step is especially important due to its **clinical, evolutionary, and genomic characteristics**.
+
+---
+
+### 🔹 1. Ensuring Genome Completeness
+- MTB genomes are ~4.4 Mb in size.  
+- A high-quality assembly should **cover nearly the full genome** with minimal gaps.  
+- Missing regions can result in:  
+  - Incorrect phylogenetic placement.  
+  - Loss of resistance-associated genes.  
+  - Misleading annotation results.  
+
+✅ **Goal:** Verify that assemblies are close to expected genome size and contain all core genes.
+
+---
+
+### 🔹 2. Checking for Contamination
+- Clinical MTB isolates can be contaminated with:  
+  - Host DNA (human reads).  
+  - Other bacteria from sputum samples.  
+  - Laboratory contaminants.  
+- Contaminants can skew:  
+  - Variant calling results.  
+  - Lineage classification.  
+  - Drug-resistance predictions.  
+
+✅ **Goal:** Confirm GC content (~65%) and check species purity.
+
+---
+
+### 🔹 3. Evaluating Assembly Accuracy
+- MTB genomes are **highly conserved** but contain repetitive regions (e.g., PE/PPE gene families).  
+- Assemblers can misplace or split these repeats, causing **chimeric contigs** or false duplications.  
+- Misassemblies lead to:  
+  - Incorrect SNP calls.  
+  - Faulty gene presence/absence analyses.  
+
+✅ **Goal:** Use metrics like **N50, contig counts, and read mapping** to verify assembly integrity.
+
+---
+
+### 🔹 4. Supporting Drug Resistance Profiling
+- Tools like **TB-Profiler** rely on accurate assemblies or mappings to detect resistance mutations.  
+- Poor-quality assemblies may:  
+  - Miss critical SNPs in resistance genes.  
+  - Produce false positives (overcalling resistance).  
+
+✅ **Goal:** Ensure assemblies are **high-quality** before variant calling.
+
+---
+
+### 🔹 5. Enabling Reliable Phylogenetics
+- MTB phylogenetic studies depend on **precise SNP alignments**.  
+- Low-quality assemblies introduce:  
+  - Missing loci.  
+  - False SNPs from sequencing/assembly errors.  
+- This can distort lineage/sub-lineage assignments and outbreak tracking.  
+
+✅ **Goal:** Confirm assemblies are suitable for inclusion in phylogenomic pipelines.
+
+---
+
+### 🔹 6. Interpretation Guidelines (MTB Assemblies)
+- **Genome size:** ~4.4 Mb (±0.2 Mb).  
+- **Number of contigs:** Ideally <200 (draft assemblies).  
+- **N50:** >50,000 bp (higher = better continuity).  
+- **GC content:** ~65% (consistent across strains).  
+- **Max contig length:** >200 kb for good-quality assemblies.  
+
+---
+
+✅ **In summary:**  
+Assembly evaluation in *M. tuberculosis* ensures that genomes are **complete, uncontaminated, and accurate**, which is vital for:  
+- **Drug resistance prediction**  
+- **Lineage/sub-lineage classification**  
+- **Consensus genome building**  
+- **Reliable phylogenetic inference**
+
+</details>
+
+
 ### 1. Quick assembly stats using `stats.sh`
 
 The `stats.sh` script from BBMap provides basic assembly statistics such as total length, N50, number of contigs, and GC content.
