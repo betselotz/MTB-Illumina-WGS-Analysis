@@ -1973,19 +1973,8 @@ For *M. tuberculosis* (MTB), this step is especially important due to its **clin
 
 ✅ **Goal:** Use metrics like **N50, contig counts, and read mapping** to verify assembly integrity.
 
----
 
-### 🔹 4. Supporting Drug Resistance Profiling
-- Tools like **TB-Profiler** rely on accurate assemblies or mappings to detect resistance mutations.  
-- Poor-quality assemblies may:  
-  - Miss critical SNPs in resistance genes.  
-  - Produce false positives (overcalling resistance).  
-
-✅ **Goal:** Ensure assemblies are **high-quality** before variant calling.
-
----
-
-### 🔹 5. Enabling Reliable Phylogenetics
+### 🔹 4. Enabling Reliable Phylogenetics
 - MTB phylogenetic studies depend on **precise SNP alignments**.  
 - Low-quality assemblies introduce:  
   - Missing loci.  
@@ -1996,21 +1985,23 @@ For *M. tuberculosis* (MTB), this step is especially important due to its **clin
 
 ---
 
-### 🔹 6. Interpretation Guidelines (MTB Assemblies)
+### 🔹 5. Interpretation Guidelines (MTB Assemblies)
+
+When evaluating *Mycobacterium tuberculosis* assemblies, keep these quality thresholds in mind:
+
 - **Genome size:** ~4.4 Mb (±0.2 Mb).  
-- **Number of contigs:** Ideally <200 (draft assemblies).  
-- **N50:** >50,000 bp (higher = better continuity).  
-- **GC content:** ~65% (consistent across strains).  
-- **Max contig length:** >200 kb for good-quality assemblies.  
+- **Number of contigs:** Ideally <200 (draft assemblies). Fewer contigs indicate better assembly continuity.  
+- **N50:** >50,000 bp (higher = better).  
+  - *(N50 = length of the shortest contig such that 50% of the total assembly length is contained in contigs of this size or longer)*  
+- **L50:** Typically <50 for good assemblies.  
+  - *(L50 = the minimum number of largest contigs needed to cover 50% of the assembly)*  
+- **GC content:** ~65% (should be consistent across MTB isolates; deviations may indicate contamination).  
+- **Max contig length:** >200 kb is desirable; indicates assembler successfully reconstructed long genomic regions.  
+- **Mean/median contig length:** Larger average lengths suggest fewer fragmented contigs.  
+- **% of genome in small contigs (<500 bp):** Should be minimal; many short contigs usually indicate poor assembly or contamination.  
+- **Coverage depth (if reads are mapped back):** 30×–100× is typical for MTB. Low coverage (<20×) risks missing variants; extremely high coverage (>200×) may cause assembler artifacts.  
 
 ---
-
-✅ **In summary:**  
-Assembly evaluation in *M. tuberculosis* ensures that genomes are **complete, uncontaminated, and accurate**, which is vital for:  
-- **Drug resistance prediction**  
-- **Lineage/sub-lineage classification**  
-- **Consensus genome building**  
-- **Reliable phylogenetic inference**
 
 </details>
 
