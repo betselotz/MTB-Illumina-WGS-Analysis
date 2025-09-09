@@ -527,29 +527,29 @@ zcat raw_data/SRR28821350_2.fastq.gz | sed -n '4~4p' | head -n 10
 <details>
 <summary>🔍 View FASTQ Quality Scores</summary>
 
-- `zcat raw_data/ET3_S55_1.fastq.gz | sed -n '4~4p' | head -n 10`  
+- `zcat raw_data/SRR28821350_1.fastq.gz | sed -n '4~4p' | head -n 10`  
   - Decompresses R1 FASTQ.  
   - `sed -n '4~4p'` → Prints every 4th line starting from line 4 (the **quality score line** for each read).  
   - `head -n 10` → Shows only the first 10 quality lines for quick inspection.  
 
-- `zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | head -n 10`  
+- `zcat raw_data/SRR28821350_2.fastq.gz | sed -n '4~4p' | head -n 10`  
   - Same as above, but for R2 FASTQ.  
 </details>
 
  Count ASCII characters in quality lines
 ```bash
-zcat raw_data/ET3_S55_1.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
-zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
+zcat raw_data/SRR28821350_1.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
+zcat raw_data/SRR28821350_2.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
 ```
 <details>
 <summary>🔢 Count Quality Score Frequencies</summary>
 
-- `zcat raw_data/ET3_S55_1.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'`  
+- `zcat raw_data/SRR28821350_1.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'`  
   - Decompresses R1 FASTQ.  
   - `sed -n '4~4p'` → Selects every 4th line (the **quality line**).  
   - `awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'` → Counts occurrences of each quality score character.  
 
-- `zcat raw_data/ET3_S55_2.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'`  
+- `zcat raw_data/SRR28821350_2.fastq.gz | sed -n '4~4p' | awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'`  
   - Same as above, but for R2 FASTQ.  
 </details>
 
@@ -662,10 +662,11 @@ mkdir -p "$OUTDIR"
 
 echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"
 
-for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do
+for R1 in "$FASTQ_DIR"/*_1.fastq.gz "$FASTQ_DIR"/*_R1.fastq.gz; do
     [[ -f "$R1" ]] || continue
-    SAMPLE=$(basename "$R1" _1.trim.fastq.gz)
-    R2="${FASTQ_DIR}/${SAMPLE}_2.trim.fastq.gz"
+    SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.fastq\.gz//')
+    R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"
+    [[ -f "$R2" ]] || R2="$FASTQ_DIR/${SAMPLE}_R2.fastq.gz"
 
     if [[ -f "$R2" ]]; then
         echo "Processing sample $SAMPLE"
@@ -694,10 +695,10 @@ echo "✅ Read length summary saved to $OUTPUT_CSV"
 - `OUTPUT_CSV="${OUTDIR}/read_length_summary.csv"` → Output CSV file path.  
 - `mkdir -p "$OUTDIR"` → Ensure output directory exists.  
 - `echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"` → CSV header.  
-- `for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do ...` → Loop over all R1 FASTQ files.  
+- `for R1 in "$FASTQ_DIR"/*_1.fastq.gz "$FASTQ_DIR"/*_R1.fastq.gz; do ...` → Loop over all R1 FASTQ files.  
 - `[[ -f "$R1" ]] || continue` → Skip if R1 file does not exist.  
-- `SAMPLE=$(basename "$R1" _1.trim.fastq.gz)` → Extract sample name.  
-- `R2="${FASTQ_DIR}/${SAMPLE}_2.trim.fastq.gz"` → Get paired R2 filename.  
+- `SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.fastq\.gz//')` → Extract sample name.  
+- `R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"` → Get paired R2 filename; also checks `_R2` naming.  
 - `if [[ -f "$R2" ]]; then ... else ... fi` → Skip sample if R2 is missing.  
 - `calc_stats() { ... }` → Function to calculate min, max, avg read lengths for a FASTQ file.  
 - `STATS_R1=$(calc_stats "$R1")` → Stats for R1.  
@@ -707,6 +708,7 @@ echo "✅ Read length summary saved to $OUTPUT_CSV"
 - `echo "✅ Read length summary saved to $OUTPUT_CSV"` → Final confirmation message.
 
 </details>
+
 
 
 ##### Step 3: Save and exit nano
