@@ -1281,7 +1281,6 @@ rm -f fastq_samples.txt snippy_samples.txt
 echo "🎯 All steps completed!"
 echo "Snippy results are in: ${OUTDIR}/"
 
-
 ```
 <details>
 <summary>🌳 Snippy Pipeline Script Explanation</summary>
@@ -1289,19 +1288,23 @@ echo "Snippy results are in: ${OUTDIR}/"
 - `#!/bin/bash` → Run script with Bash.  
 - `set -euo pipefail` → Exit on errors, undefined variables, or pipeline failures.  
 - `REF="H37Rv.fasta"` → Reference genome.  
-- `FASTP_DIR="fastp_results_min_50"` → Trimmed FASTQ files.  
-- `OUTDIR="snippy_results"` → Directory for Snippy outputs.  
-- `THREADS` & `BWA_THREADS` → Threads for Snippy and BWA.  
+- `FASTP_DIR="fastp_results_min_50"` → Directory containing trimmed FASTQ files.  
+- `OUTDIR="snippy_results"` → Directory to store Snippy outputs.  
+- `THREADS=8` & `BWA_THREADS=30` → Threads for Snippy and BWA alignment.  
 - `JOBS=4` → Number of samples to run in parallel.  
-- `run_snippy_sample() { ... }` → Function for a single sample:  
-  - Checks FASTQ files exist.  
-  - Runs Snippy and moves outputs to final directory.  
-  - Deletes temp files and verifies VCF creation.  
-- `export -f run_snippy_sample` → Make function available to GNU Parallel.  
-- `ls ... | parallel -j "$JOBS" run_snippy_sample {}` → Run multiple samples in parallel.  
-- Verification: compares FASTQ vs VCF sample counts and prints warnings if missing.  
-- `rm -f ...` → Clean temporary files.  
-- `echo "🎯 All steps completed!"` → Final completion message.
+- `run_snippy_sample() { ... }` → Function for processing a single sample:  
+  - Checks if paired FASTQ files exist.  
+  - Runs Snippy with specified threads and BWA options.  
+  - Moves key outputs (`.vcf`, `.consensus.fa`, `.bam`, `.bam.bai`, `.snps.tab`) to final directory.  
+  - Deletes temporary Snippy directory.  
+  - Prints confirmation if full VCF is generated.  
+- `export -f run_snippy_sample` → Makes function available for GNU Parallel.  
+- `ls ... | parallel -j "$JOBS" run_snippy_sample {}` → Runs multiple samples in parallel.  
+- Verification section:  
+  - Compares FASTQ sample list vs VCF output list.  
+  - Prints warnings if any sample is missing.  
+- `rm -f fastq_samples.txt snippy_samples.txt` → Cleans temporary lists.  
+- `echo "🎯 All steps completed!"` → Final message indicating pipeline completion.  
 
 </details>
 
@@ -1620,16 +1623,14 @@ echo "✅ All VCFs filtered using $REGION_FILTER and saved in $OUTDIR"
 - `SNIPPY_DIR="$CURDIR/snippy_results"` → Folder containing Snippy VCFs.  
 - `OUTDIR="$CURDIR/tb_variant_filter_results"` → Output folder for filtered VCFs.  
 - `mkdir -p "$OUTDIR"` → Ensure output directory exists.  
-- `REGION_DIR="$CURDIR/region_lists"` → Folder containing BED region files.  
-- `DEFAULT_BED="RLC_Marin2022.bed"` → Use RLC regions (Marin et al 2022) by default for masking.  
-- `MASKS=()` → Array of BED files to apply as masks.  
-- `if [ -f "$REGION_DIR/$DEFAULT_BED" ]; then MASKS+=("$REGION_DIR/$DEFAULT_BED"); fi` → Add default BED if it exists.  
+- `REGION_FILTER="farhat_rlc"` → Predefined region filter for TB variant filtering.  
 - `for vcf in "$SNIPPY_DIR"/*.vcf; do ... done` → Loop through all Snippy VCFs.  
-- `sample=$(basename "$vcf")` → Extract filename for naming outputs.  
-- `tb_variant_filter --mask-bed "${MASKS[@]}" "$vcf" "$OUTDIR/${sample%.vcf}.filtered.vcf"` → Filter using RLC regions and save result.  
-- `echo "✅ All VCFs filtered using RLC regions and saved in $OUTDIR"` → Completion message.
+- `sample=$(basename "$vcf")` → Extract filename for naming filtered outputs.  
+- `tb_variant_filter --region_filter "$REGION_FILTER" "$vcf" "$OUTDIR/${sample%.vcf}.filtered.vcf"` → Filter each VCF using the specified region filter and save result.  
+- `echo "✅ All VCFs filtered using $REGION_FILTER and saved in $OUTDIR"` → Prints confirmation when all VCFs are filtered.
 
 </details>
+
 
 
 ##### Step 6: Save and exit nano
