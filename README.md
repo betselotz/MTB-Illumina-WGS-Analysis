@@ -1194,7 +1194,7 @@ nano run_snippy.sh
 set -euo pipefail
 
 REF="H37Rv.fasta"
-FASTP_DIR="fastp_results_min_70"
+FASTP_DIR="fastp_results_min_50"
 OUTDIR="snippy_results"
 THREADS=8
 BWA_THREADS=30
