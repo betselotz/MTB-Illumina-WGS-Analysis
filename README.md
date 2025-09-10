@@ -1655,24 +1655,66 @@ nano compare_vcf_qc.sh
 #!/bin/bash
 set -euo pipefail
 
-CURDIR=$(pwd)
-SNIPPY_DIR="$CURDIR/snippy_results"
-OUTDIR="$CURDIR/tb_variant_filter_results"
-mkdir -p "$OUTDIR"
+SNIPPY_DIR="snippy_results"
+FILTERED_DIR="tb_variant_filter_results"
+MIN_DP=20
+MIN_QUAL=30
 
-REGION_FILTERS=(farhat_rlc farhat_rlc_lowmap pe_ppe tbprofiler mtbseq uvp)
+echo -e "Sample\tUnfiltered_total\tUnfiltered_PASS\tFiltered_total\tFiltered_PASS\tPASS_retention_ratio"
 
 for vcf in "$SNIPPY_DIR"/*.vcf; do
-    sample=$(basename "$vcf")
-    echo "Filtering $sample ..."
-    
-    tb_variant_filter \
-        --region_filter "${REGION_FILTERS[@]}" \
-        "$vcf" \
-        "$OUTDIR/${sample%.vcf}.filtered.vcf"
+    sample=$(basename "$vcf" .vcf)
+
+    # Count unfiltered total and PASS
+    unfiltered_total=$(grep -v "^#" "$SNIPPY_DIR/$sample.vcf" | wc -l)
+    unfiltered_pass=$(awk -v min_dp=$MIN_DP -v min_qual=$MIN_QUAL '
+        BEGIN{count=0}
+        /^#/ {next}
+        {
+            qual=$6
+            dp=0
+            split($8, info_arr, ";")
+            for(i in info_arr){
+                if(info_arr[i] ~ /^DP=/){
+                    split(info_arr[i], kv, "=")
+                    dp=kv[2]
+                }
+            }
+            if(qual >= min_qual && dp >= min_dp) count++
+        }
+        END{print count}
+    ' "$SNIPPY_DIR/$sample.vcf")
+
+    # Count filtered total and PASS
+    filtered_total=$(grep -v "^#" "$FILTERED_DIR/$sample.filtered.vcf" | wc -l)
+    filtered_pass=$(awk -v min_dp=$MIN_DP -v min_qual=$MIN_QUAL '
+        BEGIN{count=0}
+        /^#/ {next}
+        {
+            qual=$6
+            dp=0
+            split($8, info_arr, ";")
+            for(i in info_arr){
+                if(info_arr[i] ~ /^DP=/){
+                    split(info_arr[i], kv, "=")
+                    dp=kv[2]
+                }
+            }
+            if(qual >= min_qual && dp >= min_dp) count++
+        }
+        END{print count}
+    ' "$FILTERED_DIR/$sample.filtered.vcf")
+
+    # Calculate PASS retention ratio
+    if [[ $unfiltered_pass -eq 0 ]]; then
+        ratio="NA"
+    else
+        ratio=$(awk -v pass=$filtered_pass -v total=$unfiltered_pass 'BEGIN{printf "%.2f", pass/total}')
+    fi
+
+    echo -e "$sample\t$unfiltered_total\t$unfiltered_pass\t$filtered_total\t$filtered_pass\t$ratio"
 done
 
-echo "✅ All VCFs filtered using predefined region lists and saved in $OUTDIR"
 ```
 
 ##### Step  3: Save and exit nano
