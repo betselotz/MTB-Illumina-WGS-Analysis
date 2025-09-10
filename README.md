@@ -1645,6 +1645,52 @@ chmod +x run_tb_variant_filter.sh
 ```bash
 ./run_tb_variant_filter.sh
 ```
+
+##### Step 1: Open a new file in nano
+```bash
+nano compare_vcf_qc.sh
+```
+##### Step 2: Paste the script
+```bash
+#!/bin/bash
+set -euo pipefail
+
+CURDIR=$(pwd)
+SNIPPY_DIR="$CURDIR/snippy_results"
+OUTDIR="$CURDIR/tb_variant_filter_results"
+mkdir -p "$OUTDIR"
+
+REGION_FILTERS=(farhat_rlc farhat_rlc_lowmap pe_ppe tbprofiler mtbseq uvp)
+
+for vcf in "$SNIPPY_DIR"/*.vcf; do
+    sample=$(basename "$vcf")
+    echo "Filtering $sample ..."
+    
+    tb_variant_filter \
+        --region_filter "${REGION_FILTERS[@]}" \
+        "$vcf" \
+        "$OUTDIR/${sample%.vcf}.filtered.vcf"
+done
+
+echo "✅ All VCFs filtered using predefined region lists and saved in $OUTDIR"
+```
+
+##### Step  3: Save and exit nano
+
+  Press Ctrl+O → Enter to save.
+   Press Ctrl+X → Exit nano.
+##### Step  4:Make the script executable
+```bash
+chmod +x compare_vcf_qc.sh
+```
+##### Step 5: Run the script
+```bash
+./compare_vcf_qc.sh
+```
+
+
+
+
 # 9️⃣ TB-Profiler from FASTQ Files
 
 <details>
