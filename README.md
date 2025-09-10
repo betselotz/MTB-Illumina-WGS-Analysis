@@ -940,9 +940,12 @@ This script counts reads in trimmed paired-end FASTQ files and saves results to 
 set -euo pipefail
 
 INDIR="fastp_results_min_50"
-OUTFILE="trimmed_fastq_read_counts.csv"
+OUTDIR="csv_output"
+OUTPUT_CSV="${OUTDIR}/trimmed_read_length_summary.csv"
 
-echo "Sample,R1_reads,R2_reads" > "$OUTFILE"
+mkdir -p "$OUTDIR"
+
+echo "Sample,R1_reads,R2_reads" > "$OUTPUT_CSV"
 echo "📊 Counting reads in trimmed FASTQ files from '$INDIR'..."
 
 for R1 in "$INDIR"/*_1.trim.fastq.gz "$INDIR"/*_R1.trim.fastq.gz; do
@@ -954,11 +957,12 @@ for R1 in "$INDIR"/*_1.trim.fastq.gz "$INDIR"/*_R1.trim.fastq.gz; do
     done
     R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))
     R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")
-    echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTFILE"
+    echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTPUT_CSV"
     echo "✅ $SAMPLE → R1: $R1_COUNT | R2: $R2_COUNT"
 done
 
-echo "🎉 All done! Read counts saved to '$OUTFILE'"
+echo "🎉 All done! Read counts saved to '$OUTPUT_CSV'"
+
 ```
 <details>
   <summary>📊 Trimmed FASTQ Read Count Script Explanation</summary>
