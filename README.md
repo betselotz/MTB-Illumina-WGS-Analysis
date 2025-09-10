@@ -1289,14 +1289,13 @@ echo "Snippy results are in: ${OUTDIR}/"
 - `#!/bin/bash` → Run script with Bash.  
 - `set -euo pipefail` → Exit on errors, undefined variables, or pipeline failures.  
 - `REF="H37Rv.fasta"` → Reference genome.  
-- `FASTP_DIR="fastp_results_min_70"` → Trimmed FASTQ files.  
+- `FASTP_DIR="fastp_results_min_50"` → Trimmed FASTQ files.  
 - `OUTDIR="snippy_results"` → Directory for Snippy outputs.  
 - `THREADS` & `BWA_THREADS` → Threads for Snippy and BWA.  
 - `JOBS=4` → Number of samples to run in parallel.  
 - `run_snippy_sample() { ... }` → Function for a single sample:  
   - Checks FASTQ files exist.  
-  - Creates temp directory, runs Snippy with threads/BWA options.  
-  - Renames outputs to include sample name.  
+  - Runs Snippy and moves outputs to final directory.  
   - Deletes temp files and verifies VCF creation.  
 - `export -f run_snippy_sample` → Make function available to GNU Parallel.  
 - `ls ... | parallel -j "$JOBS" run_snippy_sample {}` → Run multiple samples in parallel.  
@@ -1305,6 +1304,7 @@ echo "Snippy results are in: ${OUTDIR}/"
 - `echo "🎯 All steps completed!"` → Final completion message.
 
 </details>
+
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O, then Enter (save)
