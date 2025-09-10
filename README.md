@@ -630,17 +630,29 @@ chmod +x check_fastq_pairs.sh
 > You can adjust the patterns (`*_1.fastq.gz`, `*_R1.fastq.gz`, etc.) if needed.
 
 
-# 2️⃣Calculating Minimum, Maximum, and Average Read Lengths for Paired-End Reads
+Calculating Minimum, Maximum, and Average Read Lengths for Paired-End Reads
 
-Before performing any downstream bioinformatics analysis, it is important to understand the quality and characteristics of your sequencing data. One key metric is the **read length** of our FASTQ files. 
-- **Minimum read length:** Helps identify very short reads that may result from sequencing errors or trimming. Extremely short reads can cause mapping errors or low-quality variant calls.  
-- **Maximum read length:** Confirms whether reads were sequenced to the expected length and identifies unusually long reads that may indicate adapter contamination or sequencing artifacts. - **Average read length:** Provides an overall measure of the sequencing quality and consistency across the dataset.
-Calculating these metrics for **both R1 and R2 reads** is particularly important in paired-end sequencing:
-- Ensures that both reads in a pair are of comparable lengths, which is crucial for accurate alignment and variant calling.  
-- Detects any discrepancies between forward and reverse reads that could indicate technical issues during sequencing or library preparation.  
-- Allows early filtering of problematic samples before running computationally intensive steps such as mapping, variant calling, or assembly.  
+# 📊 Read Length Summary – README  
 
-By summarizing read lengths in a **CSV file**, we could able to quickly inspect our dataset, compare samples, and make informed decisions on trimming, filtering, or quality control. This step improves the reliability and reproducibility of downstream analyses.
+Before performing any downstream bioinformatics analysis, it is important to understand the quality and characteristics of your sequencing data. One key metric is the **read length** of FASTQ files.  
+
+## 🔹 Why read length matters  
+- **Minimum read length:** Identifies very short reads that may result from sequencing errors or trimming. Extremely short reads can cause mapping errors or low-quality variant calls.  
+- **Maximum read length:** Confirms whether reads were sequenced to the expected length and detects unusually long reads that may indicate adapter contamination or sequencing artifacts.  
+- **Average read length:** Provides an overall measure of sequencing quality and consistency across the dataset.  
+
+## 🔹 Importance in paired-end sequencing  
+Calculating these metrics for **both R1 and R2 reads** is crucial:  
+- Ensures both reads in a pair are of comparable lengths → essential for accurate alignment and variant calling.  
+- Detects discrepancies between forward and reverse reads that may indicate technical issues during sequencing or library preparation.  
+- Allows early filtering of problematic samples before computationally intensive steps such as mapping, variant calling, or assembly.  
+
+## 🔹 Benefits of summarizing into a CSV  
+By compiling read lengths into a **CSV file**, you can:  
+- Quickly inspect and compare samples.  
+- Identify outliers or problematic datasets.  
+- Make informed decisions on trimming, filtering, or quality control.  
+- Improve reliability and reproducibility of downstream analyses.  
 
 ---
 
