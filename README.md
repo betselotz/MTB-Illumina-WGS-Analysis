@@ -970,20 +970,23 @@ echo "🎉 All done! Read counts saved to '$OUTPUT_CSV'"
 - `#!/bin/bash` → Runs the script using Bash.  
 - `set -euo pipefail` → Exits on errors, unset variables, or failed commands.  
 - `INDIR="fastp_results_min_50"` → Directory containing trimmed FASTQ files.  
-- `OUTFILE="trimmed_fastq_read_counts.csv"` → CSV file to store read counts.  
-- `echo "Sample,R1_reads,R2_reads" > "$OUTFILE"` → Creates CSV header.  
+- `OUTDIR="csv_output"` → Directory to save the output CSV file.  
+- `OUTPUT_CSV="${OUTDIR}/trimmed_read_length_summary.csv"` → Path of the output CSV file.  
+- `mkdir -p "$OUTDIR"` → Creates the output directory if it doesn’t exist.  
+- `echo "Sample,R1_reads,R2_reads" > "$OUTPUT_CSV"` → Writes the CSV header.  
 - `echo "📊 Counting reads in trimmed FASTQ files from '$INDIR'..."` → Prints starting message.  
-- `for R1 in "$INDIR"/*_1.trim.fastq.gz "$INDIR"/*_R1.trim.fastq.gz; do ... done` → Loops through all R1 trimmed FASTQ files.  
+- `for R1 in "$INDIR"/*_1.trim.fastq.gz "$INDIR"/*_R1.trim.fastq.gz; do ... done` → Iterates over all R1 trimmed FASTQ files.  
 - `[[ -f "$R1" ]] || continue` → Skips if the R1 file does not exist.  
-- `SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.trim\.fastq\.gz//')` → Extracts sample name.  
-- `for suffix in "_2.trim.fastq.gz" "_R2.trim.fastq.gz" "_R2_*.trim.fastq.gz"; do ... done` → Finds corresponding R2 trimmed file.  
-- `R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))` → Counts reads in R1.  
-- `R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")` → Counts reads in R2 if present; else "NA".  
-- `echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTFILE"` → Appends counts to CSV.  
-- `echo "✅ $SAMPLE → R1: $R1_COUNT | R2: $R2_COUNT"` → Prints progress for each sample.  
-- `echo "🎉 All done! Read counts saved to '$OUTFILE'"` → Prints completion message.  
+- `SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.trim\.fastq\.gz//')` → Extracts the sample name from the filename.  
+- `for suffix in "_2.trim.fastq.gz" "_R2.trim.fastq.gz" "_R2_*.trim.fastq.gz"; do ... done` → Searches for the corresponding R2 file.  
+- `R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))` → Counts number of reads in R1 (lines divided by 4).  
+- `R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")` → Counts number of reads in R2 if present, otherwise outputs "NA".  
+- `echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTPUT_CSV"` → Appends results to the CSV file.  
+- `echo "✅ $SAMPLE → R1: $R1_COUNT | R2: $R2_COUNT"` → Prints per-sample progress.  
+- `echo "🎉 All done! Read counts saved to '$OUTPUT_CSV'"` → Prints final completion message.  
 
 </details>
+
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
@@ -1017,9 +1020,10 @@ nano trimmed_fastq_read_length_summary.sh
 ##### Step 2: Paste the following code into nano
 ```bash
 #!/bin/bash
+set -euo pipefail
 
 FASTQ_DIR="fastp_results_min_50"
-OUTDIR="read_length_summary_trimmed"
+OUTDIR="csv_output"
 OUTPUT_CSV="${OUTDIR}/trimmed_read_length_summary.csv"
 
 mkdir -p "$OUTDIR"
@@ -1034,7 +1038,17 @@ for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do
         echo "Processing sample $SAMPLE"
 
         calc_stats() {
-            zcat "$1" | awk 'NR%4==2 {len=length($0); sum+=len; if(min==""){min=len}; if(len<min){min=len}; if(len>max){max=len}; count++} END{avg=sum/count; printf "%d,%d,%.2f", min, max, avg}'
+            zcat "$1" | awk 'NR%4==2 {
+                len=length($0)
+                sum+=len
+                if(min==""){min=len}
+                if(len<min){min=len}
+                if(len>max){max=len}
+                count++
+            } END {
+                avg=sum/count
+                printf "%d,%d,%.2f", min, max, avg
+            }'
         }
 
         STATS_R1=$(calc_stats "$R1")
@@ -1047,28 +1061,30 @@ for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do
 done
 
 echo "✅ Trimmed read length summary saved to $OUTPUT_CSV"
+
 ```
 <details>
   <summary>📊 Trimmed Read Length Summary Script Explanation</summary>
 
 - `#!/bin/bash` → Run script with Bash.  
 - `FASTQ_DIR="fastp_results_min_50"` → Directory containing trimmed FASTQ files.  
-- `OUTDIR="read_length_summary_trimmed"` → Directory to save CSV output.  
+- `OUTDIR="csv_output"` → Directory to save CSV output.  
 - `OUTPUT_CSV="${OUTDIR}/trimmed_read_length_summary.csv"` → Output CSV file path.  
 - `mkdir -p "$OUTDIR"` → Create output directory if missing.  
-- `echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"` → CSV header.  
+- `echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"` → Write CSV header.  
 - `for R1 in "$FASTQ_DIR"/*_1.trim.fastq.gz; do ...` → Loop over all R1 trimmed FASTQ files.  
 - `SAMPLE=$(basename "$R1" _1.trim.fastq.gz)` → Extract sample name.  
-- `R2="${FASTQ_DIR}/${SAMPLE}_2.trim.fastq.gz"` → Get paired R2 filename.  
-- `if [[ -f "$R2" ]]; then ... else ... fi` → Skip sample if R2 missing.  
-- `calc_stats() { ... }` → Function to calculate min, max, avg read lengths for a FASTQ.  
-- `STATS_R1=$(calc_stats "$R1")` → Stats for R1.  
-- `STATS_R2=$(calc_stats "$R2")` → Stats for R2.  
-- `echo "$SAMPLE,$STATS_R1,$STATS_R2" >> "$OUTPUT_CSV"` → Append sample stats to CSV.  
-- `echo "⚠ Missing R2 for $SAMPLE, skipping."` → Warning if R2 missing.  
+- `R2="${FASTQ_DIR}/${SAMPLE}_2.trim.fastq.gz"` → Find corresponding R2 file.  
+- `if [[ -f "$R2" ]]; then ... else ... fi` → Skip sample if R2 is missing.  
+- `calc_stats() { ... }` → Function to calculate min, max, and average read lengths.  
+- `STATS_R1=$(calc_stats "$R1")` → Compute stats for R1.  
+- `STATS_R2=$(calc_stats "$R2")` → Compute stats for R2.  
+- `echo "$SAMPLE,$STATS_R1,$STATS_R2" >> "$OUTPUT_CSV"` → Append results to CSV.  
+- `echo "⚠ Missing R2 for $SAMPLE, skipping."` → Print warning if R2 not found.  
 - `echo "✅ Trimmed read length summary saved to $OUTPUT_CSV"` → Final confirmation message.  
 
 </details>
+
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter
