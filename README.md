@@ -1936,14 +1936,17 @@ mkdir -p "$OUTDIR"
 
 for vcf in "$VCFDIR"/*.vcf; do
     sample=$(basename "$vcf" .vcf)
-    echo "Processing $sample ..."
-    bgzip -c "$vcf" > "$vcf.gz"
-    bcftools index "$vcf.gz"
-    bcftools consensus -f "$CURDIR/H37Rv.fasta" "$vcf.gz" | sed "1s/.*/>$sample/" > "$OUTDIR/${sample}.consensus.fasta"
-    echo "✅ $sample consensus generated with sample-based header."
-done
 
-echo "🎉 All consensus sequences saved in $OUTDIR."
+    if [ $(grep -v '^#' "$vcf" | wc -l) -eq 0 ]; then
+        echo "$sample VCF is empty. Skipping."
+        continue
+    fi
+
+    gz_file="${vcf}.gz"
+    bgzip -c "$vcf" > "$gz_file"
+    bcftools index "$gz_file"
+    bcftools consensus -f "$CURDIR/H37Rv.fasta" "$gz_file" | sed "1s/.*/>$sample/" > "$OUTDIR/${sample}.consensus.fasta"
+done
 
 ```
 <details>
