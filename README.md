@@ -2011,8 +2011,11 @@ FASTA_DIR="consensus_sequences"
 for f in "$FASTA_DIR"/*.filtered.consensus.fasta; do
     mv "$f" "${f/.filtered.consensus/}"
 done
+
+echo "✅ All consensus FASTA files have been renamed to .fasta."
+
 ```
-```
+
 <details>
 <summary>📝 Rename Consensus FASTA Files</summary>
 
@@ -2022,11 +2025,6 @@ done
 - `echo "✅ All consensus FASTA files have been renamed to .fasta."` → Confirmation message after renaming.
 
 </details>
-
-
-
-
-echo "✅ All consensus FASTA files have been renamed to .fasta."
 
 ###  Update headers inside the FASTA files
 ```bash
