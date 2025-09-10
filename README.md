@@ -1470,67 +1470,133 @@ conda activate multiqc_env
 
 # 8️⃣ TB Variant Filter
 <details>
-<summary>🧬 TB-Specific Variant Filtering with tb_variant_filter</summary>
+<summary>🧬 TB-Specific Variant Filtering with <code>tb_variant_filter</code></summary>
 
-The **tb_variant_filter** tool is tailored for **Mycobacterium tuberculosis (M. tb)** sequencing data. Unlike general-purpose filters, it considers TB-specific genomic features and problematic regions in the **H37Rv reference genome** to retain only **high-confidence variants**.
+The **tb_variant_filter** tool is designed specifically for **Mycobacterium tuberculosis (M. tb)** sequencing data. Unlike generic variant filters, it takes into account TB-specific genomic features and problematic regions in the **H37Rv reference genome**, ensuring that only **high-confidence variants** are retained.
 
-### Why filtering matters
-Raw variant calls from Snippy or other callers often include:
-- **False positives** from sequencing errors or mapping ambiguity.  
-- Variants in **repetitive regions**, where reads cannot be uniquely aligned.  
-- Low-quality calls with insufficient coverage or poor base quality.  
+### 🛠 Key Filtering Options
 
-Unfiltered variants can:
-- Lead to **incorrect drug resistance predictions**.  
-- Introduce **noise in phylogenetic analyses**, misrepresenting transmission clusters.  
-- Inflate **SNP distances**, causing misinterpretation of outbreaks.  
+**tb_variant_filter** offers several ways to refine your VCF files:
 
-### What tb_variant_filter does
-1. **Mask problematic genomic regions**  
-   - Excludes SNPs in highly repetitive or poorly mappable regions (e.g., **PE/PPE gene families**, mobile genetic elements).  
-2. **Depth-based filtering**  
-   - Removes variants with **low read depth**, ensuring reliable calls.  
-3. **Quality-based filtering**  
-   - Discards variants with **low base or mapping quality**.  
-4. **Retains core genome SNPs**  
-   - Focuses on SNPs in **conserved coding regions**, suitable for drug resistance prediction and phylogenetic analysis.  
-## ✅ Benefits of Using `tb_variant_filter`
-- **TB-specific**: Tailored to the H37Rv reference genome.  
-- **Improved accuracy**: Removes false positives that generic tools often miss.  
-- **Reliable resistance prediction**: Only keeps SNPs truly linked to drug resistance.  
-- **Cleaner phylogenies**: Results in more robust clustering and outbreak inference.  
-- **Standardization**: Widely adopted in TB genomic epidemiology pipelines, making results comparable across studies.  
+1. **Region-based filtering**  
+   Mask out variants in defined genomic regions. Region lists include:  
+   - **RLC (Refined Low Confidence) regions** – Marin et al 2022 (default)  
+   - **RLC + Low Mappability regions** – Marin et al 2022  
+   - **PE/PPE genes** – Fishbein et al 2015  
+   - **Antibiotic resistance genes** – TBProfiler and MTBseq lists  
+   - **Repetitive loci** – UVP list  
+
+   > ⚠️ **Default:** Use RLC regions. These are parts of the H37Rv genome where Illumina reads map poorly. For reads shorter than 100 bp or single-ended reads, consider using the **RLC + Low Mappability filter**. PE/PPE and UVP filters are mainly for backward compatibility, but they may exclude too much of the genome.
+
+2. **Window around indels**  
+   Masks variants within a set distance (default 5 bases) of insertions or deletions.
+
+3. **Alternate allele percentage**  
+   Removes variants with fewer than the minimum percentage (default 90%) of alternative alleles.
+
+4. **Depth of aligned reads**  
+   Filters variants based on sequencing depth to remove low-confidence calls.
+
+5. **SNV-only filtering**  
+   Optionally discard all variants that are not single nucleotide variants.
+
+### ⚡ How Filters Work Together
+
+When multiple filters are applied, they **stack**: a variant will be masked if **any filter** flags it. This ensures a conservative, high-confidence set of variants for downstream analyses.
 
 </details>
+
   
 ---
-
 ## Steps
 
-##### Step 1: Create or edit the script  
+##### Step 1: Activate environment
+```bash
+conda activate tb_variant_filter_env
+```
+##### Step 2:  We need this directory to store all BED files containing genomic regions to be masked during variant filtering
+```bash
+mkdir -p /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions
+```
+#####  Step 3: Generate each BED file in that folder
+<details>
+<summary>🧬 BED Files for TB Variant Filtering</summary>
+
+We need **Refined Low Confidence (RLC) regions** by default, but we may also need other regions. You can download and store the BED files in your directory to mask genomic regions during variant filtering, such as:
+
+- **Refined Low Confidence (RLC) regions**  
+- **Low mappability regions**  
+- **PE/PPE genes**  
+- **Antibiotic resistance gene lists** (TBProfiler, MTBseq)  
+- **Repetitive loci** (UVP)
+
+</details>
+
+```bash
+tb_region_list_to_bed --chromosome_name H37Rv farhat_rlc /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions/RLC_Marin2022.bed
+
+tb_region_list_to_bed --chromosome_name H37Rv farhat_rlc_lowmap /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions/RLC_and_LowMappability_Marin2022.bed
+
+tb_region_list_to_bed --chromosome_name H37Rv pe_ppe /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions/PE_PPE_Fishbein2015.bed
+
+tb_region_list_to_bed --chromosome_name H37Rv tbprofiler /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions/TBProfiler_resistance_genes.bed
+
+tb_region_list_to_bed --chromosome_name H37Rv mtbseq /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions/MTBseq_resistance_genes.bed
+
+tb_region_list_to_bed --chromosome_name H37Rv uvp /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions/UVP_repetitive_loci.bed
+
+```
+<details>
+<summary>🧬 tb_region_list_to_bed Commands Explanation</summary>
+
+- `tb_region_list_to_bed` → Command from `tb_variant_filter` to export predefined genomic regions as BED files.  
+- `--chromosome_name H37Rv` → Specifies the reference genome (M. tuberculosis H37Rv).  
+- `{farhat_rlc, farhat_rlc_lowmap, pe_ppe, tbprofiler, mtbseq, uvp}` → Region list names available in `tb_variant_filter`:  
+  - `farhat_rlc` → Refined Low Confidence regions (Marin et al., 2022).  
+  - `farhat_rlc_lowmap` → RLC + Low Mappability regions (Marin et al., 2022).  
+  - `pe_ppe` → PE/PPE gene regions (Fishbein et al., 2015).  
+  - `tbprofiler` → TBProfiler antibiotic resistance genes.  
+  - `mtbseq` → MTBseq antibiotic resistance genes.  
+  - `uvp` → UVP repetitive loci in the genome.  
+- Last argument → Output BED file path where the exported regions will be saved.  
+
+</details>
+
+##### Step 4: Create or edit the script  
 ```bash
 nano run_tb_variant_filter.sh
 ```
-#####  Step 2: Paste the following into `run_tb_variant_filter.sh`
+#####  Step 5: Paste the following into `run_tb_variant_filter.sh`
 ```bash
 #!/bin/bash
 set -euo pipefail
 
-# Activate tb_variant_filter environment
-source $(conda info --base)/etc/profile.d/conda.sh
-conda activate tb_variant_filter_env
-
 CURDIR=$(pwd)
+SNIPPY_DIR="$CURDIR/snippy_results"
 OUTDIR="$CURDIR/tb_variant_filter_results"
 mkdir -p "$OUTDIR"
 
-for vcf in "$CURDIR/snippy_results"/*.vcf; do
+REGION_DIR="$CURDIR/region_lists"
+DEFAULT_BED="RLC_Marin2022.bed"
+
+MASKS=()
+if [ -f "$REGION_DIR/$DEFAULT_BED" ]; then
+    MASKS+=("$REGION_DIR/$DEFAULT_BED")
+else
+    echo "❌ Default RLC BED file not found: $REGION_DIR/$DEFAULT_BED"
+    exit 1
+fi
+
+for vcf in "$SNIPPY_DIR"/*.vcf; do
     sample=$(basename "$vcf")
-    echo "Filtering $vcf ..."
-    tb_variant_filter "$vcf" "$OUTDIR/${sample%.vcf}.filtered.vcf"
+    echo "Filtering $sample ..."
+    tb_variant_filter \
+        --mask-bed "${MASKS[@]}" \
+        "$vcf" \
+        "$OUTDIR/${sample%.vcf}.filtered.vcf"
 done
 
-echo "✅ All VCFs filtered and saved in $OUTDIR"
+echo "✅ All VCFs filtered using RLC regions and saved in $OUTDIR"
 
 ```
 <details>
@@ -1538,29 +1604,32 @@ echo "✅ All VCFs filtered and saved in $OUTDIR"
 
 - `#!/bin/bash` → Run script with Bash.  
 - `set -euo pipefail` → Exit on errors or undefined variables.  
-- `source $(conda info --base)/etc/profile.d/conda.sh` → Load Conda functions for environment activation.  
-- `conda activate tb_variant_filter_env` → Activate environment with `tb_variant_filter`.  
 - `CURDIR=$(pwd)` → Save current working directory.  
+- `SNIPPY_DIR="$CURDIR/snippy_results"` → Folder containing Snippy VCFs.  
 - `OUTDIR="$CURDIR/tb_variant_filter_results"` → Output folder for filtered VCFs.  
 - `mkdir -p "$OUTDIR"` → Ensure output directory exists.  
-- `for vcf in "$CURDIR/snippy_results"/*.vcf; do ... done` → Loop through all Snippy VCFs.  
+- `REGION_DIR="$CURDIR/region_lists"` → Folder containing BED region files.  
+- `DEFAULT_BED="RLC_Marin2022.bed"` → Use RLC regions (Marin et al 2022) by default for masking.  
+- `MASKS=()` → Array of BED files to apply as masks.  
+- `if [ -f "$REGION_DIR/$DEFAULT_BED" ]; then MASKS+=("$REGION_DIR/$DEFAULT_BED"); fi` → Add default BED if it exists.  
+- `for vcf in "$SNIPPY_DIR"/*.vcf; do ... done` → Loop through all Snippy VCFs.  
 - `sample=$(basename "$vcf")` → Extract filename for naming outputs.  
-- `tb_variant_filter "$vcf" "$OUTDIR/${sample%.vcf}.filtered.vcf"` → Run filtering and save result.  
-- `echo "✅ All VCFs filtered and saved in $OUTDIR"` → Completion message.
+- `tb_variant_filter --mask-bed "${MASKS[@]}" "$vcf" "$OUTDIR/${sample%.vcf}.filtered.vcf"` → Filter using RLC regions and save result.  
+- `echo "✅ All VCFs filtered using RLC regions and saved in $OUTDIR"` → Completion message.
 
 </details>
 
-##### Step 3: Save and exit nano
+
+##### Step 6: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
 Press Ctrl + X → Exit nano
 
-##### Step 4: Make the script executable
+##### Step 7: Make the script executable
 ```bash
 chmod +x run_tb_variant_filter.sh
 ```
-##### Step 5: Activate environment and run
+##### Step 8: run
 ```bash
-conda activate tb_variant_filter_env
 ./run_tb_variant_filter.sh
 ```
 # 9️⃣ TB-Profiler from FASTQ Files
