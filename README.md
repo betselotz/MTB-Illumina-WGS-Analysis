@@ -1330,7 +1330,7 @@ nano run_qualimap.sh
 #!/bin/bash
 set -euo pipefail
 
-SNIPPY_DIR="all_bams"
+SNIPPY_DIR="snippy_results"
 QUALIMAP_OUT="qualimap_reports"
 mkdir -p "$QUALIMAP_OUT"
 
