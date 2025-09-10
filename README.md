@@ -1235,7 +1235,6 @@ run_snippy_sample() {
     snippy --cpus "$THREADS" --outdir "$TMP_DIR" --ref "$REF" \
            --R1 "$R1" --R2 "$R2" --force --bwaopt "-T $BWA_THREADS"
 
-    # Move full VCF and other outputs
     if [[ -f "$TMP_DIR/snps.vcf" ]]; then
         mv "$TMP_DIR/snps.vcf" "${OUTDIR}/${SAMPLE}.vcf"
     fi
@@ -1247,17 +1246,12 @@ run_snippy_sample() {
             *.bam) mv "$f" "${OUTDIR}/${SAMPLE}.bam" ;;
             *.bam.bai) mv "$f" "${OUTDIR}/${SAMPLE}.bam.bai" ;;
             *.tab) mv "$f" "${OUTDIR}/${SAMPLE}.snps.tab" ;;
-            *) continue ;;
         esac
     done
 
     rm -rf "$TMP_DIR"
 
-    if [[ -f "${OUTDIR}/${SAMPLE}.vcf" ]]; then
-        echo "✅ Full VCF generated for $SAMPLE"
-    else
-        echo "⚠ No VCF produced for $SAMPLE"
-    fi
+    [[ -f "${OUTDIR}/${SAMPLE}.vcf" ]] && echo "✅ Full VCF generated for $SAMPLE" || echo "⚠ No VCF produced for $SAMPLE"
 }
 
 export -f run_snippy_sample
@@ -1286,6 +1280,7 @@ rm -f fastq_samples.txt snippy_samples.txt
 
 echo "🎯 All steps completed!"
 echo "Snippy results are in: ${OUTDIR}/"
+
 
 ```
 <details>
@@ -1581,27 +1576,17 @@ SNIPPY_DIR="$CURDIR/snippy_results"
 OUTDIR="$CURDIR/tb_variant_filter_results"
 mkdir -p "$OUTDIR"
 
-REGION_DIR="$CURDIR/region_lists"
-DEFAULT_BED="RLC_Marin2022.bed"
-
-MASKS=()
-if [ -f "$REGION_DIR/$DEFAULT_BED" ]; then
-    MASKS+=("$REGION_DIR/$DEFAULT_BED")
-else
-    echo "❌ Default RLC BED file not found: $REGION_DIR/$DEFAULT_BED"
-    exit 1
-fi
+REGION_FILTER="farhat_rlc"
 
 for vcf in "$SNIPPY_DIR"/*.vcf; do
     sample=$(basename "$vcf")
     echo "Filtering $sample ..."
-    tb_variant_filter \
-        --mask-bed "${MASKS[@]}" \
+    tb_variant_filter --region_filter "$REGION_FILTER" \
         "$vcf" \
         "$OUTDIR/${sample%.vcf}.filtered.vcf"
 done
 
-echo "✅ All VCFs filtered using RLC regions and saved in $OUTDIR"
+echo "✅ All VCFs filtered using $REGION_FILTER and saved in $OUTDIR"
 
 ```
 <details>
