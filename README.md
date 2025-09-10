@@ -632,7 +632,10 @@ chmod +x check_fastq_pairs.sh
 
 Calculating Minimum, Maximum, and Average Read Lengths for Paired-End Reads
 
-# 📊 Read Length Summary – README  
+### 5.   Checking raw FASTQ Read Length Summary
+
+<details>
+<summary>📏 Read Length Summary – Importance and Benefits</summary>
 
 Before performing any downstream bioinformatics analysis, it is important to understand the quality and characteristics of your sequencing data. One key metric is the **read length** of FASTQ files.  
 
@@ -653,6 +656,8 @@ By compiling read lengths into a **CSV file**, you can:
 - Identify outliers or problematic datasets.  
 - Make informed decisions on trimming, filtering, or quality control.  
 - Improve reliability and reproducibility of downstream analyses.  
+
+</details>
 
 ---
 
