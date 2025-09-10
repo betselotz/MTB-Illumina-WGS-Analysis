@@ -1223,36 +1223,40 @@ run_snippy_sample() {
     R1="${FASTP_DIR}/${SAMPLE}_1.trim.fastq.gz"
     R2="${FASTP_DIR}/${SAMPLE}_2.trim.fastq.gz"
 
-    if [[ -f "$R1" && -f "$R2" ]]; then
-        echo "Running snippy on sample: $SAMPLE"
-        TMP_DIR="${OUTDIR}/${SAMPLE}_tmp"
-        mkdir -p "$TMP_DIR"
-
-        snippy --cpus "$THREADS" --outdir "$TMP_DIR" --ref "$REF" \
-               --R1 "$R1" --R2 "$R2" --force --bwaopt "-T $BWA_THREADS"
-
-        for f in "$TMP_DIR"/*; do
-            base=$(basename "$f")
-            case "$base" in
-                snps.vcf) newname="${SAMPLE}.snps.vcf" ;;
-                snps.tab) newname="${SAMPLE}.snps.tab" ;;
-                consensus.fa) newname="${SAMPLE}.consensus.fa" ;;
-                *.bam) newname="${SAMPLE}.bam" ;;
-                *.bam.bai) newname="${SAMPLE}.bam.bai" ;;
-                *) continue ;;
-            esac
-            mv "$f" "${OUTDIR}/${newname}"
-        done
-
-        rm -rf "$TMP_DIR"
-
-        if [[ -f "${OUTDIR}/${SAMPLE}.snps.vcf" ]]; then
-            echo "✅ VCF generated for $SAMPLE"
-        else
-            echo "⚠ No VCF produced for $SAMPLE"
-        fi
-    else
+    if [[ ! -f "$R1" || ! -f "$R2" ]]; then
         echo "⚠ Missing R1/R2 for $SAMPLE"
+        return
+    fi
+
+    echo "Running Snippy on sample: $SAMPLE"
+    TMP_DIR="${OUTDIR}/${SAMPLE}_tmp"
+    mkdir -p "$TMP_DIR"
+
+    snippy --cpus "$THREADS" --outdir "$TMP_DIR" --ref "$REF" \
+           --R1 "$R1" --R2 "$R2" --force --bwaopt "-T $BWA_THREADS"
+
+    # Move full VCF and other outputs
+    if [[ -f "$TMP_DIR/snps.vcf" ]]; then
+        mv "$TMP_DIR/snps.vcf" "${OUTDIR}/${SAMPLE}.vcf"
+    fi
+
+    for f in "$TMP_DIR"/*; do
+        base=$(basename "$f")
+        case "$base" in
+            *.consensus.fa) mv "$f" "${OUTDIR}/${SAMPLE}.consensus.fa" ;;
+            *.bam) mv "$f" "${OUTDIR}/${SAMPLE}.bam" ;;
+            *.bam.bai) mv "$f" "${OUTDIR}/${SAMPLE}.bam.bai" ;;
+            *.tab) mv "$f" "${OUTDIR}/${SAMPLE}.snps.tab" ;;
+            *) continue ;;
+        esac
+    done
+
+    rm -rf "$TMP_DIR"
+
+    if [[ -f "${OUTDIR}/${SAMPLE}.vcf" ]]; then
+        echo "✅ Full VCF generated for $SAMPLE"
+    else
+        echo "⚠ No VCF produced for $SAMPLE"
     fi
 }
 
@@ -1265,8 +1269,8 @@ ls "${FASTP_DIR}"/*_1.trim.fastq.gz \
 
 ls "${FASTP_DIR}"/*_1.trim.fastq.gz \
     | sed 's|.*/||; s/_1\.trim\.fastq\.gz//' | sort > fastq_samples.txt
-ls "${OUTDIR}"/*.snps.vcf 2>/dev/null \
-    | sed 's|.*/||; s/\.snps\.vcf//' | sort > snippy_samples.txt
+ls "${OUTDIR}"/*.vcf 2>/dev/null \
+    | sed 's|.*/||; s/\.vcf//' | sort > snippy_samples.txt
 
 echo "FASTQ pairs count: $(wc -l < fastq_samples.txt)"
 echo "Snippy outputs count: $(wc -l < snippy_samples.txt)"
@@ -1282,6 +1286,7 @@ rm -f fastq_samples.txt snippy_samples.txt
 
 echo "🎯 All steps completed!"
 echo "Snippy results are in: ${OUTDIR}/"
+
 ```
 <details>
 <summary>🌳 Snippy Pipeline Script Explanation</summary>
