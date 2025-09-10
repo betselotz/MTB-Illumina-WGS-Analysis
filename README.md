@@ -2007,21 +2007,26 @@ This helps verify that consensus sequences cover the full *M. tuberculosis* geno
 ```bash
 #!/bin/bash
 FASTA_DIR="consensus_sequences"
-for f in "$FASTA_DIR"/*.snps.filtered.consensus.fasta; do
-    mv "$f" "${f/.snps.filtered.consensus/}"
-done
-echo "✅ All consensus FASTA files have been renamed."
 
+for f in "$FASTA_DIR"/*.filtered.consensus.fasta; do
+    mv "$f" "${f/.filtered.consensus/}"
+done
+```
 ```
 <details>
 <summary>📝 Rename Consensus FASTA Files</summary>
 
 - `FASTA_DIR="consensus_sequences"` → Directory containing consensus FASTA files.  
-- `for f in "$FASTA_DIR"/*.snps.filtered.consensus.fasta; do ... done` → Loop over all FASTA files ending with `.snps.filtered.consensus.fasta`.  
-- `mv "$f" "${f/.snps.filtered.consensus/}"` → Rename each file by removing `.snps.filtered.consensus` from filename.  
-- `echo "✅ All consensus FASTA files have been renamed."` → Confirmation message after renaming.
+- `for f in "$FASTA_DIR"/*.filtered.consensus.fasta; do ... done` → Loop over all FASTA files ending with `.filtered.consensus.fasta`.  
+- `mv "$f" "${f/.filtered.consensus/}"` → Rename each file by removing `.filtered.consensus` from filename.  
+- `echo "✅ All consensus FASTA files have been renamed to .fasta."` → Confirmation message after renaming.
 
 </details>
+
+
+
+
+echo "✅ All consensus FASTA files have been renamed to .fasta."
 
 ###  Update headers inside the FASTA files
 ```bash
