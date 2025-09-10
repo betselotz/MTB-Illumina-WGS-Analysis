@@ -2002,48 +2002,6 @@ This ensures no sequences are truncated or incomplete due to missing coverage or
 We can check the length of each consensus FASTA sequence to ensure completeness and consistency.  
 This helps verify that consensus sequences cover the full *M. tuberculosis* genome (~4.4 Mbp) and can reveal missing regions.
 
-### Using `grep` and `wc`
-We remove the FASTA headers (`>` lines) and count the remaining nucleotides to get the total genome length:
-
-```bash
-for f in consensus_sequences/*.fasta; do
-    sample=$(basename "$f")
-    # Remove header lines and count remaining characters
-    length=$(grep -v ">" "$f" | tr -d '\n' | wc -c)
-    echo "$sample : $length bp"
-done
-```
-
-to save the result in csv file 
-```bash
-#!/bin/bash
-FASTA_DIR="consensus_sequences"
-OUTPUT_CSV="consensus_lengths.csv"
-echo "Sample,Length_bp" > "$OUTPUT_CSV"
-
-for f in "$FASTA_DIR"/*.fasta; do
-    sample=$(basename "$f" .fasta)
-    length=$(grep -v ">" "$f" | tr -d '\n' | wc -c)
-    echo "$sample,$length" >> "$OUTPUT_CSV"
-done
-
-echo "✅ Consensus genome lengths saved to $OUTPUT_CSV"
-
-```
-<details>
-<summary>📖 Explanation of the calculating consensus genome lengths calculation and saving the result in csv</summary>
-
-- `FASTA_DIR="consensus_sequences"` → sets the directory containing consensus FASTA files.  
-- `OUTPUT_CSV="consensus_lengths.csv"` → defines the CSV file to save lengths.  
-- `echo "Sample,Length_bp" > "$OUTPUT_CSV"` → creates the CSV file and writes the header line.  
-- `for f in "$FASTA_DIR"/*.fasta; do ... done` → loops over all FASTA files in the directory.  
-- `sample=$(basename "$f" .fasta)` → extracts the sample name from the FASTA filename.  
-- `length=$(grep -v ">" "$f" | tr -d '\n' | wc -c)` → removes header lines (`>`), concatenates sequences into one line, and counts nucleotides.  
-- `echo "$sample,$length" >> "$OUTPUT_CSV"` → appends the sample name and its sequence length to the CSV file.  
-- `echo "✅ Consensus genome lengths saved to $OUTPUT_CSV"` → prints a completion message when finished.  
-
-</details>
-
 ### Rename the FASTA files
 
 ```bash
@@ -2088,6 +2046,55 @@ echo "🎉 All FASTA headers have been successfully updated."
 - `echo "🎉 All FASTA headers have been successfully updated."` → Completion message after all files processed.
 
 </details>
+
+
+### Using `grep` and `wc`
+We remove the FASTA headers (`>` lines) and count the remaining nucleotides to get the total genome length:
+
+```bash
+for f in consensus_sequences/*.fasta; do
+    sample=$(basename "$f")
+    length=$(grep -v ">" "$f" | tr -d '\n' | wc -c)
+    echo "$sample : $length bp"
+done
+```
+
+to save the result in csv file 
+```bash
+#!/bin/bash
+FASTA_DIR="consensus_sequences"
+OUTDIR="csv_output"
+mkdir -p "$OUTDIR"  
+OUTPUT_CSV="${OUTDIR}/consensus_lengths.csv"
+
+echo "Sample,Length_bp" > "$OUTPUT_CSV"
+
+for f in "$FASTA_DIR"/*.fasta; do
+    sample=$(basename "$f" .fasta)
+    length=$(grep -v ">" "$f" | tr -d '\n' | wc -c)
+    echo "$sample,$length" >> "$OUTPUT_CSV"
+done
+
+echo "✅ Consensus genome lengths saved to $OUTPUT_CSV"
+
+```
+<details>
+<summary>📖 Explanation of calculating consensus genome lengths and saving the result in CSV</summary>
+
+- `FASTA_DIR="consensus_sequences"` → sets the directory containing consensus FASTA files.  
+- `OUTDIR="csv_output"` → defines the directory where the CSV will be saved.  
+- `mkdir -p "$OUTDIR"` → ensures the output directory exists before writing the file.  
+- `OUTPUT_CSV="${OUTDIR}/consensus_lengths.csv"` → defines the CSV file path inside `OUTDIR`.  
+- `echo "Sample,Length_bp" > "$OUTPUT_CSV"` → creates the CSV file and writes the header line.  
+- `for f in "$FASTA_DIR"/*.fasta; do ... done` → loops over all FASTA files in the directory.  
+- `sample=$(basename "$f" .fasta)` → extracts the sample name from the FASTA filename.  
+- `length=$(grep -v ">" "$f" | tr -d '\n' | wc -c)` → removes header lines (`>`), concatenates sequences into one line, and counts nucleotides.  
+- `echo "$sample,$length" >> "$OUTPUT_CSV"` → appends the sample name and its sequence length to the CSV file.  
+- `echo "✅ Consensus genome lengths saved to $OUTPUT_CSV"` → prints a completion message when finished.  
+
+</details>
+
+
 
 # 1️⃣2️⃣ Multiple Sequence Alignment with MAFFT
 
