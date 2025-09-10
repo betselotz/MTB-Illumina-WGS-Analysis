@@ -1606,9 +1606,14 @@ REGION_FILTER="farhat_rlc"
 for vcf in "$SNIPPY_DIR"/*.vcf; do
     sample=$(basename "$vcf")
     echo "Filtering $sample ..."
+    
     tb_variant_filter --region_filter "$REGION_FILTER" \
         "$vcf" \
         "$OUTDIR/${sample%.vcf}.filtered.vcf"
+
+        if [ ! -s "$OUTDIR/${sample%.vcf}.filtered.vcf" ]; then
+        echo "⚠ $sample filtered VCF is empty."
+    fi
 done
 
 echo "✅ All VCFs filtered using $REGION_FILTER and saved in $OUTDIR"
