@@ -1906,8 +1906,18 @@ After filtering VCFs with **tb_variant_filter**, we generate **consensus FASTA s
 ##### Step 1: Compress and index each filtered VCF
 ```bash
 for vcf in tb_variant_filter_results/*.vcf; do
-    bgzip -c "$vcf" > "${vcf}.gz"
-    bcftools index "${vcf}.gz"
+   
+    if [ ! -s "$vcf" ]; then
+        echo "Skipping empty VCF: $vcf"
+        continue
+    fi
+
+    gz_file="${vcf}.gz"
+    echo "Compressing $vcf → $gz_file"
+    bgzip -c "$vcf" > "$gz_file"
+
+    echo "Indexing $gz_file"
+    bcftools index "$gz_file"
 done
 ```
 ##### Step 2: Create a script to generate consensus sequences
