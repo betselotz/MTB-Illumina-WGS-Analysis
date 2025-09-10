@@ -1645,6 +1645,70 @@ chmod +x run_tb_variant_filter.sh
 ```bash
 ./run_tb_variant_filter.sh
 ```
+<details>
+<summary>📊 VCF QC Script Step-by-Step Guide</summary>
+
+### Purpose
+
+This script is designed to compare unfiltered Snippy VCFs with filtered VCFs produced by `tb_variant_filter`. The main goals are:
+
+- Count the total number of variants in each VCF.
+- Identify variants that meet a custom “PASS” criterion, based on user-defined quality thresholds.
+- Calculate the PASS retention ratio, i.e., the fraction of high-quality variants retained after filtering.
+
+This QC step ensures that your filtered VCFs retain high-confidence variants and helps detect potential over-filtering or loss of important variants before downstream analysis.
+
+---
+
+### Key Parameters
+
+- `MIN_DP=20` → Minimum read depth required for a variant to be considered “high quality.”  
+  - Read depth (DP in the VCF INFO field) indicates the number of reads supporting a variant.  
+  - Variants with fewer than 20 supporting reads are considered low-confidence and are excluded from the PASS count.
+
+- `MIN_QUAL=30` → Minimum variant quality score (QUAL in the VCF) to consider a variant as PASS.  
+  - The QUAL score represents the confidence that the variant is real.  
+  - Variants with QUAL < 30 are considered low-confidence and are excluded from the PASS count.
+
+> These thresholds can be adjusted depending on your experimental design and sequencing quality.
+
+---
+
+### What the Script Does
+
+For each sample:
+
+**Unfiltered VCF analysis**
+
+- Counts all variants (`Unfiltered_total`).
+- Counts variants meeting `DP ≥ 20` and `QUAL ≥ 30` (`Unfiltered_PASS`).
+
+**Filtered VCF analysis**
+
+- Counts all variants in the filtered VCF (`Filtered_total`).
+- Counts variants meeting `DP ≥ 20` and `QUAL ≥ 30` (`Filtered_PASS`).
+
+**Calculate PASS retention ratio**
+
+- `PASS_retention_ratio = Filtered_PASS / Unfiltered_PASS`  
+- Measures how many high-quality variants remain after filtering.
+
+---
+
+### Output Table Columns
+
+| Column               | Description                                                                 |
+|----------------------|-----------------------------------------------------------------------------|
+| Sample               | Name of the sample (derived from the VCF filename)                           |
+| Unfiltered_total     | Total variants in the original Snippy VCF                                    |
+| Unfiltered_PASS      | Variants meeting `DP ≥ 20` and `QUAL ≥ 30` in unfiltered VCF                |
+| Filtered_total       | Total variants in tb_variant_filter output                                   |
+| Filtered_PASS        | Variants meeting `DP ≥ 20` and `QUAL ≥ 30` in filtered VCF                  |
+| PASS_retention_ratio | Fraction of high-quality variants retained after filtering                  |
+
+</details>
+
+
 
 ##### Step 1: Open a new file in nano
 ```bash
