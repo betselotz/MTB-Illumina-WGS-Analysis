@@ -1125,22 +1125,33 @@ nano run_multiqc.sh
 set -euo pipefail
 
 INPUT_DIR="fastp_results_min_50"
-OUTPUT_DIR="multiqc_output"
+OUTPUT_DIR="multiqc/fastp_multiqc"
 
 mkdir -p "$OUTPUT_DIR"
+
+if [ ! -d "$INPUT_DIR" ]; then
+    echo "Error: Input directory '$INPUT_DIR' does not exist!"
+    exit 1
+fi
+
 multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"
+
+echo "MultiQC report generated in '$OUTPUT_DIR'."
+
 ```
 <details>
 <summary>📊 MultiQC Script Explanation</summary>
 
 - `#!/bin/bash` → Run script with Bash.  
 - `set -euo pipefail` → Exit on errors, undefined variables, or failed pipelines.  
-- `INPUT_DIR="fastp_results_min_50"` → Directory with fastp JSON/HTML outputs.  
-- `OUTPUT_DIR="multiqc_output"` → Directory for aggregated MultiQC report.  
-- `mkdir -p "$OUTPUT_DIR"` → Ensure output directory exists.  
-- `multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"` → Run MultiQC on all files in `INPUT_DIR` and save combined report in `OUTPUT_DIR`.
+- `INPUT_DIR="fastp_results_min_50"` → Directory containing fastp JSON/HTML outputs.  
+- `OUTPUT_DIR="multiqc/fastp_multiqc"` → Directory where the aggregated MultiQC report will be saved.  
+- `mkdir -p "$OUTPUT_DIR"` → Create `multiqc` and `fastp_multiqc` directories if they don’t exist.  
+- `if [ ! -d "$INPUT_DIR" ]; then ... fi` → Check that the input directory exists; exit with an error if not.  
+- `multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"` → Run MultiQC on all files in `INPUT_DIR` and save the combined report in `OUTPUT_DIR`.  
 
 </details>
+
 
 
 ##### Step 3: Save & exit nano
@@ -1399,10 +1410,58 @@ After running **Qualimap BAM QC**, each sample produces individual HTML and PDF 
 ---
 
 ### Run MultiQC on Qualimap outputs
+
+##### Step 1: **Open nano to create the script `run_multiqc_qualimap.sh`
 ```bash
-multiqc qualimap_reports -o multiqc_report
+nano run_multiqc_qualimap.sh
 ```
-📊 The final summary will be available in:  multiqc_report/multiqc_report.html
+##### Step 2: Paste the following code into nano
+```bash
+#!/bin/bash
+set -euo pipefail
+
+INPUT_DIR="qualimap_reports"
+OUTPUT_DIR="multiqc/qualimap_multiqc"
+
+mkdir -p "$OUTPUT_DIR"
+
+if [ ! -d "$INPUT_DIR" ]; then
+    echo "Error: Input directory '$INPUT_DIR' does not exist!"
+    exit 1
+fi
+
+multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"
+
+echo "MultiQC report generated in '$OUTPUT_DIR'."
+
+```
+<details>
+<summary>📊 MultiQC for Qualimap Reports – Script Explanation</summary>
+
+- `#!/bin/bash` → Run the script with Bash.  
+- `set -euo pipefail` → Exit on errors, undefined variables, or failed pipelines.  
+- `INPUT_DIR="qualimap_reports"` → Directory containing Qualimap BAM QC reports.  
+- `OUTPUT_DIR="multiqc/qualimap_multiqc"` → Directory where the aggregated MultiQC report will be saved.  
+- `mkdir -p "$OUTPUT_DIR"` → Create `multiqc` and `qualimap_multiqc` directories if they don’t exist.  
+- `if [ ! -d "$INPUT_DIR" ]; then ... fi` → Check that the input directory exists; exit with an error if not.  
+- `multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"` → Run MultiQC on all files in `INPUT_DIR` and save the combined report in `OUTPUT_DIR`.  
+- `echo "MultiQC report generated in '$OUTPUT_DIR'."` → Confirmation message after successful completion.
+
+</details>
+
+
+##### Step 3: Save & exit nano
+Press CTRL+O, Enter (save)
+Press CTRL+X (exit)
+##### Step 4: Make the script executable
+```bash
+chmod +x run_multiqc_qualimap.sh
+```
+##### Step 5: Activate your conda env and run
+```bash
+conda activate multiqc_env
+./run_multiqc_qualimap.sh
+```
 
 # 8️⃣ TB Variant Filter
 <details>
