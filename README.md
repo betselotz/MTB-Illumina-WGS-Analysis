@@ -1832,51 +1832,51 @@ chmod +x compare_vcf_qc.sh
 nano run_tbprofiler.sh
 ```
 ##### Step 2: Paste the following code
-```bash
 #!/bin/bash
 set -euo pipefail
 
 FASTQ_DIR="raw_data"
-OUTDIR="tbprofiler_results"
 
-mkdir -p "$OUTDIR"
+echo "📊 Starting TBProfiler runs for all samples in $FASTQ_DIR ..."
 
 for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do
     SAMPLE=$(basename "$R1" _1.fastq.gz)
     R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"
 
     if [[ ! -f "$R2" ]]; then
-        echo "❌ Missing pair for $SAMPLE (no $R2)"
+        echo "❌ Warning: missing paired file for $SAMPLE, skipping."
         continue
     fi
 
-    echo "Processing sample: $SAMPLE"
+    echo "▶️ Processing sample: $SAMPLE"
 
     tb-profiler profile \
-        --read1 "$R1" \
-        --read2 "$R2" \
-        --prefix "$OUTDIR/$SAMPLE" \
-        --txt
+        -1 "$R1" \
+        -2 "$R2" \
+        --threads 8
+
+    echo "✅ Finished $SAMPLE"
 done
 
-echo "🎯 All tb-profiler runs completed. Results saved in $OUTDIR"
+echo "📌 All samples processed!"
+
 ```
 <details>
 <summary>🧪 TB-Profiler Script Explanation</summary>
 
 - `#!/bin/bash` → Run script with Bash.  
 - `set -euo pipefail` → Exit on errors or undefined variables.  
-- `FASTQ_DIR="raw_data"` → Folder with paired-end FASTQ files.  
-- `OUTDIR="tbprofiler_results"` → Folder for TB-Profiler outputs.  
-- `mkdir -p "$OUTDIR"` → Ensure output directory exists.  
+- `FASTQ_DIR="raw_data"` → Folder containing paired-end FASTQ files.  
 - `for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do ... done` → Loop through all R1 files.  
-- `SAMPLE=$(basename "$R1" _1.fastq.gz)` → Extract sample name.  
-- `R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"` → Construct paired R2 path.  
-- `if [[ ! -f "$R2" ]]; then ... fi` → Skip if R2 is missing.  
-- `tb-profiler profile --read1 "$R1" --read2 "$R2" --prefix "$OUTDIR/$SAMPLE" --txt` → Run TB-Profiler on paired reads, output TXT.  
-- `echo "🎯 All tb-profiler runs completed. Results saved in $OUTDIR"` → Completion message.
+- `SAMPLE=$(basename "$R1" _1.fastq.gz)` → Extract sample name from filename.  
+- `R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"` → Construct path for paired R2 file.  
+- `if [[ ! -f "$R2" ]]; then ... fi` → Skip sample if paired R2 file is missing.  
+- `tb-profiler profile -1 "$R1" -2 "$R2" --threads 8` → Run TBProfiler on paired reads using 8 threads; outputs are saved automatically in `results/tbprofiler_results/$SAMPLE/`.  
+- `echo "✅ Finished $SAMPLE"` → Completion message per sample.  
+- `echo "📌 All samples processed!"` → Final message after all samples are run.
 
 </details>
+
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
@@ -2144,6 +2144,74 @@ mafft --parttree --retree 2 --maxiterate 0 --thread -1 consensus_sequences/all_c
 Quickly inspect the top of the aligned FASTA:
 ```bash
 head consensus_sequences/aligned_consensus.fasta
+```
+# 1️⃣3️⃣ IQtree
+
+Before phylogeny it is important to download outgroup for analysis and save it to consensus_seqeunce direstory 
+W have searched >CP048071.1 on ncbi which is lineage 8 sample found in rwanda for rooting our tree, we have selected this becuase it is not found in ethiopia 
+
+
+##### Step 1: Open a new file in Nano
+```bash
+nano run_iqtree.sh
+```
+##### Step 2: Paste the script
+```bash
+#!/bin/bash
+set -euo pipefail
+
+MAIN_ALIGNMENT="consensus_sequences/aligned_consensus.fasta"
+OUTGROUP_FASTA="consensus_sequences/CP048071.1.fasta"
+OUTDIR="iqtree_results"
+OUTGROUP_NAME="CP048071.1"
+
+mkdir -p "$OUTDIR"
+
+MERGED_ALIGNMENT="$OUTDIR/aligned_with_outgroup.fasta"
+cat "$MAIN_ALIGNMENT" "$OUTGROUP_FASTA" > "$MERGED_ALIGNMENT"
+
+iqtree2 -s "$MERGED_ALIGNMENT" \
+        -m GTR+G \
+        -bb 1000 \
+        -nt 4 \
+        -o "$OUTGROUP_NAME" \
+        -pre "$OUTDIR/aligned_consensus"
+
+echo "✅ IQ-TREE run completed. Results are in $OUTDIR/"
+```
+<details>
+<summary>📝 IQ-TREE Script Explanation</summary>
+
+1. `#!/bin/bash` → Use Bash shell to run the script.  
+2. `set -euo pipefail` → Exit on errors, treat unset variables as errors, and fail if any command in a pipeline fails.  
+3. `MAIN_ALIGNMENT="consensus_sequences/aligned_consensus.fasta"` → Path to the main TB consensus alignment.  
+4. `OUTGROUP_FASTA="consensus_sequences/CP048071.1.fasta"` → Path to the outgroup FASTA file.  
+5. `OUTDIR="iqtree_results"` → Directory where IQ-TREE results will be saved.  
+6. `OUTGROUP_NAME="CP048071.1"` → Name of the outgroup sequence (must match the sequence name in the merged alignment).  
+7. `mkdir -p "$OUTDIR"` → Create the results directory if it doesn’t exist.  
+8. `MERGED_ALIGNMENT="$OUTDIR/aligned_with_outgroup.fasta"` → Path for the merged alignment file.  
+9. `cat "$MAIN_ALIGNMENT" "$OUTGROUP_FASTA" > "$MERGED_ALIGNMENT"` → Merge the main alignment and outgroup FASTA into a single file.  
+10. `iqtree2 -s "$MERGED_ALIGNMENT" \` → Run IQ-TREE using the merged alignment.  
+11. `-m GTR+G \` → Use GTR substitution model with gamma rate heterogeneity.  
+12. `-bb 1000 \` → Perform 1000 ultrafast bootstrap replicates.  
+13. `-nt 4 \` → Use 4 CPU threads for the run.  
+14. `-o "$OUTGROUP_NAME" \` → Root the tree using the specified outgroup sequence.  
+15. `-pre "$OUTDIR/aligned_consensus"` → Set the prefix for output files inside the results directory.  
+16. `echo "✅ IQ-TREE run completed. Results are in $OUTDIR/"` → Print a completion message to the console.
+
+</details>
+
+##### Step 3:save and exit Nano
+Press Ctrl + O → Enter (to save)
+Press Ctrl + X → Exit Nano
+
+##### Step 4: Make the script executable
+```bash
+chmod +x run_iqtree.sh
+```
+##### Step 4:  Run the script
+```bash
+./run_iqtree.sh
 ```
 
 # 1️⃣3️⃣ Shovill
