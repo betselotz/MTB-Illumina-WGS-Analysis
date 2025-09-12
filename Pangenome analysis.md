@@ -431,16 +431,11 @@ grep 'contig_percent_[cg]' \
 
 #1️⃣4️⃣ Spades
 
-<details>
-<summary>🧬 SPAdes for Tuberculosis Genome Assembly</summary>
-
-# SPAdes for *Mycobacterium tuberculosis* (TB)
-
 SPAdes (St. Petersburg genome assembler) is a popular **de novo assembler** used for bacterial genomes, including *Mycobacterium tuberculosis*. It works well with **paired-end Illumina reads**, especially after trimming and quality control.
 
 ---
 
-## Why SPAdes for TB?
+#### Why SPAdes for TB?
 
 - **Accurate short-read assembly**: Handles Illumina reads effectively.
 - **Supports multiple library types**: Paired-end, single-end, and mate-pair.
@@ -448,7 +443,7 @@ SPAdes (St. Petersburg genome assembler) is a popular **de novo assembler** used
 - **Customizable parameters**: Memory, threads, k-mer sizes, coverage cutoffs.
 
 ---
-<details>
+
   
 ###### Step 1: Activate the environment
 ``` bash
