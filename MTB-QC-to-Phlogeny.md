@@ -2355,6 +2355,7 @@ chmod +x run_iqtree.sh
 ```
 ##### Step 4:  Run the script
 ```bash
+conda activate iqtree_env
 ./run_iqtree.sh
 ```
 
