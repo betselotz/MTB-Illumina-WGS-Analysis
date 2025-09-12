@@ -2260,14 +2260,6 @@ For our analysis, we searched the NCBI database for sequences belonging to **Lin
 The selected outgroup sequence was downloaded and saved in the `consensus_sequences/` directory alongside our aligned TB consensus sequences.
 
 ---
-
-##### Step 1: Merge all consensus FASTAs
-Combine all individual consensus sequences into one multi-FASTA file:
-
-```bash
-cat consensus_sequences/*.fasta > consensus_sequences/all_consensus.fasta
-```
-##### Step 2: Run MAFFT
 Perform multiple sequence alignment on the merged file:
 Use a faster algorithm than --auto
 
@@ -2277,19 +2269,250 @@ You can explicitly pick faster modes:
 Since Mycobacterium tuberculosis genomes are highly conserved and we care more about speed than very small accuracy gains, we can safely drop the expensive iterative refinement steps in MAFFT.
 fast and TB-suitable command
 
+
+
+##### Step 1: Merge all consensus FASTAs
 ```bash
-mafft --thread 4 --add consensus_sequences/SRR10828835.fasta \
-      --reorder consensus_sequences/aligned_consensus.fasta \
-      > iqtree_results/aligned_with_outgroup.fasta
+cat consensus_sequences/*.fasta > consensus_sequences/all_consensus.fasta
+```
+Combine all individual consensus sequences into one multi-FASTA file:
+- **Aligning sequences**  
+  - All sequences, including the outgroup, must be aligned together.  
+  - This ensures that **homologous positions are matched across all sequences**, which is essential for correct tree inference.  
+  - Example workflow:  
+    1. Combine all consensus sequences and the outgroup FASTA into a single folder.  
+    2. Run MAFFT on the combined sequences to produce a single aligned file (e.g., `aligned_consensus.fasta`).  
+
+- **Selecting the outgroup in IQ-TREE**  
+  - The outgroup sequence must already be included in the alignment.  
+  - When running IQ-TREE, specify the outgroup using the `-o` option with the **FASTA header name** of the outgroup:  
+  - IQ-TREE will then **root the phylogenetic tree using this outgroup**.  
+
+- **Key points**  
+  - Do **not align the outgroup separately**; always include it with the ingroup sequences.  
+  - The `-o` option does **not add the outgroup**; it just tells IQ-TREE which sequence to use for rooting.  
+  - Proper alignment with the outgroup ensures a **correctly rooted tree**.  
+
+##### Step 2: Open a new script file in nano
+```bash
+nano run_mafft.sh
 ```
 
-##### Step 3: Verify the alignment
-Quickly inspect the top of the aligned FASTA:
+##### Step 3: Paste the script into nano
+```bash
+#!/bin/bash
+set -euo pipefail
+
+INPUT_DIR="consensus_sequences"
+OUTPUT_DIR="mafft_results"
+mkdir -p "$OUTPUT_DIR"
+
+THREADS=16
+COMBINED_OUT="$OUTPUT_DIR/aligned_consensus.fasta"
+
+[[ -f "$COMBINED_OUT" ]] && rm "$COMBINED_OUT"
+
+for FILE in "$INPUT_DIR"/*.fasta "$INPUT_DIR"/*.fa; do
+    [[ -f "$FILE" ]] || continue
+    BASENAME=$(basename "$FILE" .fasta)
+    BASENAME=$(basename "$BASENAME" .fa)
+    TEMP_OUT="$OUTPUT_DIR/${BASENAME}_aligned_temp.fasta"
+    mafft --thread "$THREADS" --auto --parttree "$FILE" > "$TEMP_OUT"
+    cat "$TEMP_OUT" >> "$COMBINED_OUT"
+    rm "$TEMP_OUT"
+done
+
+FILE="$COMBINED_OUT"
+
+if [[ -f "$FILE" ]]; then
+    SEQ_COUNT=$(grep -c ">" "$FILE")
+    TOTAL_LENGTH=$(grep -v ">" "$FILE" | tr -d '\n' | wc -c)
+    MIN_LENGTH=$(grep -v ">" "$FILE" | awk 'BEGIN{RS=">"; min=0} NR>1{len=length($0); if(min==0 || len<min) min=len} END{print min}')
+    MAX_LENGTH=$(grep -v ">" "$FILE" | awk 'BEGIN{RS=">"; max=0} NR>1{len=length($0); if(len>max) max=len} END{print max}')
+    AVG_LENGTH=$(grep -v ">" "$FILE" | awk 'BEGIN{RS=">"; sum=0; count=0} NR>1{sum+=length($0); count++} END{if(count>0) print int(sum/count); else print 0}')
+
+    if [[ $SEQ_COUNT -gt 0 ]]; then
+        echo "✅ $FILE"
+        echo "   Sequences: $SEQ_COUNT"
+        echo "   Total length (bp): $TOTAL_LENGTH"
+        echo "   Min length: $MIN_LENGTH"
+        echo "   Max length: $MAX_LENGTH"
+        echo "   Avg length: $AVG_LENGTH"
+    else
+        echo "⚠️ $FILE exists but contains no sequences!"
+    fi
+else
+    echo "❌ $FILE not found!"
+fi
+
+echo "✅ Alignment and checks completed."
+
+```
+<details>
+<summary>📖 Explanation of MAFFT alignment and combined consensus checks</summary>
+
+- `INPUT_DIR="consensus_sequences"` → sets the directory containing input FASTA files.  
+- `OUTPUT_DIR="mafft_results"` → sets the directory where aligned files will be saved.  
+- `mkdir -p "$OUTPUT_DIR"` → ensures the output directory exists.  
+- `THREADS=16` → sets the number of CPU threads MAFFT will use.  
+- `COMBINED_OUT="$OUTPUT_DIR/aligned_consensus.fasta"` → defines the combined alignment output file.  
+- `[[ -f "$COMBINED_OUT" ]] && rm "$COMBINED_OUT"` → removes any previous combined output file.  
+- `for FILE in "$INPUT_DIR"/*.fasta "$INPUT_DIR"/*.fa; do ... done` → loops over all FASTA files in the input directory.  
+- `[[ -f "$FILE" ]] || continue` → skips iteration if the file does not exist.  
+- `BASENAME=$(basename "$FILE" .fasta)` → extracts the filename without `.fasta`.  
+- `BASENAME=$(basename "$BASENAME" .fa)` → further removes `.fa` extension if present.  
+- `TEMP_OUT="$OUTPUT_DIR/${BASENAME}_aligned_temp.fasta"` → temporary output file for individual alignment.  
+- `mafft --thread "$THREADS" --auto --parttree "$FILE" > "$TEMP_OUT"` → runs MAFFT on the input file.  
+- `cat "$TEMP_OUT" >> "$COMBINED_OUT"` → appends the aligned sequences to the combined output file.  
+- `rm "$TEMP_OUT"` → removes the temporary file.  
+- `FILE="$COMBINED_OUT"` → sets the variable for the combined file to check.  
+- `if [[ -f "$FILE" ]]; then ... fi` → checks if the combined alignment file exists.  
+- `SEQ_COUNT=$(grep -c ">" "$FILE")` → counts the number of sequences.  
+- `TOTAL_LENGTH=$(grep -v ">" "$FILE" | tr -d '\n' | wc -c)` → counts total nucleotides.  
+- `MIN_LENGTH` and `MAX_LENGTH` → compute the shortest and longest sequence lengths.  
+- `AVG_LENGTH` → computes the average sequence length.  
+- `if [[ $SEQ_COUNT -gt 0 ]]; then ... else ... fi` → prints success message with statistics if sequences exist, or a warning if none.  
+- `echo "✅ Alignment and checks completed."` → prints completion message.  
+
+</details>
+
+##### Step 4: Save and exit nano
+
+ Press Ctrl + O → hit Enter to save.
+Press Ctrl + X → to exit nano.
+##### Step 5: Make the script executable
+```bash
+chmod +x run_mafft.sh
+```
+##### Step 6: Run the script
+```bash
+conda activate my_mafft_env
+./run_mafft.sh
+```
+
+##### Step 7: Verify the alignment
+
+A. Quickly inspect the top of the aligned FASTA:
 ```bash
 head consensus_sequences/aligned_consensus.fasta
 ```
+B. Checking MAFFT alignment output to 
+- Ensure the alignment file **exists** and contains all intended sequences.  
+- Verify the **number of sequences** matches expectations.  
+- Check **sequence lengths** (total, min, max, average) to confirm proper alignment.  
+- Detect if sequences have **varying lengths**, which may indicate misalignment or excessive gaps.  
+- A **good alignment** is essential for accurate phylogenetic tree inference with IQ-TREE or other downstream analyses.
+
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+FILE="mafft_results/aligned_consensus.fasta"
+
+if [[ ! -f "$FILE" ]]; then
+    echo "❌ $FILE not found!"
+    exit 1
+fi
+
+SEQ_COUNT=$(grep -c ">" "$FILE")
+LENGTHS=($(grep -v ">" "$FILE" | awk 'BEGIN{RS=">"} NR>1{print length($0)}'))
+TOTAL_LENGTH=$(IFS=+; echo "$((${LENGTHS[*]}))")
+MIN_LENGTH=$(printf "%s\n" "${LENGTHS[@]}" | sort -n | head -n1)
+MAX_LENGTH=$(printf "%s\n" "${LENGTHS[@]}" | sort -n | tail -n1)
+AVG_LENGTH=$(( TOTAL_LENGTH / SEQ_COUNT ))
+
+echo "✅ $FILE exists"
+echo "Sequences: $SEQ_COUNT"
+echo "Total length (bp): $TOTAL_LENGTH"
+echo "Min length: $MIN_LENGTH"
+echo "Max length: $MAX_LENGTH"
+echo "Avg length: $AVG_LENGTH"
+
+if [[ $MIN_LENGTH -eq $MAX_LENGTH ]]; then
+    echo "✅ All sequences have equal length, alignment looks good."
+else
+    echo "⚠️ Sequence lengths vary; check for gaps or misalignment."
+fi
+
+```
+<details>
+<summary>📖 Explanation of MAFFT output check script</summary>
+
+- `FILE="mafft_results/aligned_consensus.fasta"` → sets the path to the MAFFT alignment output file.  
+
+- `if [[ ! -f "$FILE" ]]; then ... fi` → checks if the file exists; exits with a message if it does not.  
+
+- `SEQ_COUNT=$(grep -c ">" "$FILE")` → counts the number of sequences in the alignment.  
+  - In FASTA format, each sequence starts with a `>` header.  
+
+- `LENGTHS=($(grep -v ">" "$FILE" | awk 'BEGIN{RS=">"} NR>1{print length($0)}'))` → creates an array of sequence lengths.  
+  - Removes header lines and calculates the length of each sequence.  
+
+- `TOTAL_LENGTH=$(IFS=+; echo "$((${LENGTHS[*]}))")` → sums all sequence lengths to get the total number of base pairs.  
+
+- `MIN_LENGTH=$(printf "%s\n" "${LENGTHS[@]}" | sort -n | head -n1)` → finds the shortest sequence length.  
+
+- `MAX_LENGTH=$(printf "%s\n" "${LENGTHS[@]}" | sort -n | tail -n1)` → finds the longest sequence length.  
+
+- `AVG_LENGTH=$(( TOTAL_LENGTH / SEQ_COUNT ))` → calculates the average sequence length.  
+
+- `echo ...` → prints summary statistics for the alignment: number of sequences, total, min, max, and average lengths.  
+
+- `if [[ $MIN_LENGTH -eq $MAX_LENGTH ]]; then ... else ... fi` → checks if all sequences are the same length.  
+  - If yes → alignment looks good.  
+  - If no → prints a warning that sequence lengths vary, indicating possible gaps or misalignment.  
+
+</details>
+
+
+
+
 # 1️⃣3️⃣ IQtree
-  
+<details>
+<summary>📖 Overview of IQ-TREE and important concepts</summary>
+
+- **What is IQ-TREE?**  
+  - IQ-TREE is a **phylogenetic tree inference software** used to construct evolutionary trees from aligned sequences.  
+  - It implements **maximum likelihood (ML) methods**, which estimate the tree that best explains the observed sequences under a substitution model.  
+
+- **Input**  
+  - Requires an **aligned sequence file** (FASTA, PHYLIP, or NEXUS).  
+  - Sequences must be aligned so that homologous positions are in the same columns.  
+
+- **Substitution models (-m)**  
+  - Models describe how nucleotides (or amino acids) change over time.  
+  - Common nucleotide models:  
+    - **GTR**: General Time Reversible model, allows different rates for each nucleotide substitution.  
+    - **+G**: Gamma distribution to account for rate variation across sites.  
+    - **+I**: Proportion of invariant sites.  
+  - IQ-TREE can **automatically select the best model** using `-m MFP` (ModelFinder Plus).  
+
+- **Bootstrap support (-bb)**  
+  - Ultrafast bootstrap replicates measure **confidence in the tree branches**.  
+  - Example: `-bb 1000` runs 1000 replicates.  
+
+- **Outgroup rooting (-o)**  
+  - Specify the outgroup sequence (by its FASTA header) to **root the tree** correctly.  
+  - The outgroup must be included in the alignment.  
+
+- **Multithreading (-nt)**  
+  - IQ-TREE can use multiple CPU threads for faster computation, e.g., `-nt 4`.  
+
+- **Output files**  
+  - `.treefile` → final tree in Newick format.  
+  - `.log` → details of the run.  
+  - `.iqtree` → summary of models, likelihoods, and bootstrap values.  
+
+- **Key points**  
+  - Input sequences must be properly aligned.  
+  - The choice of substitution model affects tree accuracy.  
+  - Use the outgroup for rooting but include it in the alignment.  
+  - Bootstrapping provides branch support values for interpreting the tree.  
+
+</details>
+
+ 
   Steps 
 ##### Step 1: activate iqtree environment
 ```bash
@@ -2297,13 +2520,28 @@ conda activate iqtree_env
 ```
 ##### Step 2: Run the following script
 ```bash
-iqtree2 -s iqtree_results/aligned_with_outgroup.fasta \
+mkdir -p iqtree_results
+
+iqtree2 -s mafft_results/aligned_consensus.fasta \
         -m GTR+G \
         -bb 1000 \
         -nt 4 \
         -o SRR10828835 \
         -pre iqtree_results/aligned_consensus
+
 ```
+<details>
+<summary>📖 Explanation of IQ-TREE command for aligned consensus sequences</summary>
+
+- `mkdir -p iqtree_results` → creates the directory to store IQ-TREE output files if it doesn’t exist.  
+- `iqtree2` → runs IQ-TREE version 2, a program for phylogenetic tree inference.  
+- `-s mafft_results/aligned_consensus.fasta` → specifies the input alignment file generated by MAFFT.  
+- `-m GTR+G` → sets the substitution model to GTR (General Time Reversible) with Gamma rate heterogeneity.  
+- `-bb 1000` → performs 1000 ultrafast bootstrap replicates to assess branch support.  
+- `-nt 4` → uses 4 CPU threads for faster computation.  
+- `-pre iqtree_results/aligned_consensus` → sets the output file prefix and saves all IQ-TREE results in `iqtree_results/` with this prefix.  
+
+</details>
 
 
 # 📖 References
