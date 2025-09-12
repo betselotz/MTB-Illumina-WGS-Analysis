@@ -1319,6 +1319,33 @@ echo "📌 All samples processed!"
 
 </details>
 
+If it is for **single read** we have replaced the following code instead of step 2
+```bash
+#!/bin/bash
+set -euo pipefail
+
+FASTQ_DIR="raw_data"
+
+echo "📊 Starting TBProfiler runs for all samples in $FASTQ_DIR ..."
+
+for R1 in "$FASTQ_DIR"/*.fastq.gz; do
+    SAMPLE=$(basename "$R1" | sed -E 's/_1\.fastq\.gz$//; s/\.fastq\.gz$//')
+    R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"
+
+    if [[ -f "$R2" ]]; then
+        echo "▶️ Processing paired sample: $SAMPLE"
+        tb-profiler profile -1 "$R1" -2 "$R2" --threads 8
+    else
+        echo "▶️ Processing single-end sample: $SAMPLE"
+        tb-profiler profile -1 "$R1" --threads 8
+    fi
+
+    echo "✅ Finished $SAMPLE"
+done
+
+echo "📌 All samples processed!"
+```
+
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
