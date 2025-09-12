@@ -2147,8 +2147,26 @@ head consensus_sequences/aligned_consensus.fasta
 ```
 # 1️⃣3️⃣ IQtree
 
-Before phylogeny it is important to download outgroup for analysis and save it to consensus_seqeunce direstory 
-W have searched >CP048071.1 on ncbi which is lineage 8 sample found in rwanda for rooting our tree, we have selected this becuase it is not found in ethiopia 
+<details>
+<summary>📝 Phylogenetic Analysis – Outgroup Selection and Workflow</summary>
+
+### Outgroup Selection
+
+Before performing phylogenetic analysis, it is crucial to include an **outgroup sequence**. The outgroup serves as a reference point to root the phylogenetic tree, providing directionality for evolutionary relationships.  
+
+For our analysis, we searched the NCBI database for sequences belonging to **Lineage 8** of *Mycobacterium tuberculosis*. We selected the sequence `SRR10828835`, which originates from Rwanda, as our outgroup. This choice was intentional because Lineage 8 is **not present in Ethiopia**, ensuring it is sufficiently divergent from our study isolates and providing a robust root for the tree.  
+
+The selected outgroup sequence was downloaded and saved in the `consensus_sequences/` directory alongside our aligned TB consensus sequences.
+
+---
+
+### Step 1: Open a New File in Nano
+
+To create a script for running IQ-TREE with the selected outgroup, start by opening a new file in Nano:
+
+```bash
+nano run_iqtree.sh
+
 
 
 ##### Step 1: Open a new file in Nano
