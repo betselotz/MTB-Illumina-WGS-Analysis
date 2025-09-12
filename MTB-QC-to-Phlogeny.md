@@ -2303,9 +2303,9 @@ nano run_iqtree.sh
 set -euo pipefail
 
 MAIN_ALIGNMENT="consensus_sequences/aligned_consensus.fasta"
-OUTGROUP_FASTA="consensus_sequences/CP048071.1.fasta"
+OUTGROUP_FASTA="consensus_sequences/SRR10828835.fasta"
 OUTDIR="iqtree_results"
-OUTGROUP_NAME="CP048071.1"
+OUTGROUP_NAME="SRR10828835"
 
 mkdir -p "$OUTDIR"
 
