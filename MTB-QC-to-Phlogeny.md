@@ -2239,6 +2239,14 @@ It **cannot take multiple FASTA files** on the command line directly, otherwise 
 
 ---
 
+Before performing phylogenetic analysis, it is crucial to include an **outgroup sequence**. The outgroup serves as a reference point to root the phylogenetic tree, providing directionality for evolutionary relationships.  
+
+For our analysis, we searched the NCBI database for sequences belonging to **Lineage 8** of *Mycobacterium tuberculosis*. We selected the sequence `SRR10828835`, which originates from Rwanda, as our outgroup. This choice was intentional because Lineage 8 is **not present in Ethiopia**, ensuring it is sufficiently divergent from our study isolates and providing a robust root for the tree.  
+
+The selected outgroup sequence was downloaded and saved in the `consensus_sequences/` directory alongside our aligned TB consensus sequences.
+
+---
+
 ##### Step 1: Merge all consensus FASTAs
 Combine all individual consensus sequences into one multi-FASTA file:
 
@@ -2256,21 +2264,9 @@ Since Mycobacterium tuberculosis genomes are highly conserved and we care more a
 fast and TB-suitable command
 
 ```bash
-mafft --retree 2 --maxiterate 0 --thread -1 consensus_sequences/all_consensus.fasta > consensus_sequences/aligned_consensus.fasta
-```
-<details>
-<summary>🔹 Why these settings are suitable for TB</summary>
-
-- `--retree 2` → Rebuilds the guide tree twice (sufficient for closely related TB genomes).  
-- `--maxiterate 0` → Skips iterative refinement (speeds up alignment).  
-- `--thread -1` → Uses all available CPU cores automatically.  
-- Accuracy loss is minimal because MTBC genomes are >99% identical.
-
-</details>
-
-If we have very many genomes ( >1000 ) and want maximum speed, switch to:
-```bash
-mafft --parttree --retree 2 --maxiterate 0 --thread -1 consensus_sequences/all_consensus.fasta > consensus_sequences/aligned_consensus.fasta
+mafft --thread 4 --add consensus_sequences/SRR10828835.fasta \
+      --reorder consensus_sequences/aligned_consensus.fasta \
+      > iqtree_results/aligned_with_outgroup.fasta
 ```
 
 ##### Step 3: Verify the alignment
@@ -2279,18 +2275,6 @@ Quickly inspect the top of the aligned FASTA:
 head consensus_sequences/aligned_consensus.fasta
 ```
 # 1️⃣3️⃣ IQtree
-
-
-
-Before performing phylogenetic analysis, it is crucial to include an **outgroup sequence**. The outgroup serves as a reference point to root the phylogenetic tree, providing directionality for evolutionary relationships.  
-
-For our analysis, we searched the NCBI database for sequences belonging to **Lineage 8** of *Mycobacterium tuberculosis*. We selected the sequence `SRR10828835`, which originates from Rwanda, as our outgroup. This choice was intentional because Lineage 8 is **not present in Ethiopia**, ensuring it is sufficiently divergent from our study isolates and providing a robust root for the tree.  
-
-The selected outgroup sequence was downloaded and saved in the `consensus_sequences/` directory alongside our aligned TB consensus sequences.
-
----
-
-
   
   Steps 
 ##### Step 1: Open a new file in Nano
