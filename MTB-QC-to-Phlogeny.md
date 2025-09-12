@@ -2387,44 +2387,45 @@ OUTPUT_DIR="mafft_results"
 mkdir -p "$OUTPUT_DIR"
 
 THREADS=16
+COMBINED_IN="$OUTPUT_DIR/all_consensus.fasta"
 COMBINED_OUT="$OUTPUT_DIR/aligned_consensus.fasta"
 
-[[ -f "$COMBINED_OUT" ]] && rm "$COMBINED_OUT"
-
-for FILE in "$INPUT_DIR"/*.fasta "$INPUT_DIR"/*.fa; do
+for FILE in "$INPUT_DIR"/*.fasta; do
     [[ -f "$FILE" ]] || continue
-    BASENAME=$(basename "$FILE" .fasta)
-    BASENAME=$(basename "$BASENAME" .fa)
-    TEMP_OUT="$OUTPUT_DIR/${BASENAME}_aligned_temp.fasta"
-    mafft --thread "$THREADS" --auto --parttree "$FILE" > "$TEMP_OUT"
-    cat "$TEMP_OUT" >> "$COMBINED_OUT"
-    rm "$TEMP_OUT"
+    if [[ $(grep -v ">" "$FILE" | tr -d '\n' | wc -c) -eq 0 ]]; then
+        echo "⚠️ $FILE is empty, skipping."
+        continue
+    fi
+    cat "$FILE" >> "$COMBINED_IN"
 done
 
-FILE="$COMBINED_OUT"
-
-if [[ -f "$FILE" ]]; then
-    SEQ_COUNT=$(grep -c ">" "$FILE")
-    TOTAL_LENGTH=$(grep -v ">" "$FILE" | tr -d '\n' | wc -c)
-    MIN_LENGTH=$(grep -v ">" "$FILE" | awk 'BEGIN{RS=">"; min=0} NR>1{len=length($0); if(min==0 || len<min) min=len} END{print min}')
-    MAX_LENGTH=$(grep -v ">" "$FILE" | awk 'BEGIN{RS=">"; max=0} NR>1{len=length($0); if(len>max) max=len} END{print max}')
-    AVG_LENGTH=$(grep -v ">" "$FILE" | awk 'BEGIN{RS=">"; sum=0; count=0} NR>1{sum+=length($0); count++} END{if(count>0) print int(sum/count); else print 0}')
-
-    if [[ $SEQ_COUNT -gt 0 ]]; then
-        echo "✅ $FILE"
-        echo "   Sequences: $SEQ_COUNT"
-        echo "   Total length (bp): $TOTAL_LENGTH"
-        echo "   Min length: $MIN_LENGTH"
-        echo "   Max length: $MAX_LENGTH"
-        echo "   Avg length: $AVG_LENGTH"
-    else
-        echo "⚠️ $FILE exists but contains no sequences!"
-    fi
+if [[ -f "$COMBINED_IN" ]]; then
+    mafft --thread "$THREADS" --auto --parttree "$COMBINED_IN" > "$COMBINED_OUT"
 else
-    echo "❌ $FILE not found!"
+    echo "❌ No valid FASTA files to align!"
+    exit 1
+fi
+
+if [[ -f "$COMBINED_OUT" ]]; then
+    SEQ_COUNT=$(grep -c ">" "$COMBINED_OUT")
+    TOTAL_LENGTH=$(grep -v ">" "$COMBINED_OUT" | tr -d '\n' | wc -c)
+    MIN_LENGTH=$(awk '/^>/{if(seqlen){print seqlen}; seqlen=0; next}{seqlen+=length($0)}END{print seqlen}' "$COMBINED_OUT" | sort -n | head -1)
+    MAX_LENGTH=$(awk '/^>/{if(seqlen){print seqlen}; seqlen=0; next}{seqlen+=length($0)}END{print seqlen}' "$COMBINED_OUT" | sort -n | tail -1)
+    AVG_LENGTH=$(awk '/^>/{if(seqlen){sum+=seqlen; count++}; seqlen=0; next}{seqlen+=length($0)}END{if(seqlen){sum+=seqlen; count++} if(count>0) print int(sum/count); else print 0}' "$COMBINED_OUT")
+
+    echo "✅ $COMBINED_OUT"
+    echo "   Sequences: $SEQ_COUNT"
+    echo "   Total length (bp): $TOTAL_LENGTH"
+    echo "   Min length: $MIN_LENGTH"
+    echo "   Max length: $MAX_LENGTH"
+    echo "   Avg length: $AVG_LENGTH"
+else
+    echo "❌ Alignment failed!"
+    exit 1
 fi
 
 echo "✅ Alignment and checks completed."
+
 
 ```
 <details>
@@ -2434,23 +2435,20 @@ echo "✅ Alignment and checks completed."
 - `OUTPUT_DIR="mafft_results"` → sets the directory where aligned files will be saved.  
 - `mkdir -p "$OUTPUT_DIR"` → ensures the output directory exists.  
 - `THREADS=16` → sets the number of CPU threads MAFFT will use.  
-- `COMBINED_OUT="$OUTPUT_DIR/aligned_consensus.fasta"` → defines the combined alignment output file.  
-- `[[ -f "$COMBINED_OUT" ]] && rm "$COMBINED_OUT"` → removes any previous combined output file.  
-- `for FILE in "$INPUT_DIR"/*.fasta "$INPUT_DIR"/*.fa; do ... done` → loops over all FASTA files in the input directory.  
+- `COMBINED_IN="$OUTPUT_DIR/all_consensus.fasta"` → defines the combined input file containing all sequences.  
+- `COMBINED_OUT="$OUTPUT_DIR/aligned_consensus.fasta"` → defines the MAFFT alignment output file.  
+- `for FILE in "$INPUT_DIR"/*.fasta; do ... done` → loops over all FASTA files in the input directory.  
 - `[[ -f "$FILE" ]] || continue` → skips iteration if the file does not exist.  
-- `BASENAME=$(basename "$FILE" .fasta)` → extracts the filename without `.fasta`.  
-- `BASENAME=$(basename "$BASENAME" .fa)` → further removes `.fa` extension if present.  
-- `TEMP_OUT="$OUTPUT_DIR/${BASENAME}_aligned_temp.fasta"` → temporary output file for individual alignment.  
-- `mafft --thread "$THREADS" --auto --parttree "$FILE" > "$TEMP_OUT"` → runs MAFFT on the input file.  
-- `cat "$TEMP_OUT" >> "$COMBINED_OUT"` → appends the aligned sequences to the combined output file.  
-- `rm "$TEMP_OUT"` → removes the temporary file.  
-- `FILE="$COMBINED_OUT"` → sets the variable for the combined file to check.  
-- `if [[ -f "$FILE" ]]; then ... fi` → checks if the combined alignment file exists.  
-- `SEQ_COUNT=$(grep -c ">" "$FILE")` → counts the number of sequences.  
-- `TOTAL_LENGTH=$(grep -v ">" "$FILE" | tr -d '\n' | wc -c)` → counts total nucleotides.  
-- `MIN_LENGTH` and `MAX_LENGTH` → compute the shortest and longest sequence lengths.  
+- `if [[ $(grep -v ">" "$FILE" | tr -d '\n' | wc -c) -eq 0 ]]; then ... continue` → skips empty FASTA files.  
+- `cat "$FILE" >> "$COMBINED_IN"` → appends the non-empty sequences to the combined input file.  
+- `if [[ -f "$COMBINED_IN" ]]; then mafft ... > "$COMBINED_OUT"` → runs MAFFT once on the combined input file to produce a multi-sequence alignment.  
+- `if [[ -f "$COMBINED_OUT" ]]; then ... fi` → checks if the alignment file exists.  
+- `SEQ_COUNT=$(grep -c ">" "$COMBINED_OUT")` → counts the number of sequences in the alignment.  
+- `TOTAL_LENGTH=$(grep -v ">" "$COMBINED_OUT" | tr -d '\n' | wc -c)` → counts the total number of nucleotides in the alignment.  
+- `MIN_LENGTH` → computes the length of the shortest sequence in the alignment.  
+- `MAX_LENGTH` → computes the length of the longest sequence in the alignment.  
 - `AVG_LENGTH` → computes the average sequence length.  
-- `if [[ $SEQ_COUNT -gt 0 ]]; then ... else ... fi` → prints success message with statistics if sequences exist, or a warning if none.  
+- `echo "✅ $COMBINED_OUT"` and following lines → prints the alignment statistics.  
 - `echo "✅ Alignment and checks completed."` → prints completion message.  
 
 </details>
