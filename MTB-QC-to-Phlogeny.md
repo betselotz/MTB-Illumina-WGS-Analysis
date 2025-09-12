@@ -1275,18 +1275,19 @@ for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do
 
     echo "▶️ Processing sample: $SAMPLE"
 
-    # Save outputs with sample name as prefix and generate TXT summary
     tb-profiler profile \
         -1 "$R1" \
         -2 "$R2" \
         --threads 8 \
         --prefix "$SAMPLE" \
-        --txt
+        --txt \
+        --spoligotype
 
     echo "✅ Finished $SAMPLE"
 done
 
 echo "📌 All samples processed!"
+
 
 ```
 <details>
