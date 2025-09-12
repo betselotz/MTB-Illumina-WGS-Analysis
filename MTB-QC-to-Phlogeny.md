@@ -234,6 +234,7 @@ bash sra_download.sh
 ```bash
 curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB3334&result=read_run&fields=run_accession" | tail -n +2 > runs.txt
 ```
+
 <details>
 <summary>🌍 Get Run Accessions from ENA</summary>
 for single-end trimmed reads:
@@ -243,7 +244,8 @@ This repository contains scripts and commands to **explore and summarize paired-
 We do not need to run this for single-end sequence data sets
 
 ---
-
+<details>
+  
 ### 1. Peek at the first few reads
 ```bash
 zcat raw_data/SRR28821350_1.fastq.gz | head -n 16
