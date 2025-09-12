@@ -1963,63 +1963,53 @@ set -euo pipefail
 
 SNIPPY_DIR="snippy_results"
 FILTERED_DIR="tb_variant_filter_results"
+OUTDIR="csv_output"
+OUTFILE="$OUTDIR/variant_filter_summary.csv"
+
 MIN_DP=20
 MIN_QUAL=30
 
-echo -e "Sample\tUnfiltered_total\tUnfiltered_PASS\tFiltered_total\tFiltered_PASS\tPASS_retention_ratio"
+mkdir -p "$OUTDIR"
+echo "Sample,Unfiltered_total,Unfiltered_PASS,Filtered_total,Filtered_PASS,PASS_retention_ratio" > "$OUTFILE"
+
+count_pass_variants() {
+    local vcf=$1
+    awk -v min_dp=$MIN_DP -v min_qual=$MIN_QUAL '
+        BEGIN{count=0}
+        /^#/ {next}
+        {
+            qual=$6
+            dp=0
+            split($8, info_arr, ";")
+            for(i in info_arr){
+                if(info_arr[i] ~ /^DP=/){
+                    split(info_arr[i], kv, "=")
+                    dp=kv[2]
+                }
+            }
+            if(qual >= min_qual && dp >= min_dp) count++
+        }
+        END{print count}
+    ' "$vcf"
+}
 
 for vcf in "$SNIPPY_DIR"/*.vcf; do
     sample=$(basename "$vcf" .vcf)
-
-    # Count unfiltered total and PASS
-    unfiltered_total=$(grep -v "^#" "$SNIPPY_DIR/$sample.vcf" | wc -l)
-    unfiltered_pass=$(awk -v min_dp=$MIN_DP -v min_qual=$MIN_QUAL '
-        BEGIN{count=0}
-        /^#/ {next}
-        {
-            qual=$6
-            dp=0
-            split($8, info_arr, ";")
-            for(i in info_arr){
-                if(info_arr[i] ~ /^DP=/){
-                    split(info_arr[i], kv, "=")
-                    dp=kv[2]
-                }
-            }
-            if(qual >= min_qual && dp >= min_dp) count++
-        }
-        END{print count}
-    ' "$SNIPPY_DIR/$sample.vcf")
-
-    # Count filtered total and PASS
+    unfiltered_total=$(grep -v "^#" "$vcf" | wc -l)
+    unfiltered_pass=$(count_pass_variants "$vcf")
+    if [[ ! -f "$FILTERED_DIR/$sample.filtered.vcf" ]]; then
+        echo "$sample,$unfiltered_total,$unfiltered_pass,NA,NA,NA" >> "$OUTFILE"
+        continue
+    fi
     filtered_total=$(grep -v "^#" "$FILTERED_DIR/$sample.filtered.vcf" | wc -l)
-    filtered_pass=$(awk -v min_dp=$MIN_DP -v min_qual=$MIN_QUAL '
-        BEGIN{count=0}
-        /^#/ {next}
-        {
-            qual=$6
-            dp=0
-            split($8, info_arr, ";")
-            for(i in info_arr){
-                if(info_arr[i] ~ /^DP=/){
-                    split(info_arr[i], kv, "=")
-                    dp=kv[2]
-                }
-            }
-            if(qual >= min_qual && dp >= min_dp) count++
-        }
-        END{print count}
-    ' "$FILTERED_DIR/$sample.filtered.vcf")
-
-    # Calculate PASS retention ratio
+    filtered_pass=$(count_pass_variants "$FILTERED_DIR/$sample.filtered.vcf")
     if [[ $unfiltered_pass -eq 0 ]]; then
         ratio="NA"
     else
         ratio=$(awk -v pass=$filtered_pass -v total=$unfiltered_pass 'BEGIN{printf "%.2f", pass/total}')
     fi
+    echo "$sample,$unfiltered_total,$unfil_
 
-    echo -e "$sample\t$unfiltered_total\t$unfiltered_pass\t$filtered_total\t$filtered_pass\t$ratio"
-done
 
 ```
 
