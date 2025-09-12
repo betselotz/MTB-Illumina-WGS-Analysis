@@ -2167,15 +2167,9 @@ The selected outgroup sequence was downloaded and saved in the `consensus_sequen
 
 ---
 
-### Step 1: Open a New File in Nano
-
-To create a script for running IQ-TREE with the selected outgroup, start by opening a new file in Nano:
-
-```bash
-nano run_iqtree.sh
-
-
-
+<details>
+  
+  Steps 
 ##### Step 1: Open a new file in Nano
 ```bash
 nano run_iqtree.sh
