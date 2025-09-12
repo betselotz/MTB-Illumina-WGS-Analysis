@@ -170,24 +170,6 @@ Genomic studies have identified **10 major lineages** of MTBC based on SNPs, lar
 
 ---  
 
-## Bioinformatics Workflow  
-
-<details>
-  <summary>🛠️ TB WGS Bioinformatics Pipeline Overview</summary>
-
-The pipeline includes the following steps:  
-
-1. **📥 Download raw FASTQ from NCBI SRA**  
-2. **🧹 Quality control & trimming with `fastp`**  
-3. **🎯 Mapping & variant calling with `Snippy`**  
-4. **🧬 Resistance & lineage typing with `tb-profiler`**  
-5. **🧪 Variant filtering with `tb_variant_filter`**  
-6. **📊 Summary QC with `MultiQC`**  
-7. **🌳 Phylogenetic tree construction & downstream analysis**  
-
-> This workflow is optimized for *Mycobacterium tuberculosis* whole-genome sequencing data.
-
-</details>
 
 
 # 1️⃣ Download and Inspect FASTQ Data
@@ -1243,7 +1225,8 @@ chmod +x run_multiqc.sh
 conda activate multiqc_env
 ./run_multiqc.sh
 ```
-# 9️⃣ TB-Profiler from FASTQ Files
+# 9️⃣ TB-Profiler
+Before running TB-Profiler, we perform quality checks on raw FASTQ files using fastp and exclude samples with extremely low-quality reads. However, since TB-Profiler internally uses Trimmomatic to trim adapters and low-quality bases, it is not necessary to pre-trim the reads. Therefore, only quality-checked FASTQ files are provided as input to TB-Profiler, allowing it to handle trimming and variant calling internally.
 
 <details>
 <summary>🧬 TB-Profiler: Variant Calling, Lineage, and Drug Resistance</summary>
