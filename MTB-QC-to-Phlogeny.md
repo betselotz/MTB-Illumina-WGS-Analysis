@@ -776,6 +776,45 @@ chmod +x fastq_read_length_summary.sh
 ```bash
 ./fastq_read_length_summary.sh
 ```
+If it is for **single read** we have replaced the following code instead of step 2
+
+#!/bin/bash
+set -euo pipefail
+
+FASTQ_DIR="raw_data"
+OUTDIR="csv_output"
+OUTPUT_CSV="${OUTDIR}/read_length_summary.csv"
+
+mkdir -p "$OUTDIR"
+echo "Sample,R1_min,R1_max,R1_avg,R2_min,R2_max,R2_avg" > "$OUTPUT_CSV"
+
+for R1 in "$FASTQ_DIR"/*_1.fastq.gz "$FASTQ_DIR"/*_R1.fastq.gz; do
+    [[ -f "$R1" ]] || continue
+    SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.fastq\.gz//')
+    R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"
+    [[ -f "$R2" ]] || R2="$FASTQ_DIR/${SAMPLE}_R2.fastq.gz"
+
+    echo "Processing sample $SAMPLE"
+
+    calc_stats() {
+        zcat "$1" | awk 'NR%4==2 {len=length($0); sum+=len; if(min==""){min=len}; if(len<min){min=len}; if(len>max){max=len}; count++} END{avg=sum/count; printf "%d,%d,%.2f", min, max, avg}'
+    }
+
+    STATS_R1=$(calc_stats "$R1")
+    
+    if [[ -f "$R2" ]]; then
+        STATS_R2=$(calc_stats "$R2")
+    else
+        STATS_R2="NA,NA,NA"
+        echo "⚠ R2 not found for $SAMPLE, treating as single-end."
+    fi
+
+    echo "$SAMPLE,$STATS_R1,$STATS_R2" >> "$OUTPUT_CSV"
+done
+
+echo "✅ Read length summary saved to $OUTPUT_CSV"
+
+
 
 
 # 3️⃣ FASTP – Quality Control and Trimming
@@ -927,7 +966,8 @@ chmod +x run_fastp.sh
 conda activate fastp_env
 ./run_fastp.sh
 ```
-If the read is single read, replace step 2 with this code 
+If it is for **single read** we have replaced the following code instead of step 2
+
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -1199,6 +1239,36 @@ chmod +x trimmed_fastq_read_length_summary.sh
 ```bash
 ./trimmed_fastq_read_length_summary.sh
 ```
+
+If it is for **single read** we have replaced the following code instead of step 2
+```bash
+#!/bin/bash
+set -euo pipefail
+
+INDIR="fastp_results_min_50"
+OUTDIR="csv_output"
+OUTPUT_CSV="${OUTDIR}/trimmed_read_length_summary.csv"
+
+mkdir -p "$OUTDIR"
+echo "Sample,R1_reads,R2_reads" > "$OUTPUT_CSV"
+echo "📊 Counting reads in trimmed FASTQ files from '$INDIR'..."
+
+for R1 in "$INDIR"/*_1.trim.fastq.gz "$INDIR"/*_R1.trim.fastq.gz; do
+    [[ -f "$R1" ]] || continue
+    SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.trim\.fastq\.gz//')
+    R2=""
+    for suffix in "_2.trim.fastq.gz" "_R2.trim.fastq.gz" "_R2_*.trim.fastq.gz"; do
+        [[ -f "$INDIR/${SAMPLE}${suffix}" ]] && R2="$INDIR/${SAMPLE}${suffix}" && break
+    done
+    R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))
+    R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")
+    echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTPUT_CSV"
+    echo "✅ $SAMPLE → R1: $R1_COUNT | R2: $R2_COUNT"
+done
+
+echo "🎉 All done! Read counts saved to '$OUTPUT_CSV'"
+```
+
 # 4️⃣ MultiQC
 
 <details>
@@ -1253,8 +1323,6 @@ echo "MultiQC report generated in '$OUTPUT_DIR'."
 - `multiqc "$INPUT_DIR" -o "$OUTPUT_DIR"` → Run MultiQC on all files in `INPUT_DIR` and save the combined report in `OUTPUT_DIR`.  
 
 </details>
-
-
 
 ##### Step 3: Save & exit nano
 Press CTRL+O, Enter (save)
@@ -1419,6 +1487,85 @@ chmod +x run_snippy.sh
 conda activate snippy_env
 ./run_snippy.sh
 ```
+If it is for **single read** we have replaced the following code instead of step 2
+```bash
+#!/bin/bash
+set -euo pipefail
+
+REF="H37Rv.fasta"
+FASTP_DIR="fastp_results_min_50"
+OUTDIR="snippy_results"
+THREADS=8
+BWA_THREADS=30
+JOBS=4
+
+mkdir -p "$OUTDIR"
+
+run_snippy_sample() {
+    SAMPLE="$1"
+    R1="${FASTP_DIR}/${SAMPLE}_1.trim.fastq.gz"
+    R2="${FASTP_DIR}/${SAMPLE}_2.trim.fastq.gz"
+
+    if [[ ! -f "$R1" ]]; then
+        echo "⚠ Missing R1 for $SAMPLE"
+        return
+    fi
+
+    echo "Running Snippy on sample: $SAMPLE"
+    TMP_DIR="${OUTDIR}/${SAMPLE}_tmp"
+    mkdir -p "$TMP_DIR"
+
+    if [[ -f "$R2" ]]; then
+        snippy --cpus "$THREADS" --outdir "$TMP_DIR" --ref "$REF" \
+               --R1 "$R1" --R2 "$R2" --force --bwaopt "-T $BWA_THREADS"
+    else
+        snippy --cpus "$THREADS" --outdir "$TMP_DIR" --ref "$REF" \
+               --R1 "$R1" --force --bwaopt "-T $BWA_THREADS"
+    fi
+
+    [[ -f "$TMP_DIR/snps.vcf" ]] && mv "$TMP_DIR/snps.vcf" "${OUTDIR}/${SAMPLE}.vcf"
+
+    for f in "$TMP_DIR"/*; do
+        base=$(basename "$f")
+        case "$base" in
+            *.consensus.fa) mv "$f" "${OUTDIR}/${SAMPLE}.consensus.fa" ;;
+            *.bam) mv "$f" "${OUTDIR}/${SAMPLE}.bam" ;;
+            *.bam.bai) mv "$f" "${OUTDIR}/${SAMPLE}.bam.bai" ;;
+            *.tab) mv "$f" "${OUTDIR}/${SAMPLE}.snps.tab" ;;
+        esac
+    done
+
+    rm -rf "$TMP_DIR"
+    [[ -f "${OUTDIR}/${SAMPLE}.vcf" ]] && echo "✅ Full VCF generated for $SAMPLE" || echo "⚠ No VCF produced for $SAMPLE"
+}
+
+export -f run_snippy_sample
+export REF FASTP_DIR OUTDIR THREADS BWA_THREADS
+
+ls "${FASTP_DIR}"/*_1.trim.fastq.gz \
+    | sed 's|.*/||; s/_1\.trim\.fastq\.gz//' \
+    | parallel -j "$JOBS" run_snippy_sample {}
+
+ls "${FASTP_DIR}"/*_1.trim.fastq.gz \
+    | sed 's|.*/||; s/_1\.trim\.fastq\.gz//' | sort > fastq_samples.txt
+ls "${OUTDIR}"/*.vcf 2>/dev/null \
+    | sed 's|.*/||; s/\.vcf//' | sort > snippy_samples.txt
+
+echo "FASTQ pairs count: $(wc -l < fastq_samples.txt)"
+echo "Snippy outputs count: $(wc -l < snippy_samples.txt)"
+
+if diff fastq_samples.txt snippy_samples.txt >/dev/null; then
+    echo "✅ All FASTQ samples have corresponding Snippy results."
+else
+    echo "⚠ Missing samples detected:"
+    diff fastq_samples.txt snippy_samples.txt || true
+fi
+
+rm -f fastq_samples.txt snippy_samples.txt
+echo "🎯 All steps completed!"
+echo "Snippy results are in: ${OUTDIR}/"
+```
+
 Check Snippy VCFs Before Variant Filtering
 - `tb_variant_filter` relies on a correctly formatted VCF with the `#CHROM` line to parse variants.  
 - VCFs missing this line will **fail** during filtering, causing errors like:  
