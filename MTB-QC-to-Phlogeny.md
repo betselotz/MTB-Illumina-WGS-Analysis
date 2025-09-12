@@ -1371,6 +1371,30 @@ If we want to visualize your phylogeny alongside drug-resistance types, lineages
 ```bash
 tb-profiler collate --itol
 ```
+##### Step 8: Combine all tbprofiler.txt into one CSV
+```bash
+find . -name "tbprofiler.txt" -exec awk 'FNR==1 && NR!=1{next} {print}' {} + | sed 's/\t/,/g' > tbprofiler_collated.csv
+```
+<details>
+<summary>📌 Explanation of the TBProfiler collate command</summary>
+
+- `find . -name "tbprofiler.txt"`  
+  Searches the current directory (`.`) and all subdirectories for files named `tbprofiler.txt`.
+
+- `-exec awk 'FNR==1 && NR!=1{next} {print}' {} +`  
+  For each `tbprofiler.txt` found:  
+  - `FNR==1 && NR!=1{next}` → skips the header line of every file except the first one.  
+  - `{print}` → prints all other lines (the data).  
+  - `NR` = total number of lines processed so far; `FNR` = line number in current file.
+
+- `| sed 's/\t/,/g'`  
+  Replaces tabs (`\t`) with commas, converting the tab-delimited text into CSV format.
+
+- `> tbprofiler_collated.csv`  
+  Redirects the final output into a file called `tbprofiler_collated.csv`.
+
+</details>
+
 
 # 5️⃣ Snippy
 
