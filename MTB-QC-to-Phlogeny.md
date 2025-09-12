@@ -2416,7 +2416,7 @@ conda activate mafft_env
 
 A. Quickly inspect the top of the aligned FASTA:
 ```bash
-head consensus_sequences/aligned_consensus.fasta
+head mafft_results/aligned_consensus.fast
 ```
 B. Quick visual inspection with `less`
 ```bash
