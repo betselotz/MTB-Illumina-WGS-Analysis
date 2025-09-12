@@ -1473,20 +1473,6 @@ echo "Snippy results are in: ${OUTDIR}/"
 
 </details>
 
-
-##### Step 3: Save and exit nano
-Press Ctrl + O, then Enter (save)
-Press Ctrl + X (exit)
-
-##### Step 4: Make the script executable
-```bash
-chmod +x run_snippy.sh
-```
-##### Step 5: Activate environment and run
-```bash
-conda activate snippy_env
-./run_snippy.sh
-```
 If it is for **single read** we have replaced the following code instead of step 2
 ```bash
 #!/bin/bash
@@ -1503,31 +1489,23 @@ mkdir -p "$OUTDIR"
 
 run_snippy_sample() {
     SAMPLE="$1"
-    R1="${FASTP_DIR}/${SAMPLE}_1.trim.fastq.gz"
-    R2="${FASTP_DIR}/${SAMPLE}_2.trim.fastq.gz"
+    R1="$FASTP_DIR/${SAMPLE}.trim.fastq.gz"
 
     if [[ ! -f "$R1" ]]; then
-        echo "⚠ Missing R1 for $SAMPLE"
+        echo "⚠ Missing FASTQ for $SAMPLE"
         return
     fi
 
-    echo "Running Snippy on sample: $SAMPLE"
     TMP_DIR="${OUTDIR}/${SAMPLE}_tmp"
     mkdir -p "$TMP_DIR"
 
-    if [[ -f "$R2" ]]; then
-        snippy --cpus "$THREADS" --outdir "$TMP_DIR" --ref "$REF" \
-               --R1 "$R1" --R2 "$R2" --force --bwaopt "-T $BWA_THREADS"
-    else
-        snippy --cpus "$THREADS" --outdir "$TMP_DIR" --ref "$REF" \
-               --R1 "$R1" --force --bwaopt "-T $BWA_THREADS"
-    fi
+    snippy --cpus "$THREADS" --outdir "$TMP_DIR" --ref "$REF" \
+           --se "$R1" --force --bwaopt "-T $BWA_THREADS"
 
     [[ -f "$TMP_DIR/snps.vcf" ]] && mv "$TMP_DIR/snps.vcf" "${OUTDIR}/${SAMPLE}.vcf"
 
     for f in "$TMP_DIR"/*; do
-        base=$(basename "$f")
-        case "$base" in
+        case $(basename "$f") in
             *.consensus.fa) mv "$f" "${OUTDIR}/${SAMPLE}.consensus.fa" ;;
             *.bam) mv "$f" "${OUTDIR}/${SAMPLE}.bam" ;;
             *.bam.bai) mv "$f" "${OUTDIR}/${SAMPLE}.bam.bai" ;;
@@ -1542,29 +1520,26 @@ run_snippy_sample() {
 export -f run_snippy_sample
 export REF FASTP_DIR OUTDIR THREADS BWA_THREADS
 
-ls "${FASTP_DIR}"/*_1.trim.fastq.gz \
-    | sed 's|.*/||; s/_1\.trim\.fastq\.gz//' \
+ls "$FASTP_DIR"/*.trim.fastq.gz \
+    | sed 's|.*/||; s/\.trim\.fastq\.gz//' \
+    | sort -u \
     | parallel -j "$JOBS" run_snippy_sample {}
 
-ls "${FASTP_DIR}"/*_1.trim.fastq.gz \
-    | sed 's|.*/||; s/_1\.trim\.fastq\.gz//' | sort > fastq_samples.txt
-ls "${OUTDIR}"/*.vcf 2>/dev/null \
-    | sed 's|.*/||; s/\.vcf//' | sort > snippy_samples.txt
-
-echo "FASTQ pairs count: $(wc -l < fastq_samples.txt)"
-echo "Snippy outputs count: $(wc -l < snippy_samples.txt)"
-
-if diff fastq_samples.txt snippy_samples.txt >/dev/null; then
-    echo "✅ All FASTQ samples have corresponding Snippy results."
-else
-    echo "⚠ Missing samples detected:"
-    diff fastq_samples.txt snippy_samples.txt || true
-fi
-
-rm -f fastq_samples.txt snippy_samples.txt
-echo "🎯 All steps completed!"
-echo "Snippy results are in: ${OUTDIR}/"
 ```
+##### Step 3: Save and exit nano
+Press Ctrl + O, then Enter (save)
+Press Ctrl + X (exit)
+
+##### Step 4: Make the script executable
+```bash
+chmod +x run_snippy.sh
+```
+##### Step 5: Activate environment and run
+```bash
+conda activate snippy_env
+./run_snippy.sh
+```
+
 
 Check Snippy VCFs Before Variant Filtering
 - `tb_variant_filter` relies on a correctly formatted VCF with the `#CHROM` line to parse variants.  
