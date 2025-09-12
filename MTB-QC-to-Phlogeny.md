@@ -356,7 +356,7 @@ ps aux | grep download_sra.sh
 ```
 
 ##  Checking FASTQ 
-###  FASTQ Visualization and Summary
+###  FASTQ summary 
 This repository contains scripts and commands to **explore and summarize paired-end FASTQ files** for fastq sample and also individual single sample in a bioinformatically meaningful way.
 
 ---
@@ -481,6 +481,43 @@ chmod +x count_reads.sh
 ```bash
 ./count_reads.sh
 ```
+
+If it is for **single read** we have replaced the following code instead of step 2
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Input and output directories
+INDIR="raw_data"
+OUTDIR="csv_output"
+mkdir -p "$OUTDIR"
+
+# Output CSV file
+OUTFILE="$OUTDIR/fastq_read_counts_single.csv"
+echo "Sample,R1_reads" > "$OUTFILE"
+
+echo "📊 Counting reads in single-end FASTQ files from '$INDIR'..."
+
+# Loop over all FASTQ files
+for R1 in "$INDIR"/*.fastq.gz; do
+    [[ -f "$R1" ]] || continue
+
+    # Extract sample name (remove .fastq.gz)
+    SAMPLE=$(basename "$R1" | sed -E 's/\.fastq\.gz$//')
+
+    # Count reads (4 lines per read in FASTQ)
+    R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))
+
+    # Append counts to CSV
+    echo "$SAMPLE,$R1_COUNT" >> "$OUTFILE"
+    echo "✅ $SAMPLE → R1: $R1_COUNT"
+done
+
+echo "🎉 All done! Read counts saved to '$OUTFILE'"
+```
+
+
 ### 3. Base composition
 
 - **Assess sequencing quality** → Balanced A, T, G, C indicates good data.  
