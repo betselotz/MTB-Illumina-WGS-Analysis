@@ -358,6 +358,7 @@ ps aux | grep download_sra.sh
 ##  Checking FASTQ 
 ###  FASTQ summary 
 This repository contains scripts and commands to **explore and summarize paired-end FASTQ files** for fastq sample and also individual single sample in a bioinformatically meaningful way.
+We do not need to run this for single-end sequence data sets
 
 ---
 
@@ -467,21 +468,6 @@ echo "🎉 All done! Read counts saved to '$OUTFILE'"
 - `echo "🎉 All done! Read counts saved to '$OUTFILE'"` → Prints completion message.  
 
 </details>
-
-
-##### Step 3: Save and exit nano
-Press Ctrl + O → Enter (to write the file)
-Press Ctrl + X → Exit nano
-
-##### Step 3: Make the script executable
-```bash
-chmod +x count_reads.sh
-```
-##### Step 4: Run the script
-```bash
-./count_reads.sh
-```
-
 If it is for **single read** we have replaced the following code instead of step 2
 
 ```bash
@@ -517,6 +503,21 @@ done
 echo "🎉 All done! Read counts saved to '$OUTFILE'"
 ```
 
+
+
+
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+##### Step 3: Make the script executable
+```bash
+chmod +x count_reads.sh
+```
+##### Step 4: Run the script
+```bash
+./count_reads.sh
+```
 
 ### 3. Base composition
 
