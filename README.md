@@ -1832,6 +1832,7 @@ chmod +x compare_vcf_qc.sh
 nano run_tbprofiler.sh
 ```
 ##### Step 2: Paste the following code
+```bash
 #!/bin/bash
 set -euo pipefail
 
