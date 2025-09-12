@@ -1891,6 +1891,12 @@ chmod +x run_tbprofiler.sh
 conda activate tbprofiler_env
 ./run_tbprofiler.sh
 ```
+##### Step 6: move the output from tbprofiler into new directory 
+make directory tbprofiler_results
+```bash
+mkdir -p tbprofiler_results
+```
+then copy the tbprofiler output `bam`, `vcf` and `results` directories from current directory into tbprofiler_results directory 
 
 # 1️⃣0️⃣ BCFTools Consensus Generation
 
