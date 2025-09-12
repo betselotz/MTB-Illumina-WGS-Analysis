@@ -2272,26 +2272,20 @@ fast and TB-suitable command
 
 
 ##### Step 1: Merge all consensus FASTAs
-```bash
-cat consensus_sequences/*.fasta > consensus_sequences/all_consensus.fasta
-```
-Combine all individual consensus sequences into one multi-FASTA file:
+We combine all individual consensus sequences into one multi-FASTA file:
 - **Aligning sequences**  
   - All sequences, including the outgroup, must be aligned together.  
   - This ensures that **homologous positions are matched across all sequences**, which is essential for correct tree inference.  
   - Example workflow:  
     1. Combine all consensus sequences and the outgroup FASTA into a single folder.  
     2. Run MAFFT on the combined sequences to produce a single aligned file (e.g., `aligned_consensus.fasta`).  
-
-- **Selecting the outgroup in IQ-TREE**  
   - The outgroup sequence must already be included in the alignment.  
-  - When running IQ-TREE, specify the outgroup using the `-o` option with the **FASTA header name** of the outgroup:  
-  - IQ-TREE will then **root the phylogenetic tree using this outgroup**.  
-
-- **Key points**  
-  - Do **not align the outgroup separately**; always include it with the ingroup sequences.  
-  - The `-o` option does **not add the outgroup**; it just tells IQ-TREE which sequence to use for rooting.  
-  - Proper alignment with the outgroup ensures a **correctly rooted tree**.  
+  - When running IQ-TREE, we need to specify the outgroup using the `-o` option with the **FASTA header name** of the outgroup:  
+  - IQ-TREE will then **root the phylogenetic tree using this outgroup**.
+    
+```bash
+cat consensus_sequences/*.fasta > consensus_sequences/all_consensus.fasta
+```
 
 ##### Step 2: Open a new script file in nano
 ```bash
@@ -2386,7 +2380,7 @@ chmod +x run_mafft.sh
 ```
 ##### Step 6: Run the script
 ```bash
-conda activate my_mafft_env
+conda activate mafft_env
 ./run_mafft.sh
 ```
 
