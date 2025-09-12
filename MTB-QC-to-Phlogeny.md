@@ -2313,51 +2313,13 @@ nano run_iqtree.sh
 ```
 ##### Step 2: Paste the script
 ```bash
-#!/bin/bash
-set -euo pipefail
-
-MAIN_ALIGNMENT="consensus_sequences/aligned_consensus.fasta"
-OUTGROUP_FASTA="consensus_sequences/SRR10828835.fasta"
-OUTDIR="iqtree_results"
-OUTGROUP_NAME="SRR10828835"
-
-mkdir -p "$OUTDIR"
-
-MERGED_ALIGNMENT="$OUTDIR/aligned_with_outgroup.fasta"
-cat "$MAIN_ALIGNMENT" "$OUTGROUP_FASTA" > "$MERGED_ALIGNMENT"
-
-iqtree2 -s "$MERGED_ALIGNMENT" \
+iqtree2 -s iqtree_results/aligned_with_outgroup.fasta \
         -m GTR+G \
         -bb 1000 \
         -nt 4 \
-        -o "$OUTGROUP_NAME" \
-        -pre "$OUTDIR/aligned_consensus"
-
-echo "✅ IQ-TREE run completed. Results are in $OUTDIR/"
-
+        -o SRR10828835 \
+        -pre iqtree_results/aligned_consensus
 ```
-<details>
-<summary>📝 IQ-TREE Script Explanation</summary>
-
-- `#!/bin/bash` → Use Bash shell to run the script.  
-- `set -euo pipefail` → Exit on errors, treat unset variables as errors, and fail if any command in a pipeline fails.  
-- `MAIN_ALIGNMENT="consensus_sequences/aligned_consensus.fasta"` → Path to the main TB consensus alignment.  
-- `OUTGROUP_FASTA="consensus_sequences/CP048071.1.fasta"` → Path to the outgroup FASTA file.  
-- `OUTDIR="iqtree_results"` → Directory where IQ-TREE results will be saved.  
-- `OUTGROUP_NAME="CP048071.1"` → Name of the outgroup sequence (must match the sequence name in the merged alignment).  
-- `mkdir -p "$OUTDIR"` → Create the results directory if it doesn’t exist.  
-- `MERGED_ALIGNMENT="$OUTDIR/aligned_with_outgroup.fasta"` → Path for the merged alignment file.  
-- `cat "$MAIN_ALIGNMENT" "$OUTGROUP_FASTA" > "$MERGED_ALIGNMENT"` → Merge the main alignment and outgroup FASTA.  
-- `iqtree2 -s "$MERGED_ALIGNMENT" \` → Run IQ-TREE using the merged alignment.  
-- `-m GTR+G \` → Use GTR substitution model with gamma rate heterogeneity.  
-- `-bb 1000 \` → Perform 1000 ultrafast bootstrap replicates.  
-- `-nt 4 \` → Use 4 CPU threads.  
-- `-o "$OUTGROUP_NAME" \` → Root the tree using the outgroup.  
-- `-pre "$OUTDIR/aligned_consensus"` → Set the prefix for output files.  
-- `echo "✅ IQ-TREE run completed. Results are in $OUTDIR/"` → Print completion message.  
-
-</details>
-
 
 ##### Step 3:save and exit Nano
 Press Ctrl + O → Enter (to save)
