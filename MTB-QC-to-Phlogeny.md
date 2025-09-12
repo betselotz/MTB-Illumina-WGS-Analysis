@@ -2380,78 +2380,10 @@ nano run_mafft.sh
 ##### Step 3: Paste the script into nano
 ```bash
 #!/bin/bash
-set -euo pipefail
-
-INPUT_DIR="consensus_sequences"
-OUTPUT_DIR="mafft_results"
-mkdir -p "$OUTPUT_DIR"
-
-THREADS=16
-COMBINED_IN="$OUTPUT_DIR/all_consensus.fasta"
-COMBINED_OUT="$OUTPUT_DIR/aligned_consensus.fasta"
-
-for FILE in "$INPUT_DIR"/*.fasta; do
-    [[ -f "$FILE" ]] || continue
-    if [[ $(grep -v ">" "$FILE" | tr -d '\n' | wc -c) -eq 0 ]]; then
-        echo "⚠️ $FILE is empty, skipping."
-        continue
-    fi
-    cat "$FILE" >> "$COMBINED_IN"
-done
-
-if [[ -f "$COMBINED_IN" ]]; then
-    mafft --thread "$THREADS" --auto --parttree "$COMBINED_IN" > "$COMBINED_OUT"
-else
-    echo "❌ No valid FASTA files to align!"
-    exit 1
-fi
-
-if [[ -f "$COMBINED_OUT" ]]; then
-    SEQ_COUNT=$(grep -c ">" "$COMBINED_OUT")
-    TOTAL_LENGTH=$(grep -v ">" "$COMBINED_OUT" | tr -d '\n' | wc -c)
-    MIN_LENGTH=$(awk '/^>/{if(seqlen){print seqlen}; seqlen=0; next}{seqlen+=length($0)}END{print seqlen}' "$COMBINED_OUT" | sort -n | head -1)
-    MAX_LENGTH=$(awk '/^>/{if(seqlen){print seqlen}; seqlen=0; next}{seqlen+=length($0)}END{print seqlen}' "$COMBINED_OUT" | sort -n | tail -1)
-    AVG_LENGTH=$(awk '/^>/{if(seqlen){sum+=seqlen; count++}; seqlen=0; next}{seqlen+=length($0)}END{if(seqlen){sum+=seqlen; count++} if(count>0) print int(sum/count); else print 0}' "$COMBINED_OUT")
-
-    echo "✅ $COMBINED_OUT"
-    echo "   Sequences: $SEQ_COUNT"
-    echo "   Total length (bp): $TOTAL_LENGTH"
-    echo "   Min length: $MIN_LENGTH"
-    echo "   Max length: $MAX_LENGTH"
-    echo "   Avg length: $AVG_LENGTH"
-else
-    echo "❌ Alignment failed!"
-    exit 1
-fi
-
-echo "✅ Alignment and checks completed."
-
-
+mkdir -p mafft_results
+mafft --auto --parttree consensus_sequences/all_consensus.fasta > mafft_results/aligned_consensus.fasta
 ```
-<details>
-<summary>📖 Explanation of MAFFT alignment and combined consensus checks</summary>
 
-- `INPUT_DIR="consensus_sequences"` → sets the directory containing input FASTA files.  
-- `OUTPUT_DIR="mafft_results"` → sets the directory where aligned files will be saved.  
-- `mkdir -p "$OUTPUT_DIR"` → ensures the output directory exists.  
-- `THREADS=16` → sets the number of CPU threads MAFFT will use.  
-- `COMBINED_IN="$OUTPUT_DIR/all_consensus.fasta"` → defines the combined input file containing all sequences.  
-- `COMBINED_OUT="$OUTPUT_DIR/aligned_consensus.fasta"` → defines the MAFFT alignment output file.  
-- `for FILE in "$INPUT_DIR"/*.fasta; do ... done` → loops over all FASTA files in the input directory.  
-- `[[ -f "$FILE" ]] || continue` → skips iteration if the file does not exist.  
-- `if [[ $(grep -v ">" "$FILE" | tr -d '\n' | wc -c) -eq 0 ]]; then ... continue` → skips empty FASTA files.  
-- `cat "$FILE" >> "$COMBINED_IN"` → appends the non-empty sequences to the combined input file.  
-- `if [[ -f "$COMBINED_IN" ]]; then mafft ... > "$COMBINED_OUT"` → runs MAFFT once on the combined input file to produce a multi-sequence alignment.  
-- `if [[ -f "$COMBINED_OUT" ]]; then ... fi` → checks if the alignment file exists.  
-- `SEQ_COUNT=$(grep -c ">" "$COMBINED_OUT")` → counts the number of sequences in the alignment.  
-- `TOTAL_LENGTH=$(grep -v ">" "$COMBINED_OUT" | tr -d '\n' | wc -c)` → counts the total number of nucleotides in the alignment.  
-- `MIN_LENGTH` → computes the length of the shortest sequence in the alignment.  
-- `MAX_LENGTH` → computes the length of the longest sequence in the alignment.  
-- `AVG_LENGTH` → computes the average sequence length.  
-- `echo "✅ $COMBINED_OUT"` and following lines → prints the alignment statistics.  
-- `echo "✅ Alignment and checks completed."` → prints completion message.  
-
-</details>
 
 ##### Step 4: Save and exit nano
 
