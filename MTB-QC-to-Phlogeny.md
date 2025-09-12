@@ -2307,11 +2307,11 @@ head consensus_sequences/aligned_consensus.fasta
 # 1️⃣3️⃣ IQtree
   
   Steps 
-##### Step 1: Open a new file in Nano
+##### Step 1: activate iqtree environment
 ```bash
-nano run_iqtree.sh
+conda activate iqtree_env
 ```
-##### Step 2: Paste the script
+##### Step 2: Run the following script
 ```bash
 iqtree2 -s iqtree_results/aligned_with_outgroup.fasta \
         -m GTR+G \
@@ -2319,20 +2319,6 @@ iqtree2 -s iqtree_results/aligned_with_outgroup.fasta \
         -nt 4 \
         -o SRR10828835 \
         -pre iqtree_results/aligned_consensus
-```
-
-##### Step 3:save and exit Nano
-Press Ctrl + O → Enter (to save)
-Press Ctrl + X → Exit Nano
-
-##### Step 4: Make the script executable
-```bash
-chmod +x run_iqtree.sh
-```
-##### Step 4:  Run the script
-```bash
-conda activate iqtree_env
-./run_iqtree.sh
 ```
 
 
