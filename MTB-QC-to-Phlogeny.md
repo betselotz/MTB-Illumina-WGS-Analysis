@@ -1352,8 +1352,20 @@ make directory tbprofiler_results
 mkdir -p tbprofiler_results
 ```
 then copy the tbprofiler output `bam`, `vcf` and `results` directories from current directory into tbprofiler_results directory 
-
-
+##### Step 6: change directory to tbprofiler_results
+```bash
+cd ./tbprofiler_results
+```
+##### Step 7: Collate results
+The results from numerous runs can be collated into one table using the following command:
+```bash
+tb-profiler collate
+```
+##### Step 8: Generate iTOL config for phylogeny visualization
+If we want to visualize your phylogeny alongside drug-resistance types, lineages, and sublineages, run:
+```bash
+tb-profiler collate --itol
+```
 
 # 5️⃣ Snippy
 
