@@ -980,11 +980,10 @@ set -euo pipefail
 
 INDIR="fastp_results_min_50"
 OUTDIR="csv_output"
-OUTPUT_CSV="${OUTDIR}/trimmed_read_length_summary.csv"
-
 mkdir -p "$OUTDIR"
 
-echo "Sample,R1_reads,R2_reads" > "$OUTPUT_CSV"
+OUTFILE="$OUTDIR/trimmed_read_counts.csv"
+echo "Sample,R1_reads,R2_reads" > "$OUTFILE"
 echo "📊 Counting reads in trimmed FASTQ files from '$INDIR'..."
 
 for R1 in "$INDIR"/*_1.trim.fastq.gz "$INDIR"/*_R1.trim.fastq.gz; do
@@ -996,11 +995,12 @@ for R1 in "$INDIR"/*_1.trim.fastq.gz "$INDIR"/*_R1.trim.fastq.gz; do
     done
     R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))
     R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")
-    echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTPUT_CSV"
+    echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTFILE"
     echo "✅ $SAMPLE → R1: $R1_COUNT | R2: $R2_COUNT"
 done
 
-echo "🎉 All done! Read counts saved to '$OUTPUT_CSV'"
+echo "🎉 All done! Read counts saved to '$OUTFILE'"
+
 
 ```
 <details>
@@ -1010,19 +1010,19 @@ echo "🎉 All done! Read counts saved to '$OUTPUT_CSV'"
 - `set -euo pipefail` → Exits on errors, unset variables, or failed commands.  
 - `INDIR="fastp_results_min_50"` → Directory containing trimmed FASTQ files.  
 - `OUTDIR="csv_output"` → Directory to save the output CSV file.  
-- `OUTPUT_CSV="${OUTDIR}/trimmed_read_length_summary.csv"` → Path of the output CSV file.  
+- `OUTFILE="$OUTDIR/trimmed_read_counts.csv"` → Path of the output CSV file.  
 - `mkdir -p "$OUTDIR"` → Creates the output directory if it doesn’t exist.  
-- `echo "Sample,R1_reads,R2_reads" > "$OUTPUT_CSV"` → Writes the CSV header.  
+- `echo "Sample,R1_reads,R2_reads" > "$OUTFILE"` → Writes the CSV header.  
 - `echo "📊 Counting reads in trimmed FASTQ files from '$INDIR'..."` → Prints starting message.  
 - `for R1 in "$INDIR"/*_1.trim.fastq.gz "$INDIR"/*_R1.trim.fastq.gz; do ... done` → Iterates over all R1 trimmed FASTQ files.  
 - `[[ -f "$R1" ]] || continue` → Skips if the R1 file does not exist.  
 - `SAMPLE=$(basename "$R1" | sed -E 's/_R?1.*\.trim\.fastq\.gz//')` → Extracts the sample name from the filename.  
 - `for suffix in "_2.trim.fastq.gz" "_R2.trim.fastq.gz" "_R2_*.trim.fastq.gz"; do ... done` → Searches for the corresponding R2 file.  
 - `R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))` → Counts number of reads in R1 (lines divided by 4).  
-- `R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")` → Counts number of reads in R2 if present, otherwise outputs "NA".  
-- `echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTPUT_CSV"` → Appends results to the CSV file.  
+- `R2_COUNT=$([[ -n "$R2" ]] && echo $(( $(zcat "$R2" | wc -l) / 4 )) || echo "NA")` → Counts number of reads in R2 if present; outputs "NA" for single-end samples.  
+- `echo "$SAMPLE,$R1_COUNT,$R2_COUNT" >> "$OUTFILE"` → Appends sample read counts to the CSV file.  
 - `echo "✅ $SAMPLE → R1: $R1_COUNT | R2: $R2_COUNT"` → Prints per-sample progress.  
-- `echo "🎉 All done! Read counts saved to '$OUTPUT_CSV'"` → Prints final completion message.  
+- `echo "🎉 All done! Read counts saved to '$OUTFILE'"` → Prints final completion message.  
 
 </details>
 
@@ -1033,23 +1033,43 @@ set -euo pipefail
 
 INDIR="fastp_results_min_50"
 OUTDIR="csv_output"
-OUTPUT_CSV="${OUTDIR}/trimmed_read_length_summary.csv"
-
 mkdir -p "$OUTDIR"
 
-echo "Sample,R1_reads" > "$OUTPUT_CSV"
+OUTFILE="$OUTDIR/trimmed_read_counts.csv"
+echo "Sample,R1_reads,R2_reads" > "$OUTFILE"
 echo "📊 Counting reads in trimmed FASTQ files from '$INDIR'..."
 
-for R1 in "$INDIR"/*.trim.fastq.gz; do
+for R1 in "$INDIR"/*.trimmed.fastq.gz; do
     [[ -f "$R1" ]] || continue
-    SAMPLE=$(basename "$R1" | sed -E 's/\.trim\.fastq\.gz//')
+    SAMPLE=$(basename "$R1" | sed -E 's/\.trimmed\.fastq\.gz//')
     R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))
-    echo "$SAMPLE,$R1_COUNT" >> "$OUTPUT_CSV"
-    echo "✅ $SAMPLE → R1: $R1_COUNT"
+    echo "$SAMPLE,$R1_COUNT,NA" >> "$OUTFILE"
+    echo "✅ $SAMPLE → R1: $R1_COUNT | R2: NA"
 done
 
-echo "🎉 All done! Read counts saved to '$OUTPUT_CSV'"
+echo "🎉 All done! Read counts saved to '$OUTFILE'"
+
 ```
+<details>
+  <summary>📊 Single-End Trimmed FASTQ Read Count Script Explanation</summary>
+
+- `#!/bin/bash` → Runs the script using Bash.  
+- `set -euo pipefail` → Exits on errors, unset variables, or failed commands.  
+- `INDIR="fastp_results_min_50"` → Directory containing the trimmed FASTQ files.  
+- `OUTDIR="csv_output"` → Directory to save the output CSV file.  
+- `mkdir -p "$OUTDIR"` → Creates the output directory if it doesn’t exist.  
+- `OUTFILE="$OUTDIR/trimmed_read_counts.csv"` → Path of the output CSV file.  
+- `echo "Sample,R1_reads,R2_reads" > "$OUTFILE"` → Writes the CSV header.  
+- `echo "📊 Counting reads in trimmed FASTQ files from '$INDIR'..."` → Prints starting message.  
+- `for R1 in "$INDIR"/*.trimmed.fastq.gz; do ... done` → Iterates over all single-end trimmed FASTQ files.  
+- `[[ -f "$R1" ]] || continue` → Skips if the file does not exist.  
+- `SAMPLE=$(basename "$R1" | sed -E 's/\.trimmed\.fastq\.gz//')` → Extracts the sample name from the filename.  
+- `R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))` → Counts the number of reads in the FASTQ file (4 lines per read).  
+- `echo "$SAMPLE,$R1_COUNT,NA" >> "$OUTFILE"` → Appends the sample name and read count to the CSV file; R2 is set to `NA`.  
+- `echo "✅ $SAMPLE → R1: $R1_COUNT | R2: NA"` → Prints per-sample progress.  
+- `echo "🎉 All done! Read counts saved to '$OUTFILE'"` → Prints final completion message.  
+
+</details>
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
