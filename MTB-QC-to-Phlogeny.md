@@ -2008,9 +2008,10 @@ for vcf in "$SNIPPY_DIR"/*.vcf; do
     else
         ratio=$(awk -v pass=$filtered_pass -v total=$unfiltered_pass 'BEGIN{printf "%.2f", pass/total}')
     fi
-    echo "$sample,$unfiltered_total,$unfil_
+    echo "$sample,$unfiltered_total,$unfiltered_pass,$filtered_total,$filtered_pass,$ratio" >> "$OUTFILE"
+done
 
-
+echo "✅ Results saved to $OUTFILE"
 ```
 
 ##### Step  3: Save and exit nano
@@ -2025,9 +2026,6 @@ chmod +x compare_vcf_qc.sh
 ```bash
 ./compare_vcf_qc.sh
 ```
-
-
-
 
 
 
