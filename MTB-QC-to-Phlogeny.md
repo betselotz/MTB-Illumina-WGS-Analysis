@@ -2390,13 +2390,16 @@ A. Quickly inspect the top of the aligned FASTA:
 ```bash
 head consensus_sequences/aligned_consensus.fasta
 ```
-B. Checking MAFFT alignment output to 
+B. Quick visual inspection with `less`
+```bash
+fold -w 100 mafft_results/aligned_consensus.fasta | less
+```
+C. Checking MAFFT alignment output to 
 - Ensure the alignment file **exists** and contains all intended sequences.  
 - Verify the **number of sequences** matches expectations.  
 - Check **sequence lengths** (total, min, max, average) to confirm proper alignment.  
 - Detect if sequences have **varying lengths**, which may indicate misalignment or excessive gaps.  
 - A **good alignment** is essential for accurate phylogenetic tree inference with IQ-TREE or other downstream analyses.
-
 
 ```bash
 #!/bin/bash
@@ -2460,6 +2463,30 @@ fi
 </details>
 
 
+D. Using `seqkit` stats (recommended)
+seqkit is a fast toolkit for FASTA/Q file summaries. It gives a detailed report of sequences in a file:
+```bash
+seqkit stats mafft_results/aligned_consensus.fasta
+```
+E. Check for gaps / alignment columns
+If all sequences are aligned, gaps (-) should appear at the same positions across sequences.
+```bash
+grep -v ">" mafft_results/aligned_consensus.fasta | awk '{ print length($0) }' | sort -n | uniq -c
+```
+F. Compute pairwise identity
+```bash
+awk '/^>/{if(seqlen){print seqlen}; seqlen=0; next} {seqlen+=length($0)} END{print seqlen}' mafft_results/aligned_consensus.fasta
+```
+G. Use AMAS (Alignment Manipulation and Summary)
+AMAS is a Python tool to summarize alignments:
+```bash
+python -m amas summary -f fasta -d dna -i mafft_results/aligned_consensus.fasta
+```
+H. Use aliview or MEGA for GUI inspection
+Load the FASTA alignment in AliView, MEGA, or Geneious.
+Advantages:
+  Can visually check gaps, conserved regions, and misaligned sequences.
+  Highlight sequences that differ significantly.
 
 
 # 1️⃣3️⃣ IQtree
@@ -2506,8 +2533,7 @@ fi
 
 </details>
 
- 
-  Steps 
+ Steps 
 ##### Step 1: activate iqtree environment
 ```bash
 conda activate iqtree_env
@@ -2522,7 +2548,6 @@ iqtree2 -s mafft_results/aligned_consensus.fasta \
         -nt 4 \
         -o SRR10828835 \
         -pre iqtree_results/aligned_consensus
-
 ```
 <details>
 <summary>📖 Explanation of IQ-TREE command for aligned consensus sequences</summary>
