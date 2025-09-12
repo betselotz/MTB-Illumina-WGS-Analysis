@@ -2372,12 +2372,7 @@ We combine all individual consensus sequences into one multi-FASTA file:
 cat consensus_sequences/*.fasta > consensus_sequences/all_consensus.fasta
 ```
 
-##### Step 2: Open a new script file in nano
-```bash
-nano run_mafft.sh
-```
-
-##### Step 3: Paste the script into nano
+##### Step 2: Paste the script into nano
 ```bash
 #!/bin/bash
 mkdir -p mafft_results
@@ -2385,21 +2380,7 @@ mafft --auto --parttree consensus_sequences/all_consensus.fasta > mafft_results/
 ```
 
 
-##### Step 4: Save and exit nano
-
- Press Ctrl + O → hit Enter to save.
-Press Ctrl + X → to exit nano.
-##### Step 5: Make the script executable
-```bash
-chmod +x run_mafft.sh
-```
-##### Step 6: Run the script
-```bash
-conda activate mafft_env
-./run_mafft.sh
-```
-
-##### Step 7: Verify the alignment
+##### Step 3: Verify the alignment
 
 A. Quickly inspect the top of the aligned FASTA:
 ```bash
