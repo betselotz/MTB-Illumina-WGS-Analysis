@@ -1352,7 +1352,21 @@ make directory tbprofiler_results
 ```bash
 mkdir -p tbprofiler_results
 ```
-then copy the tbprofiler output `bam`, `vcf` and `results` directories from current directory into tbprofiler_results directory 
+then move the tbprofiler output `bam`, `vcf` and `results` directories from current directory into tbprofiler_results directory 
+```bash
+mv bam vcf results tbprofiler_results/
+echo "📌 All TBProfiler outputs moved to tbprofiler_results/"
+```
+or 
+```bash
+for DIR in bam vcf results; do
+    if [[ -d "$DIR" ]]; then
+        mv "$DIR" "$OUT_DIR/"
+        echo "📁 Moved $DIR to $OUT_DIR/"
+    fi
+done
+```
+
 ##### Step 6: change directory to tbprofiler_results
 ```bash
 cd ./tbprofiler_results
