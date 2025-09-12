@@ -2498,10 +2498,42 @@ conda activate seqkit_env
 seqkit stats mafft_results/aligned_consensus.fasta
 ```
 E. Check for gaps / alignment columns
-If all sequences are aligned, gaps (-) should appear at the same positions across sequences.
+<details>
+<summary>💡 Understanding Gaps in Multiple Sequence Alignment (MSA)</summary>
+
+When you do a **multiple sequence alignment (MSA):**
+
+- All sequences should line up **column by column**.
+- **MAFFT** will add **gaps (`-`)** where needed so that homologous positions align.
+- A good alignment usually has **all sequences the same length**, including gaps.
+- If sequence lengths differ, it often indicates:
+  - Truncated sequences
+  - Missing data
+  - Alignment problems
+
+So, checking the **length of each sequence** in the alignment is a quick way to see if **gaps and sequences are consistent**.
+
+</details>
+
 ```bash
-grep -v ">" mafft_results/aligned_consensus.fasta | awk '{ print length($0) }' | sort -n | uniq -c
+grep -v ">" mafft_results/aligned_consensus.fasta \
+| awk '{print length($0)}' \
+| sort -n \
+| uniq -c \
+| awk -v L=60 '{print ($2<L?"⚠️ ":"✅ ") $1 " sequences of length " $2 " bp"}'
 ```
+<details>
+<summary>🔍 Line-by-Line Explanation of Alignment Check Command</summary>
+
+- `grep -v ">" mafft_results/aligned_consensus.fasta` → removes FASTA headers, leaving only sequence lines.  
+- `awk '{print length($0)}'` → prints the length of each sequence line.  
+- `sort -n` → sorts sequence lengths numerically.  
+- `uniq -c` → counts how many sequences have each unique length.  
+- `awk -v L=60 '{print ($2<L?"⚠️ ":"✅ ") $1 " sequences of length " $2 " bp"}'` → formats output: ⚠️ for lengths <60, ✅ for ≥60, showing count and length.
+
+</details>
+
+
 F. Compute pairwise identity
 ```bash
 awk '/^>/{if(seqlen){print seqlen}; seqlen=0; next} {seqlen+=length($0)} END{print seqlen}' mafft_results/aligned_consensus.fasta
@@ -2509,7 +2541,8 @@ awk '/^>/{if(seqlen){print seqlen}; seqlen=0; next} {seqlen+=length($0)} END{pri
 G. Use AMAS (Alignment Manipulation and Summary)
 AMAS is a Python tool to summarize alignments:
 ```bash
-python -m amas summary -f fasta -d dna -i mafft_results/aligned_consensus.fasta
+conda activate amas_env
+AMAS.py summary -f fasta -d dna -i mafft_results/aligned_consensus.fasta
 ```
 H. Use aliview or MEGA for GUI inspection
 Load the FASTA alignment in AliView, MEGA, or Geneious.
