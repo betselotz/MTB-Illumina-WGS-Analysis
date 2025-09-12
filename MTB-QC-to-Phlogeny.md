@@ -2154,10 +2154,7 @@ head consensus_sequences/aligned_consensus.fasta
 ```
 # 1️⃣3️⃣ IQtree
 
-<details>
-<summary>📝 Phylogenetic Analysis – Outgroup Selection and Workflow</summary>
 
-### Outgroup Selection
 
 Before performing phylogenetic analysis, it is crucial to include an **outgroup sequence**. The outgroup serves as a reference point to root the phylogenetic tree, providing directionality for evolutionary relationships.  
 
@@ -2167,7 +2164,7 @@ The selected outgroup sequence was downloaded and saved in the `consensus_sequen
 
 ---
 
-<details>
+
   
   Steps 
 ##### Step 1: Open a new file in Nano
@@ -2197,28 +2194,30 @@ iqtree2 -s "$MERGED_ALIGNMENT" \
         -pre "$OUTDIR/aligned_consensus"
 
 echo "✅ IQ-TREE run completed. Results are in $OUTDIR/"
+
 ```
 <details>
 <summary>📝 IQ-TREE Script Explanation</summary>
 
-1. `#!/bin/bash` → Use Bash shell to run the script.  
-2. `set -euo pipefail` → Exit on errors, treat unset variables as errors, and fail if any command in a pipeline fails.  
-3. `MAIN_ALIGNMENT="consensus_sequences/aligned_consensus.fasta"` → Path to the main TB consensus alignment.  
-4. `OUTGROUP_FASTA="consensus_sequences/CP048071.1.fasta"` → Path to the outgroup FASTA file.  
-5. `OUTDIR="iqtree_results"` → Directory where IQ-TREE results will be saved.  
-6. `OUTGROUP_NAME="CP048071.1"` → Name of the outgroup sequence (must match the sequence name in the merged alignment).  
-7. `mkdir -p "$OUTDIR"` → Create the results directory if it doesn’t exist.  
-8. `MERGED_ALIGNMENT="$OUTDIR/aligned_with_outgroup.fasta"` → Path for the merged alignment file.  
-9. `cat "$MAIN_ALIGNMENT" "$OUTGROUP_FASTA" > "$MERGED_ALIGNMENT"` → Merge the main alignment and outgroup FASTA into a single file.  
-10. `iqtree2 -s "$MERGED_ALIGNMENT" \` → Run IQ-TREE using the merged alignment.  
-11. `-m GTR+G \` → Use GTR substitution model with gamma rate heterogeneity.  
-12. `-bb 1000 \` → Perform 1000 ultrafast bootstrap replicates.  
-13. `-nt 4 \` → Use 4 CPU threads for the run.  
-14. `-o "$OUTGROUP_NAME" \` → Root the tree using the specified outgroup sequence.  
-15. `-pre "$OUTDIR/aligned_consensus"` → Set the prefix for output files inside the results directory.  
-16. `echo "✅ IQ-TREE run completed. Results are in $OUTDIR/"` → Print a completion message to the console.
+- `#!/bin/bash` → Use Bash shell to run the script.  
+- `set -euo pipefail` → Exit on errors, treat unset variables as errors, and fail if any command in a pipeline fails.  
+- `MAIN_ALIGNMENT="consensus_sequences/aligned_consensus.fasta"` → Path to the main TB consensus alignment.  
+- `OUTGROUP_FASTA="consensus_sequences/CP048071.1.fasta"` → Path to the outgroup FASTA file.  
+- `OUTDIR="iqtree_results"` → Directory where IQ-TREE results will be saved.  
+- `OUTGROUP_NAME="CP048071.1"` → Name of the outgroup sequence (must match the sequence name in the merged alignment).  
+- `mkdir -p "$OUTDIR"` → Create the results directory if it doesn’t exist.  
+- `MERGED_ALIGNMENT="$OUTDIR/aligned_with_outgroup.fasta"` → Path for the merged alignment file.  
+- `cat "$MAIN_ALIGNMENT" "$OUTGROUP_FASTA" > "$MERGED_ALIGNMENT"` → Merge the main alignment and outgroup FASTA.  
+- `iqtree2 -s "$MERGED_ALIGNMENT" \` → Run IQ-TREE using the merged alignment.  
+- `-m GTR+G \` → Use GTR substitution model with gamma rate heterogeneity.  
+- `-bb 1000 \` → Perform 1000 ultrafast bootstrap replicates.  
+- `-nt 4 \` → Use 4 CPU threads.  
+- `-o "$OUTGROUP_NAME" \` → Root the tree using the outgroup.  
+- `-pre "$OUTDIR/aligned_consensus"` → Set the prefix for output files.  
+- `echo "✅ IQ-TREE run completed. Results are in $OUTDIR/"` → Print completion message.  
 
 </details>
+
 
 ##### Step 3:save and exit Nano
 Press Ctrl + O → Enter (to save)
