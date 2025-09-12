@@ -2494,6 +2494,7 @@ fi
 D. Using `seqkit` stats (recommended)
 seqkit is a fast toolkit for FASTA/Q file summaries. It gives a detailed report of sequences in a file:
 ```bash
+conda activate seqkit_env
 seqkit stats mafft_results/aligned_consensus.fasta
 ```
 E. Check for gaps / alignment columns
