@@ -906,8 +906,22 @@ ls -lth fastp_results_min_50/*_2.trim.fastq.gz | wc -l
 View first 10 quality lines in trimmed FASTQ
 
 ```bash
-zcat fastp_results_min_50/ET3_S55_1.trim.fastq.gz | sed -n '4~4p' | head -n 10
-zcat fastp_results_min_50/ET3_S55_2.trim.fastq.gz | sed -n '4~4p' | head -n 10
+ Show first 10 quality lines from R1
+```bash
+echo "🔹 First 10 quality lines from ET3_S55_1 (R1):"
+zcat fastp_results_min_50/ET3_S55_1.trim.fastq.gz \
+| sed -n '4~4p' \
+| head -n 10 \
+| awk '{print "✅ " $0}'
+```
+ Show first 10 quality lines from R2
+```bash
+echo "🔹 First 10 quality lines from ET3_S55_2 (R2):"
+zcat fastp_results_min_50/ET3_S55_2.trim.fastq.gz \
+| sed -n '4~4p' \
+| head -n 10 \
+| awk '{print "✅ " $0}'
+
 ```
 <details>
   <summary>🔍 How it works</summary>
@@ -920,10 +934,27 @@ zcat fastp_results_min_50/ET3_S55_2.trim.fastq.gz | sed -n '4~4p' | head -n 10
 
 Count ASCII characters in quality lines:
 ```bash
-zcat fastp_results_min_50/ET3_S55_1.trim.fastq.gz | sed -n '4~4p' | \
-awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
-zcat fastp_results_min_50/ET3_S55_2.trim.fastq.gz | sed -n '4~4p' | \
-awk '{for(i=1;i<=length($0);i++){q[substr($0,i,1)]++}} END{for (k in q) print k,q[k]}'
+    Count base composition in R1
+```bash
+zcat fastp_results_min_50/ET3_S55_1.trim.fastq.gz \
+| sed -n '4~4p' \
+| awk '{
+    for(i=1;i<=length($0);i++){ q[substr($0,i,1)]++ }
+} END {
+    for (k in q) print k, q[k]
+}' \
+| awk '{print "✅ Base " $1 ": " $2 " occurrences"}'
+```
+   Count base composition in R2
+```bash
+zcat fastp_results_min_50/ET3_S55_2.trim.fastq.gz \
+| sed -n '4~4p' \
+| awk '{
+    for(i=1;i<=length($0);i++){ q[substr($0,i,1)]++ }
+} END {
+    for (k in q) print k, q[k]
+}' \
+| awk '{print "✅ Base " $1 ": " $2 " occurrences"}'
 ```
 <details>
   <summary>🔢 How it works</summary>
@@ -1373,7 +1404,13 @@ tb-profiler collate --itol
 ```
 ##### Step 8: Combine all tbprofiler.txt into one CSV
 ```bash
-find . -name "tbprofiler.txt" -exec awk 'FNR==1 && NR!=1{next} {print}' {} + | sed 's/\t/,/g' > tbprofiler_collated.csv
+find . -name "tbprofiler.txt" \
+| exec awk 'FNR==1 && NR!=1{next} {print}' {} + \
+| sed 's/\t/,/g' \
+> tbprofiler_collated.csv
+
+echo "✅ Collated all tbprofiler.txt files into tbprofiler_collated.csv"
+
 ```
 <details>
 <summary>📌 Explanation of the TBProfiler collate command</summary>
@@ -2536,7 +2573,10 @@ grep -v ">" mafft_results/aligned_consensus.fasta \
 
 F. Compute pairwise identity
 ```bash
-awk '/^>/{if(seqlen){print seqlen}; seqlen=0; next} {seqlen+=length($0)} END{print seqlen}' mafft_results/aligned_consensus.fasta
+awk '/^>/{if(seqlen){print seqlen}; seqlen=0; next} {seqlen+=length($0)} END{print seqlen}' mafft_results/aligned_consensus.fasta \
+| sort -n \
+| uniq -c \
+| awk -v L=60 '{print ($2<L?"⚠️ ":"✅ ") $1 " sequences of length " $2 " bp"}'
 ```
 G. Use AMAS (Alignment Manipulation and Summary)
 AMAS is a Python tool to summarize alignments:
