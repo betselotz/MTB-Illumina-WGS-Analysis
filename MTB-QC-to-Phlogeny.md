@@ -1243,6 +1243,104 @@ chmod +x run_multiqc.sh
 conda activate multiqc_env
 ./run_multiqc.sh
 ```
+# 9️⃣ TB-Profiler from FASTQ Files
+
+<details>
+<summary>🧬 TB-Profiler: Variant Calling, Lineage, and Drug Resistance</summary>
+
+**TB-Profiler** is a specialized tool for *Mycobacterium tuberculosis* whole-genome sequencing (WGS) data. It performs **variant calling, lineage determination, and drug resistance prediction** in a single pipeline.
+
+### Why we use TB-Profiler
+- 🧪 **Drug Resistance Prediction** → Detects known resistance mutations for first- and second-line TB drugs.  
+- 🌍 **Lineage Typing** → Classifies isolates into recognized TB lineages (e.g., Lineage 1–7).  
+- 🔄 **Flexible Input** → Accepts FASTQ, BAM, or VCF files.  
+- 📊 **Clear Outputs** → Produces human-readable (`.txt`) and machine-readable (`.json`) reports.  
+- ⚡ **Speed & Integration** → Efficient and easily incorporated into TB genomics pipelines.  
+
+### Why it matters
+- Provides **actionable insights** for public health, including drug resistance and outbreak tracking.  
+- Avoids manual cross-referencing with multiple TB resistance databases.  
+- Ensures **standardized results** comparable across studies.  
+
+</details>
+ 
+---
+
+## Steps
+
+##### Step 1: Create or edit the script
+```bash
+nano run_tbprofiler.sh
+```
+##### Step 2: Paste the following code
+```bash
+#!/bin/bash
+set -euo pipefail
+
+FASTQ_DIR="raw_data"
+
+echo "📊 Starting TBProfiler runs for all samples in $FASTQ_DIR ..."
+
+for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do
+    SAMPLE=$(basename "$R1" _1.fastq.gz)
+    R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"
+
+    if [[ ! -f "$R2" ]]; then
+        echo "❌ Warning: missing paired file for $SAMPLE, skipping."
+        continue
+    fi
+
+    echo "▶️ Processing sample: $SAMPLE"
+
+    tb-profiler profile \
+        -1 "$R1" \
+        -2 "$R2" \
+        --threads 8
+
+    echo "✅ Finished $SAMPLE"
+done
+
+echo "📌 All samples processed!"
+
+```
+<details>
+<summary>🧪 TB-Profiler Script Explanation</summary>
+
+- `#!/bin/bash` → Run script with Bash.  
+- `set -euo pipefail` → Exit on errors or undefined variables.  
+- `FASTQ_DIR="raw_data"` → Folder containing paired-end FASTQ files.  
+- `for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do ... done` → Loop through all R1 files.  
+- `SAMPLE=$(basename "$R1" _1.fastq.gz)` → Extract sample name from filename.  
+- `R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"` → Construct path for paired R2 file.  
+- `if [[ ! -f "$R2" ]]; then ... fi` → Skip sample if paired R2 file is missing.  
+- `tb-profiler profile -1 "$R1" -2 "$R2" --threads 8` → Run TBProfiler on paired reads using 8 threads; outputs are saved automatically in `results/tbprofiler_results/$SAMPLE/`.  
+- `echo "✅ Finished $SAMPLE"` → Completion message per sample.  
+- `echo "📌 All samples processed!"` → Final message after all samples are run.
+
+</details>
+
+
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+##### Step 4: Make the script executable
+```bash
+chmod +x run_tbprofiler.sh
+```
+##### Step 5: Activate environment and run
+```bash
+conda activate tbprofiler_env
+./run_tbprofiler.sh
+```
+##### Step 6: move the output from tbprofiler into new directory 
+make directory tbprofiler_results
+```bash
+mkdir -p tbprofiler_results
+```
+then copy the tbprofiler output `bam`, `vcf` and `results` directories from current directory into tbprofiler_results directory 
+
+
 
 # 5️⃣ Snippy
 
@@ -1928,102 +2026,7 @@ chmod +x compare_vcf_qc.sh
 
 
 
-# 9️⃣ TB-Profiler from FASTQ Files
 
-<details>
-<summary>🧬 TB-Profiler: Variant Calling, Lineage, and Drug Resistance</summary>
-
-**TB-Profiler** is a specialized tool for *Mycobacterium tuberculosis* whole-genome sequencing (WGS) data. It performs **variant calling, lineage determination, and drug resistance prediction** in a single pipeline.
-
-### Why we use TB-Profiler
-- 🧪 **Drug Resistance Prediction** → Detects known resistance mutations for first- and second-line TB drugs.  
-- 🌍 **Lineage Typing** → Classifies isolates into recognized TB lineages (e.g., Lineage 1–7).  
-- 🔄 **Flexible Input** → Accepts FASTQ, BAM, or VCF files.  
-- 📊 **Clear Outputs** → Produces human-readable (`.txt`) and machine-readable (`.json`) reports.  
-- ⚡ **Speed & Integration** → Efficient and easily incorporated into TB genomics pipelines.  
-
-### Why it matters
-- Provides **actionable insights** for public health, including drug resistance and outbreak tracking.  
-- Avoids manual cross-referencing with multiple TB resistance databases.  
-- Ensures **standardized results** comparable across studies.  
-
-</details>
- 
----
-
-## Steps
-
-##### Step 1: Create or edit the script
-```bash
-nano run_tbprofiler.sh
-```
-##### Step 2: Paste the following code
-```bash
-#!/bin/bash
-set -euo pipefail
-
-FASTQ_DIR="raw_data"
-
-echo "📊 Starting TBProfiler runs for all samples in $FASTQ_DIR ..."
-
-for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do
-    SAMPLE=$(basename "$R1" _1.fastq.gz)
-    R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"
-
-    if [[ ! -f "$R2" ]]; then
-        echo "❌ Warning: missing paired file for $SAMPLE, skipping."
-        continue
-    fi
-
-    echo "▶️ Processing sample: $SAMPLE"
-
-    tb-profiler profile \
-        -1 "$R1" \
-        -2 "$R2" \
-        --threads 8
-
-    echo "✅ Finished $SAMPLE"
-done
-
-echo "📌 All samples processed!"
-
-```
-<details>
-<summary>🧪 TB-Profiler Script Explanation</summary>
-
-- `#!/bin/bash` → Run script with Bash.  
-- `set -euo pipefail` → Exit on errors or undefined variables.  
-- `FASTQ_DIR="raw_data"` → Folder containing paired-end FASTQ files.  
-- `for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do ... done` → Loop through all R1 files.  
-- `SAMPLE=$(basename "$R1" _1.fastq.gz)` → Extract sample name from filename.  
-- `R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"` → Construct path for paired R2 file.  
-- `if [[ ! -f "$R2" ]]; then ... fi` → Skip sample if paired R2 file is missing.  
-- `tb-profiler profile -1 "$R1" -2 "$R2" --threads 8` → Run TBProfiler on paired reads using 8 threads; outputs are saved automatically in `results/tbprofiler_results/$SAMPLE/`.  
-- `echo "✅ Finished $SAMPLE"` → Completion message per sample.  
-- `echo "📌 All samples processed!"` → Final message after all samples are run.
-
-</details>
-
-
-##### Step 3: Save and exit nano
-Press Ctrl + O → Enter (to write the file)
-Press Ctrl + X → Exit nano
-
-##### Step 4: Make the script executable
-```bash
-chmod +x run_tbprofiler.sh
-```
-##### Step 5: Activate environment and run
-```bash
-conda activate tbprofiler_env
-./run_tbprofiler.sh
-```
-##### Step 6: move the output from tbprofiler into new directory 
-make directory tbprofiler_results
-```bash
-mkdir -p tbprofiler_results
-```
-then copy the tbprofiler output `bam`, `vcf` and `results` directories from current directory into tbprofiler_results directory 
 
 # 1️⃣0️⃣ BCFTools Consensus Generation
 
