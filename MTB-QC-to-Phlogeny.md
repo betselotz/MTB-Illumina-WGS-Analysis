@@ -236,125 +236,7 @@ curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB3334&res
 ```
 <details>
 <summary>🌍 Get Run Accessions from ENA</summary>
-
-- `curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?...` → Queries the ENA API for metadata.  
-- `accession=PRJEB3334` → Specifies the BioProject accession (**PRJEB3334** in this case).  
-- `result=read_run` → Requests run-level information (one row per sequencing run).  
-- `fields=run_accession` → Limits the output to just the **run accession IDs** (SRR/ERR/DRR).  
-- `tail -n +2` → Removes the first header line from the API output.  
-- `> runs.txt` → Saves all run accession numbers into `runs.txt`.  
-
-📂 The output is a simple text file (`runs.txt`) with one run accession per line, ready for downstream use.  
-
-</details>
-
-#####  B. Get SRR run accessions from NCBI SRA
-```bash
-esearch -db sra -query PRJNA1104194 | efetch -format runinfo | cut -d',' -f1 | grep ^SRR > runs.txt
-```
-<details>
-<summary>🔎 Get SRR Accessions from NCBI SRA</summary>
-
-- `esearch -db sra -query PRJNA1104194` → Searches the NCBI SRA database for the BioProject ID **PRJNA1104194**.  
-- `efetch -format runinfo` → Fetches detailed run metadata in CSV format.  
-- `cut -d',' -f1` → Extracts the **first column** (which contains SRR accession numbers).  
-- `grep ^SRR` → Filters only rows starting with "SRR".  
-- `> runs.txt` → Saves the list of accession numbers into `runs.txt`.  
-
-📂 The result is a clean file (`runs.txt`) with one **SRR accession per line**, ready for download.  
-</details>
-
-After we first collect all run accession numbers (SRR/ERR/DRR) from ENA or NCBI SRA and save them into `runs.txt`. Using this list, we download raw sequencing data with `prefetch`, convert `.sra` files to paired-end FASTQ using `fasterq-dump`, compress them with `pigz`/`gzip`, and automatically remove the original `.sra` files once FASTQs are safely stored. Finally, we verify that every sample has both R1 and R2 FASTQ files, leaving us with a clean `raw_data/` directory containing paired and compressed FASTQ files ready for downstream analysis.  
-
-
-##### Step 1:  Once `runs.txt` is ready, create a download script:
-```bash
-nano download_sra.sh
-```
-##### Step 2: Paste the following into the file:
-```bash
-#!/bin/bash
-set -euo pipefail
-THREADS=4
-OUTDIR="raw_data"; mkdir -p "$OUTDIR"
-RUNS="runs.txt"
-SRADIR=~/ncbi/public/sra
-
-while read -r ACC; do
-    echo "📥 $ACC"
-
-    if ls "$OUTDIR"/${ACC}*.fastq.gz 1>/dev/null 2>&1; then
-        echo "✅ FASTQ already exists → skipping"
-        continue
-    fi
-
-    [ -f "$SRADIR/$ACC.sra" ] && echo "✅ SRA exists" || { echo "⬇️ downloading"; prefetch --max-size 100G "$ACC"; }
-
-    echo "⚡ converting"
-    fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"
-
-    command -v pigz &>/dev/null && pigz -p "$THREADS" "$OUTDIR"/${ACC}*.fastq || gzip "$OUTDIR"/${ACC}*.fastq
-
-    if ls "$OUTDIR"/${ACC}*.fastq.gz 1>/dev/null 2>&1; then
-        rm -f "$SRADIR/$ACC.sra"
-        echo "🗑️ removed $ACC.sra"
-    fi
-
-    echo "🎯 done"
-done < "$RUNS"
-
-echo "🎉 All done!"
-
-```
-
-<details>
-<summary>📥 FASTQ Download & Cleanup Script Explanation</summary>
-
-- `#!/bin/bash` → Runs the script with Bash.  
-- `set -euo pipefail` → Stops on errors, unset variables, or pipeline failures.  
-- `THREADS=4` → Number of CPU threads for `fasterq-dump` and compression.  
-- `OUTDIR="raw_data"` → Directory where FASTQ files will be saved.  
-- `RUNS="SRR_Acc_List.txt"` → File listing SRA accession numbers.  
-- `SRADIR=~/ncbi/public/sra` → Default location where `prefetch` stores `.sra` files.  
-- `while read -r ACC; do ... done < "$RUNS"` → Loops through each accession ID.  
-- `if ls "$OUTDIR"/${ACC}*.fastq.gz ...` → Skips processing if FASTQ files already exist.  
-- `prefetch --max-size 100G "$ACC"` → Downloads `.sra` file only if not already present.  
-- `fasterq-dump "$ACC" --split-files -e "$THREADS" -O "$OUTDIR"` → Converts `.sra` to paired FASTQ files.  
-- Compression:  
-  - Uses `pigz` (parallel gzip) if installed.  
-  - Falls back to `gzip` otherwise.  
-- `if ls "$OUTDIR"/${ACC}*.fastq.gz ... rm -f "$SRADIR/$ACC.sra"` → Automatically deletes `.sra` file after confirming FASTQs were saved.  
-- `echo` messages → Provide status updates (`📥`, `✅`, `⚡`, `🎯`, `🎉`).  
-
-</details>
-
-##### Step 3: Save and exit nano
-Press Ctrl + O → Enter (to write the file)
-Press Ctrl + X → Exit nano
-##### Step 4: Make the script executable
-```bash
-chmod +x download_sra.sh
-```
-##### Step 5: Run the script
-```bash
-./download_sra.sh
-```
-### Running the Download Script in the Background
-
-To run our script in the background and keep it running even if we close the terminal, we can use `nohup`. All output and errors will be saved to `run.log`.
-
-```bash
-nohup bash download_sra.sh > run.log 2>&1 &
-```
-Check the progress of your download
-```bash
-tail -f run.log
-```
-Check if the script is still running
-```bash
-ps aux | grep download_sra.sh
-```
-
+for single-end trimmed reads:
 ##  Checking FASTQ 
 ###  FASTQ summary 
 This repository contains scripts and commands to **explore and summarize paired-end FASTQ files** for fastq sample and also individual single sample in a bioinformatically meaningful way.
@@ -502,9 +384,6 @@ done
 
 echo "🎉 All done! Read counts saved to '$OUTFILE'"
 ```
-
-
-
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
@@ -764,21 +643,8 @@ echo "✅ Read length summary saved to $OUTPUT_CSV"
 
 </details>
 
-
-
-##### Step 3: Save and exit nano
-Press Ctrl + O → Enter (to write the file)
-Press Ctrl + X → Exit nano
-##### Step 4: Make the script executable
-```bash
-chmod +x fastq_read_length_summary.sh
-```
-##### Step 5: Run the script
-```bash
-./fastq_read_length_summary.sh
-```
 If it is for **single read** we have replaced the following code instead of step 2
-
+```bash
 #!/bin/bash
 set -euo pipefail
 
@@ -814,7 +680,19 @@ for R1 in "$FASTQ_DIR"/*_1.fastq.gz "$FASTQ_DIR"/*_R1.fastq.gz; do
 done
 
 echo "✅ Read length summary saved to $OUTPUT_CSV"
+```
 
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+##### Step 4: Make the script executable
+```bash
+chmod +x fastq_read_length_summary.sh
+```
+##### Step 5: Run the script
+```bash
+./fastq_read_length_summary.sh
+```
 
 
 
@@ -955,18 +833,6 @@ echo "🎉 Completed fastp for $(ls "$OUTDIR"/*_fastp.json | wc -l) samples."
 
 </details>
 
-##### Step 3: Save & exit nano
-Press CTRL+O, Enter (save)
-Press CTRL+X (exit)
-##### Step 4: Make the script executable
-```bash
-chmod +x run_fastp.sh
-```
-##### Step 5: Activate your conda env and run
-```bash
-conda activate fastp_env
-./run_fastp.sh
-```
 If it is for **single read** we have replaced the following code instead of step 2
 
 ```bash
@@ -1025,9 +891,18 @@ printf "%s\n" "${SAMPLES[@]}" | parallel -j 3 --colsep ',' run_fastp {1} {2}
 echo "🎉 Completed fastp for $(ls "$OUTDIR"/*_fastp.json | wc -l) samples."
 
 ```
-
-
-
+##### Step 3: Save & exit nano
+Press CTRL+O, Enter (save)
+Press CTRL+X (exit)
+##### Step 4: Make the script executable
+```bash
+chmod +x run_fastp.sh
+```
+##### Step 5: Activate your conda env and run
+```bash
+conda activate fastp_env
+./run_fastp.sh
+```
 
 Count R1 trimmed files
 ```bash
@@ -1130,6 +1005,30 @@ echo "🎉 All done! Read counts saved to '$OUTPUT_CSV'"
 
 </details>
 
+for single-end trimmed reads:
+```bash
+#!/bin/bash
+set -euo pipefail
+
+INDIR="fastp_results_min_50"
+OUTDIR="csv_output"
+OUTPUT_CSV="${OUTDIR}/trimmed_read_length_summary.csv"
+
+mkdir -p "$OUTDIR"
+
+echo "Sample,R1_reads" > "$OUTPUT_CSV"
+echo "📊 Counting reads in trimmed FASTQ files from '$INDIR'..."
+
+for R1 in "$INDIR"/*.trim.fastq.gz; do
+    [[ -f "$R1" ]] || continue
+    SAMPLE=$(basename "$R1" | sed -E 's/\.trim\.fastq\.gz//')
+    R1_COUNT=$(( $(zcat "$R1" | wc -l) / 4 ))
+    echo "$SAMPLE,$R1_COUNT" >> "$OUTPUT_CSV"
+    echo "✅ $SAMPLE → R1: $R1_COUNT"
+done
+
+echo "🎉 All done! Read counts saved to '$OUTPUT_CSV'"
+```
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
@@ -1228,19 +1127,6 @@ echo "✅ Trimmed read length summary saved to $OUTPUT_CSV"
 
 </details>
 
-
-##### Step 3: Save and exit nano
-Press Ctrl + O → Enter
-Press Ctrl + X → Exit
-##### Step 4: Make the script executable
-```
-chmod +x trimmed_fastq_read_length_summary.sh
-```
-##### Step 5: Run the script
-```bash
-./trimmed_fastq_read_length_summary.sh
-```
-
 If it is for **single read** we have replaced the following code instead of step 2
 ```bash
 #!/bin/bash
@@ -1268,6 +1154,18 @@ for R1 in "$INDIR"/*_1.trim.fastq.gz "$INDIR"/*_R1.trim.fastq.gz; do
 done
 
 echo "🎉 All done! Read counts saved to '$OUTPUT_CSV'"
+```
+
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter
+Press Ctrl + X → Exit
+##### Step 4: Make the script executable
+```
+chmod +x trimmed_fastq_read_length_summary.sh
+```
+##### Step 5: Run the script
+```bash
+./trimmed_fastq_read_length_summary.sh
 ```
 
 # 4️⃣ MultiQC
