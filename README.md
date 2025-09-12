@@ -2208,7 +2208,7 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
     --outdir "$sample_out" \
     --assembler skesa \
     --minlen 500 \
-    --mincov 5 \
+    --mincov 30 \
     --depth 100 \
     --namefmt "${sample}_%05d" \
     --cpus 4 \
@@ -2574,6 +2574,99 @@ assembly-scan ./shovill_results/ET1135_S12/ET1135_S12_contigs.fa \
 grep 'contig_percent_[cg]' \
   ./shovill_results/ET1135_S12/ET1135_S12-assembly-scan.tsv \
   | awk -F '\t' '{sum+=$3} END {print "GC%=",sum}'
+```
+
+#1️⃣4️⃣ Spades
+<details>
+<summary>🧬 SPAdes for Tuberculosis Genome Assembly</summary>
+
+# SPAdes for *Mycobacterium tuberculosis* (TB)
+
+SPAdes (St. Petersburg genome assembler) is a popular **de novo assembler** used for bacterial genomes, including *Mycobacterium tuberculosis*. It works well with **paired-end Illumina reads**, especially after trimming and quality control.
+
+---
+
+## Why SPAdes for TB?
+
+- **Accurate short-read assembly**: Handles Illumina reads effectively.
+- **Supports multiple library types**: Paired-end, single-end, and mate-pair.
+- **Produces high-quality contigs**: Useful for downstream analyses like variant calling, resistance profiling, and phylogenetics.
+- **Customizable parameters**: Memory, threads, k-mer sizes, coverage cutoffs.
+
+---
+<details>
+  
+###### Step 1: Activate the environment
+``` bash
+nano run_spades.sh
+```
+
+###### Step 2: Copy–paste the following script into the nano editor:
+```bash
+#!/bin/bash
+set -euo pipefail
+
+INPUT_DIR="fastp_results_min_50"
+OUTDIR="spades_results"
+mkdir -p "$OUTDIR"
+
+THREADS=4
+MEMORY=16  # in GB
+MIN_CONTIG=500
+COV_CUTOFF=30  # minimum coverage for contigs
+
+shopt -s nullglob
+for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
+  [[ -e "$R1" ]] || continue
+
+  R2="${R1/_1.trim.fastq.gz/_2.trim.fastq.gz}"
+
+  if [[ ! -f "$R2" ]]; then
+    echo ">> Skipping $(basename "$R1") (no matching R2 found)" >&2
+    continue
+  fi
+
+  sample=$(basename "$R1" _1.trim.fastq.gz)
+  sample_out="$OUTDIR/$sample"
+
+  if [[ -f "$sample_out/${sample}_contigs.fasta" ]]; then
+    echo ">> Skipping $sample (already assembled)"
+    continue
+  fi
+
+  echo "==> Running SPAdes on: $sample"
+  mkdir -p "$sample_out"
+
+  spades.py \
+    -1 "$R1" \
+    -2 "$R2" \
+    -o "$sample_out" \
+    -t "$THREADS" \
+    -m "$MEMORY" \
+    --only-assembler \
+    --cov-cutoff "$COV_CUTOFF" \
+    > "$sample_out/${sample}_spades.log" 2>&1
+
+  # Filter contigs by minimum length
+  if [[ -f "$sample_out/contigs.fasta" ]]; then
+    awk -v minlen="$MIN_CONTIG" 'BEGIN{RS=">"; ORS=""} length($0)>minlen+1 {print ">"$0}' "$sample_out/contigs.fasta" > "$sample_out/${sample}_contigs.fasta"
+  fi
+done
+```
+
+###### Step 3: Save & exit in nano:
+
+Press CTRL + O → hit ENTER (to save).
+Press CTRL + X (to exit).
+
+###### Step 4: Make the script executable:
+```bash
+chmod +x run_spades.sh
+```
+###### Step 5: Activate and Run it:
+```bash
+conda activate spades_env
+./run_spades.sh
 ```
 
 #1️⃣4️⃣ Prokka
