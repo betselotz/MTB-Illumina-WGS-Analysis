@@ -1970,7 +1970,7 @@ MIN_DP=20
 MIN_QUAL=30
 
 mkdir -p "$OUTDIR"
-echo "Sample,Unfiltered_total,Unfiltered_PASS,Filtered_total,Filtered_PASS,PASS_retention_ratio" > "$OUTFILE"
+echo "Sample,Unfiltered_total,Unfiltered_PASS,Filtered_total,Filtered_PASS,PASS_retention_ratio" | tee "$OUTFILE"
 
 count_pass_variants() {
     local vcf=$1
@@ -1998,7 +1998,7 @@ for vcf in "$SNIPPY_DIR"/*.vcf; do
     unfiltered_total=$(grep -v "^#" "$vcf" | wc -l)
     unfiltered_pass=$(count_pass_variants "$vcf")
     if [[ ! -f "$FILTERED_DIR/$sample.filtered.vcf" ]]; then
-        echo "$sample,$unfiltered_total,$unfiltered_pass,NA,NA,NA" >> "$OUTFILE"
+        echo "$sample,$unfiltered_total,$unfiltered_pass,NA,NA,NA" | tee -a "$OUTFILE"
         continue
     fi
     filtered_total=$(grep -v "^#" "$FILTERED_DIR/$sample.filtered.vcf" | wc -l)
@@ -2008,10 +2008,9 @@ for vcf in "$SNIPPY_DIR"/*.vcf; do
     else
         ratio=$(awk -v pass=$filtered_pass -v total=$unfiltered_pass 'BEGIN{printf "%.2f", pass/total}')
     fi
-    echo "$sample,$unfiltered_total,$unfiltered_pass,$filtered_total,$filtered_pass,$ratio" >> "$OUTFILE"
+    echo "$sample,$unfiltered_total,$unfiltered_pass,$filtered_total,$filtered_pass,$ratio" | tee -a "$OUTFILE"
 done
 
-echo "✅ Results saved to $OUTFILE"
 ```
 
 ##### Step  3: Save and exit nano
@@ -2026,8 +2025,6 @@ chmod +x compare_vcf_qc.sh
 ```bash
 ./compare_vcf_qc.sh
 ```
-
-
 
 # 1️⃣0️⃣ BCFTools Consensus Generation
 
