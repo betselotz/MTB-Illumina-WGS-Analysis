@@ -890,6 +890,66 @@ chmod +x run_fastp.sh
 conda activate fastp_env
 ./run_fastp.sh
 ```
+If the read is single read, replace step 2 with this code 
+```bash
+#!/bin/bash
+set -euo pipefail
+
+INDIR="raw_data"
+OUTDIR="fastp_results_min_50"
+mkdir -p "$OUTDIR"
+
+SAMPLES=()
+
+# Loop over all .fastq.gz files
+for R1 in "$INDIR"/*.fastq.gz; do
+    [[ -f "$R1" ]] || continue
+
+    SAMPLE=$(basename "$R1" .fastq.gz)
+
+    # Skip already processed samples
+    if [[ -f "$OUTDIR/${SAMPLE}.trim.fastq.gz" ]]; then
+        echo "⏩ Skipping $SAMPLE (already processed)."
+        continue
+    fi
+
+    SAMPLES+=("$SAMPLE,$R1")
+done
+
+if [[ ${#SAMPLES[@]} -eq 0 ]]; then
+    echo "❌ No single-end FASTQ files found in $INDIR"
+    exit 1
+fi
+
+THREADS=$(nproc)
+FASTP_THREADS=$(( THREADS / 2 ))
+
+run_fastp() {
+    SAMPLE=$1
+    R1=$2
+    echo "✅ Processing sample: $SAMPLE"
+    fastp \
+        -i "$R1" \
+        -o "$OUTDIR/${SAMPLE}.trim.fastq.gz" \
+        -h "$OUTDIR/${SAMPLE}_fastp.html" \
+        -j "$OUTDIR/${SAMPLE}_fastp.json" \
+        --length_required 50 \
+        --qualified_quality_phred 20 \
+        --thread $FASTP_THREADS \
+        &> "$OUTDIR/${SAMPLE}_fastp.log"
+}
+
+export -f run_fastp
+export OUTDIR FASTP_THREADS
+
+printf "%s\n" "${SAMPLES[@]}" | parallel -j 3 --colsep ',' run_fastp {1} {2}
+
+echo "🎉 Completed fastp for $(ls "$OUTDIR"/*_fastp.json | wc -l) samples."
+
+```
+
+
+
 
 Count R1 trimmed files
 ```bash
