@@ -1873,7 +1873,7 @@ conda activate tb_variant_filter_env
 ```
 ##### Step 2:  We need this directory to store all BED files containing genomic regions to be masked during variant filtering
 ```bash
-mkdir -p /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions
+mkdir -p ./masking_regions
 ```
 #####  Step 3: Generate each BED file in that folder
 <details>
@@ -1890,17 +1890,12 @@ We need **Refined Low Confidence (RLC) regions** by default, but we may also nee
 </details>
 
 ```bash
-tb_region_list_to_bed --chromosome_name H37Rv farhat_rlc /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions/RLC_Marin2022.bed
-
-tb_region_list_to_bed --chromosome_name H37Rv farhat_rlc_lowmap /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions/RLC_and_LowMappability_Marin2022.bed
-
-tb_region_list_to_bed --chromosome_name H37Rv pe_ppe /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions/PE_PPE_Fishbein2015.bed
-
-tb_region_list_to_bed --chromosome_name H37Rv tbprofiler /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions/TBProfiler_resistance_genes.bed
-
-tb_region_list_to_bed --chromosome_name H37Rv mtbseq /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions/MTBseq_resistance_genes.bed
-
-tb_region_list_to_bed --chromosome_name H37Rv uvp /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/PRJNA1247743/masking_regions/UVP_repetitive_loci.bed
+tb_region_list_to_bed --chromosome_name H37Rv farhat_rlc ./masking_regions/RLC_Marin2022.bed
+tb_region_list_to_bed --chromosome_name H37Rv farhat_rlc_lowmap ./masking_regions/RLC_and_LowMappability_Marin2022.bed
+tb_region_list_to_bed --chromosome_name H37Rv pe_ppe ./masking_regions/PE_PPE_Fishbein2015.bed
+tb_region_list_to_bed --chromosome_name H37Rv tbprofiler ./masking_regions/TBProfiler_resistance_genes.bed
+tb_region_list_to_bed --chromosome_name H37Rv mtbseq ./masking_regions/MTBseq_resistance_genes.bed
+tb_region_list_to_bed --chromosome_name H37Rv uvp ./masking_regions/UVP_repetitive_loci.bed
 
 ```
 <details>
@@ -2090,7 +2085,7 @@ count_pass_variants() {
 
 for vcf in "$SNIPPY_DIR"/*.vcf; do
     sample=$(basename "$vcf" .vcf)
-    unfiltered_total=$(grep -v "^#" "$vcf" | wc -l)
+    unfiltered_total=$(mkdir -p ./masking_regionsgrep -v "^#" "$vcf" | wc -l)
     unfiltered_pass=$(count_pass_variants "$vcf")
     if [[ ! -f "$FILTERED_DIR/$sample.filtered.vcf" ]]; then
         echo "$sample,$unfiltered_total,$unfiltered_pass,NA,NA,NA" | tee -a "$OUTFILE"
