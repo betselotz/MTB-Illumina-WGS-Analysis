@@ -221,7 +221,7 @@ curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB3334&res
 <details>
 <summary>🌍 Get Run Accessions from ENA</summary>
 
-For **single-end trimmed reads**:
+
 
 ## Checking FASTQ
 
