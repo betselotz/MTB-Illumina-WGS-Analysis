@@ -2085,21 +2085,33 @@ count_pass_variants() {
 
 for vcf in "$SNIPPY_DIR"/*.vcf; do
     sample=$(basename "$vcf" .vcf)
-    unfiltered_total=$(mkdir -p ./masking_regionsgrep -v "^#" "$vcf" | wc -l)
+
+    # safety: skip if VCF is empty
+    if [[ ! -s "$vcf" ]]; then
+        echo "$sample,NA,NA,NA,NA,NA" | tee -a "$OUTFILE"
+        continue
+    fi
+
+    unfiltered_total=$(grep -v "^#" "$vcf" | wc -l)
     unfiltered_pass=$(count_pass_variants "$vcf")
+
     if [[ ! -f "$FILTERED_DIR/$sample.filtered.vcf" ]]; then
         echo "$sample,$unfiltered_total,$unfiltered_pass,NA,NA,NA" | tee -a "$OUTFILE"
         continue
     fi
+
     filtered_total=$(grep -v "^#" "$FILTERED_DIR/$sample.filtered.vcf" | wc -l)
     filtered_pass=$(count_pass_variants "$FILTERED_DIR/$sample.filtered.vcf")
+
     if [[ $unfiltered_pass -eq 0 ]]; then
         ratio="NA"
     else
         ratio=$(awk -v pass=$filtered_pass -v total=$unfiltered_pass 'BEGIN{printf "%.2f", pass/total}')
     fi
+
     echo "$sample,$unfiltered_total,$unfiltered_pass,$filtered_total,$filtered_pass,$ratio" | tee -a "$OUTFILE"
 done
+
 
 ```
 
