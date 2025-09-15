@@ -325,10 +325,16 @@ conda activate bbmap_env
 stats.sh
 ```
 
-######  run `stats.sh`
+######  Run `stats.sh` on Shovill Assembly
 ```bash
 stats.sh in=./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
 ```
+
+###### Run `stats.sh` on SPAdes Assembly```
+```bash
+stats.sh in=./spades_results/ET1135_S12/ET1135_S12_contigs.fasta
+```
+
 > **Tip:** This command will display key statistics including:
 > 
 > - Total bases
@@ -336,44 +342,45 @@ stats.sh in=./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
 > - Minimum, maximum, and N50 contig lengths
 > - GC content
 
-We run `stats.sh` on all Shovill assemblies in your shovill_results directory and save the summary results into a CSV file
+We run `stats.sh` on all Shovill and spades assemblies in your shovill_results directory and save the summary results into a CSV file
 
-loop over multiple assemblies:
-```bash
-for f in ./shovill_results/*/*_contigs.fa; do
-    stats.sh in="$f"
-done
-```
+
 script that will loop over all contig FASTA files, run stats.sh from BBMap, and save the results to a CSV file:
 ##### Step 1: Create or edit the script
 ```bash
-nano run_assembly_stats.sh
+nano run_shovill_stats.sh
 ```
 ##### Step 2: Paste the following into the script
 ```bash
 #!/bin/bash
+set -euo pipefail
 
-CONTIG_DIR="./shovill_results"
-OUTPUT_CSV="assembly_stats.csv"
+# Activate BBMap environment
+conda activate bbmap_env
 
-echo "Sample,Total_Bases,Num_Contigs,Min_Contig,Max_Contig,N50,GC_Content" > "$OUTPUT_CSV"
+SHOVILL_DIR="shovill_results"
+CSV_OUTDIR="csv_output"
+mkdir -p "$CSV_OUTDIR"
 
-for f in "$CONTIG_DIR"/*/*_contigs.fa; do
-    sample=$(basename "$f" _contigs.fa)
-    
-    stats_output=$(stats.sh in="$f" format=tsv 2>/dev/null | tail -n 1)
-    
-    total=$(echo "$stats_output" | cut -f1)
-    num=$(echo "$stats_output" | cut -f3)
-    min=$(echo "$stats_output" | cut -f4)
-    max=$(echo "$stats_output" | cut -f5)
-    n50=$(echo "$stats_output" | cut -f6)
-    gc=$(echo "$stats_output" | cut -f8)
-    
-    echo "$sample,$total,$num,$min,$max,$n50,$gc" >> "$OUTPUT_CSV"
+# Create CSV header
+echo "Sample,Contigs,Total_bp,Average,Min,Max,N50,L50,GC%" > "$CSV_OUTDIR/shovill_assembly_stats.csv"
+
+# Loop over all Shovill samples
+for sample_dir in "$SHOVILL_DIR"/*; do
+    sample=$(basename "$sample_dir")
+    contig_file="$sample_dir/${sample}_contigs.fa"
+
+    if [[ -f "$contig_file" ]]; then
+        echo "Processing $sample..."
+        # Run stats.sh and append CSV line
+        stats.sh in="$contig_file" format=csv | tail -n +2 | awk -v s="$sample" -F',' '{print s","$0}' >> "$CSV_OUTDIR/shovill_assembly_stats.csv"
+    else
+        echo ">> Contig file not found for $sample, skipping."
+    fi
 done
 
-echo "✅ Assembly stats saved to $OUTPUT_CSV"
+echo "All Shovill assembly stats saved to $CSV_OUTDIR/shovill_assembly_stats.csv"
+
 ```
 
 ##### Step 3: Save and exit nano
@@ -382,13 +389,68 @@ Press Ctrl + X → Exit nano
 
 ###### Step 4: Make the script executable
 ``` bash
-chmod +x run_assembly_stats.sh
+chmod +x run_shovill_stats.sh
 ```
 ###### Step 5: Activate environment and run
 ``` bash
 conda activate bbmap_env
-./run_assembly_stats.sh
+./run_shovill_stats.sh
 ```
+
+##### Step 1: Create or edit the script
+```bash
+nano run_spades_stats.sh
+```
+##### Step 2: Paste the following into the script
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Activate BBMap environment
+conda activate bbmap_env
+
+SPADES_DIR="spades_results"
+CSV_OUTDIR="csv_output"
+mkdir -p "$CSV_OUTDIR"
+
+# Create CSV header
+echo "Sample,Contigs,Total_bp,Average,Min,Max,N50,L50,GC%" > "$CSV_OUTDIR/spades_assembly_stats.csv"
+
+# Loop over all SPAdes samples
+for sample_dir in "$SPADES_DIR"/*; do
+    sample=$(basename "$sample_dir")
+    contig_file="$sample_dir/${sample}_contigs.fasta"
+
+    if [[ -f "$contig_file" ]]; then
+        echo "Processing $sample..."
+        # Run stats.sh and append CSV line
+        stats.sh in="$contig_file" format=csv | tail -n +2 | awk -v s="$sample" -F',' '{print s","$0}' >> "$CSV_OUTDIR/spades_assembly_stats.csv"
+    else
+        echo ">> Contig file not found for $sample, skipping."
+    fi
+done
+
+echo "All SPAdes assembly stats saved to $CSV_OUTDIR/spades_assembly_stats.csv"
+
+```
+
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+###### Step 4: Make the script executable
+``` bash
+chmod +x run_spades_stats.sh
+```
+###### Step 5: Activate environment and run
+``` bash
+conda activate bbmap_env
+./run_spades_stats.sh
+```
+
+
+
+
 
 ### 2. Using seqkit to explore assembly
 ###### Activate the environment
@@ -399,15 +461,16 @@ conda activate seqkit_env
 ``` bash
 seqkit -h
 ```
-###### Convert FASTA to tab-delimited table (sequence length and name)
+###### Convert FASTA to tab-delimited table (sequence length and name) 
 ``` bash
 seqkit fx2tab -nl ./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
 ```
+
 ### run QUAST on all Shovill assemblies
 Collect the key statistics in a single CSV file
 ##### Step 1: Create the script
 ```bash
-nano run_seqkit_on_shovill.sh
+nano run_quast_shovill_clean.sh
 ```
 #####  Step 2: Paste the following into `run_seqkit_on_shovill.sh`
 
@@ -415,85 +478,96 @@ nano run_seqkit_on_shovill.sh
 #!/bin/bash
 set -euo pipefail
 
-# Directories
 SHOVILL_DIR="shovill_results"
-QUAST_DIR="quast_results"
-mkdir -p "$QUAST_DIR"
+QUAST_DIR="quast_results_shovill"
+CSV_OUTDIR="csv_output"
+mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
 
-# CSV output
-CSV_FILE="quast_summary.csv"
+CSV_FILE="$CSV_OUTDIR/quast_summary_shovill.csv"
 echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CSV_FILE"
 
-# Loop over all samples
 for sample_out in "$SHOVILL_DIR"/*; do
   [[ -d "$sample_out" ]] || continue
-
   sample=$(basename "$sample_out")
   contigs=$(ls "$sample_out"/*_contigs.fa 2>/dev/null | head -n 1)
   if [[ -z "$contigs" ]]; then
-    echo ">> Skipping $sample (no contigs found)" >&2
     continue
   fi
-
-  # Output folder for QUAST
   outdir="$QUAST_DIR/$sample"
   mkdir -p "$outdir"
-
-  echo "==> Running QUAST on sample: $sample"
   quast "$contigs" -o "$outdir" --csv
-
-  # Extract statistics from QUAST CSV
   stats_file="$outdir/report.tsv"
   if [[ -f "$stats_file" ]]; then
-    # QUAST tsv has header, take the second line
     stats=$(sed -n '2p' "$stats_file" | tr '\t' ',')
     echo "${sample},${stats}" >> "$CSV_FILE"
-  else
-    echo ">> Warning: QUAST report missing for $sample" >&2
   fi
 done
-
-echo "✅ All QUAST stats saved in $CSV_FILE"
 ```
-<details>
-<summary>📖 Explanation of Assembly Statistics Script</summary>
-
-- `CONTIG_DIR="./shovill_results"` → directory containing contig FASTA files.  
-- `OUTPUT_CSV="assembly_stats.csv"` → CSV file to save assembly statistics.  
-- `echo "Sample,Total_Bases,...,GC_Content" > "$OUTPUT_CSV"` → writes CSV header.  
-
-**Loop over contigs:**  
-- `for f in "$CONTIG_DIR"/*/*_contigs.fa; do ... done` → loops over all contig FASTA files in subdirectories.  
-- `sample=$(basename "$f" _contigs.fa)` → extracts sample name from filename.  
-- `stats_output=$(stats.sh in="$f" format=tsv 2>/dev/null | tail -n 1)` → runs `stats.sh` to get assembly metrics in TSV format and takes the last line.  
-
-**Extract metrics:**  
-- `total=$(echo "$stats_output" | cut -f1)` → total bases.  
-- `num=$(echo "$stats_output" | cut -f3)` → number of contigs.  
-- `min=$(echo "$stats_output" | cut -f4)` → minimum contig length.  
-- `max=$(echo "$stats_output" | cut -f5)` → maximum contig length.  
-- `n50=$(echo "$stats_output" | cut -f6)` → N50 statistic.  
-- `gc=$(echo "$stats_output" | cut -f8)` → GC content percentage.  
-
-**Append to CSV:**  
-- `echo "$sample,$total,$num,$min,$max,$n50,$gc" >> "$OUTPUT_CSV"` → adds the stats as a new row.  
-- `echo "✅ Assembly stats saved to $OUTPUT_CSV"` → prints completion message.
-
-</details>
-
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
 Press Ctrl + X → Exit nano
 
 ##### Step 4: Make the script executable
 ```bash
-chmod +x run_seqkit_on_shovill.sh
+chmod +x run_quast_shovill_clean.sh
 ```
 ##### Step 5: Activate environment and run
 ```bash
-conda activate tbprofiler_env
-./run_seqkit_on_shovill.sh
+conda activate seqkit_env
+./run_quast_shovill_clean.sh
 ```
+
+### running QUAST on all SPAdes assemblies and collecting key statistics into a single CSV.
+##### Step 1: Create the script
+```bash
+nano run_quast_spades_clean.sh
+```
+#####  Step 2: Paste the following into `run_seqkit_on_shovill.sh`
+
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+SPADES_DIR="spades_results"
+QUAST_DIR="quast_results_spades"
+CSV_OUTDIR="csv_output"
+mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
+
+CSV_FILE="$CSV_OUTDIR/quast_summary_spades.csv"
+echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CSV_FILE"
+
+for sample_out in "$SPADES_DIR"/*; do
+  [[ -d "$sample_out" ]] || continue
+  sample=$(basename "$sample_out")
+  contigs=$(ls "$sample_out"/*_contigs.fasta 2>/dev/null | head -n 1)
+  if [[ -z "$contigs" ]]; then
+    continue
+  fi
+  outdir="$QUAST_DIR/$sample"
+  mkdir -p "$outdir"
+  quast "$contigs" -o "$outdir" --csv
+  stats_file="$outdir/report.tsv"
+  if [[ -f "$stats_file" ]]; then
+    stats=$(sed -n '2p' "$stats_file" | tr '\t' ',')
+    echo "${sample},${stats}" >> "$CSV_FILE"
+  fi
+done
+```
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+##### Step 4: Make the script executable
+```bash
+chmod +x run_quast_spades_clean.sh
+```
+##### Step 5: Activate environment and run
+```bash
+conda activate seqkit_env
+./run_quast_spades_clean.sh
+```
+
+
 
 #### 3. Assembly summary with assembly-scan
 We can use another tool assembly-scan to generate summary statistics of the assembly.
@@ -505,21 +579,121 @@ conda activate assembly_scan_env
 ``` bash
 assembly-scan --version
 ```
-######  Generate summary statistics
+
+Shovill assemblies using `assembly-scan`
+###### Create the script for Shovill assemblies
 ``` bash
-assembly-scan ./shovill_results/ET1135_S12/ET1135_S12_contigs.fa \
-  --transpose \
-  | tee ./shovill_results/ET1135_S12/ET1135_S12-assembly-scan.tsv
+nano run_assembly_scan_shovill.sh
 ```
-##### 4. Compute GC content from assembly-scan output
+##### 2 Paste this:
 ``` bash
-grep 'contig_percent_[cg]' \
-  ./shovill_results/ET1135_S12/ET1135_S12-assembly-scan.tsv \
-  | awk -F '\t' '{sum+=$3} END {print "GC%=",sum}'
+#!/bin/bash
+set -euo pipefail
+
+SHOVILL_DIR="shovill_results"
+CSV_OUTDIR="csv_output"
+mkdir -p "$CSV_OUTDIR"
+
+CSV_FILE="$CSV_OUTDIR/shovill_assembly_scan.csv"
+echo "Sample,Contig,Length,GC%" > "$CSV_FILE"
+
+for sample_dir in "$SHOVILL_DIR"/*; do
+  [[ -d "$sample_dir" ]] || continue
+  sample=$(basename "$sample_dir")
+  contig_file="$sample_dir/${sample}_contigs.fa"
+  if [[ -f "$contig_file" ]]; then
+    assembly-scan "$contig_file" --transpose | awk -v s="$sample" -F'\t' 'NR>1 {print s","$1","$2","$3}' >> "$CSV_FILE"
+  fi
+done
 ```
+###### Save and exit nano
 
+Press CTRL + O → Enter to save
 
+Press CTRL + X to exit
+###### Make the script executable
+``` bash
+chmod +x run_assembly_scan_shovill.sh
+``` 
+###### Run the script 
+``` bash
+./run_assembly_scan_shovill.sh
+``` 
 
+SPAdes assemblies using assembly-scan
+
+###### 1 Activate the environment
+``` bash
+conda activate assembly_scan_env
+```
+###### Verify the Installation
+``` bash
+assembly-scan --version
+```
+######  2 Create a script for SPAdes assemblies
+``` bash
+nano run_assembly_scan_spades.sh
+```
+###### 3 Paste this clean version:
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+SPADES_DIR="spades_results"
+CSV_OUTDIR="csv_output"
+mkdir -p "$CSV_OUTDIR"
+
+CSV_FILE="$CSV_OUTDIR/spades_assembly_scan.csv"
+echo "Sample,Contig,Length,GC%" > "$CSV_FILE"
+
+for sample_dir in "$SPADES_DIR"/*; do
+  [[ -d "$sample_dir" ]] || continue
+  sample=$(basename "$sample_dir")
+  contig_file="$sample_dir/${sample}_contigs.fasta"
+  if [[ -f "$contig_file" ]]; then
+    assembly-scan "$contig_file" --transpose | awk -v s="$sample" -F'\t' 'NR>1 {print s","$1","$2","$3}' >> "$CSV_FILE"
+  fi
+done
+``` 
+###### 4  Save and exit nano
+
+CTRL + O → Enter
+
+CTRL + X
+###### 5 Make the script executable
+``` bash
+chmod +x run_assembly_scan_spades.sh
+``` 
+###### 6  Run the script
+``` bash
+./run_assembly_scan_spades.sh
+``` 
+
+Python Script for Detailed Comparison
+
+This creates a merged table with Shovill and SPAdes side by side:
+``` bash
+import pandas as pd
+
+shovill = pd.read_csv("csv_output/shovill_assembly_scan.csv")
+spades = pd.read_csv("csv_output/spades_assembly_scan.csv")
+
+shovill_summary = shovill.groupby("Sample").agg(
+    NumContigs=("Contig","count"),
+    AvgLength=("Length","mean"),
+    AvgGC=("GC%","mean")
+).reset_index()
+
+spades_summary = spades.groupby("Sample").agg(
+    NumContigs=("Contig","count"),
+    AvgLength=("Length","mean"),
+    AvgGC=("GC%","mean")
+).reset_index()
+
+comparison = shovill_summary.merge(spades_summary, on="Sample", suffixes=("_shovill","_spades"))
+comparison.to_csv("csv_output/assembly_comparison_summary.csv", index=False)
+print(comparison)
+``` 
 
 
 #1️⃣4️⃣ Prokka
@@ -530,13 +704,15 @@ Key points for TB genomes:
 - Annotates **Mycobacterium tuberculosis** genomes with correct taxonomy using `--genus` and `--species`.  
 - Produces multiple output files, including **GFF3**, **FASTA of proteins**, and **GenBank format**, which are useful for downstream analysis.  
 - Supports **multi-threading** (`--cpus`) to speed up processing of multiple genomes.  
-- Works seamlessly with **Shovill-assembled contigs**.  
+- Works seamlessly with **Shovill-assembled contigs** and   **spades-assembled contigs**
 - Output files are organized per sample directory with a consistent naming prefix for easy pipeline integration.  
 
 > ⚠ Note: Prokka relies on the quality of the assembly; fragmented or low-coverage assemblies may result in incomplete annotations.
+
+Prokka for Shovill assemblies
 ##### Step 1: Create or edit the script
 ```bash
-nano run_prokka.sh
+nano run_prokka_shovill.sh
 ```
 ##### Step 2: Paste the following into the script
 
@@ -545,70 +721,262 @@ nano run_prokka.sh
 set -euo pipefail
 
 SHOVILL_DIR="shovill_results"
-PROKKA_DIR="prokka_results"
+PROKKA_DIR="prokka_results_shovill"
 mkdir -p "$PROKKA_DIR"
 
 for sample_out in "$SHOVILL_DIR"/*; do
   [[ -d "$sample_out" ]] || continue
-
   sample=$(basename "$sample_out")
-
   contigs=$(ls "$sample_out"/*_contigs.fa 2>/dev/null | head -n 1)
   if [[ -z "$contigs" ]]; then
-    echo ">> Skipping $sample (no contigs.fa found)" >&2
     continue
   fi
-
-  echo "==> Running Prokka on sample: $sample"
-
   outdir="$PROKKA_DIR/$sample"
   mkdir -p "$outdir"
-
-  prokka \
-    --outdir "$outdir" \
-    --prefix "$sample" \
-    --kingdom Bacteria \
-    --genus Mycobacterium \
-    --species tuberculosis \
-    --cpus 4 \
-    --force \
-    "$contigs"
+  prokka --outdir "$outdir" \
+         --prefix "$sample" \
+         --kingdom Bacteria \
+         --genus Mycobacterium \
+         --species tuberculosis \
+         --cpus 4 \
+         --force "$contigs"
 done
 
-
 ```
-<details><summary>🧬 Prokka Pipeline Overview (Click to Expand)</summary>
-
-**📂 Input:** `SHOVILL_DIR="shovill_results"` → Shovill assemblies  
-**📁 Output:** `PROKKA_DIR="prokka_results"` → Prokka annotations  
-
-**⚙️ Steps:**  
-- `mkdir -p "$PROKKA_DIR"` → ensures output directory exists  
-- `for sample_out in "$SHOVILL_DIR"/*; do ... done` → loop over each sample folder  
-- `[[ -d "$sample_out" ]] || continue` → skip non-directories  
-- `sample=$(basename "$sample_out")` → extract sample name  
-- `contigs=$(ls "$sample_out"/*_contigs.fa 2>/dev/null | head -n 1)` → locate contigs FASTA  
-- `if [[ -z "$contigs" ]]; then ... fi` → skip sample if no contigs found  
-- `outdir="$PROKKA_DIR/$sample"` → define sample-specific output folder  
-- `mkdir -p "$outdir"` → ensure folder exists  
-- `prokka --outdir "$outdir" --prefix "$sample" --kingdom Bacteria --genus Mycobacterium --species tuberculosis --cpus 4 --force "$contigs"` → run Prokka with TB-specific annotation, **overwriting old results if present**  
-
-**✅ Result:** Each sample gets a fully annotated genome folder ready for downstream analysis, with old results replaced automatically when re-running.  
-
-</details>
-
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
 Press Ctrl + X → Exit nano
 
-
 ###### Step 4: Make the script executable
 ``` bash
-chmod +x run_prokka.sh
+chmod +x run_prokka_shovill.sh
 ```
 ###### Step 5: Activate environment and run
 ``` bash
 conda activate prokka_env
-./run_prokka.sh
+./run_prokka_shovill.sh
 ```
 
+Prokka for SPAdes assemblies
+##### Step 1: Create or edit the script
+```bash
+nano run_prokka_spades.sh
+```
+##### Step 2: Paste the following into the script
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+SPADES_DIR="spades_results"
+PROKKA_DIR="prokka_results_spades"
+mkdir -p "$PROKKA_DIR"
+
+for sample_out in "$SPADES_DIR"/*; do
+  [[ -d "$sample_out" ]] || continue
+  sample=$(basename "$sample_out")
+  contigs=$(ls "$sample_out"/*_contigs.fasta 2>/dev/null | head -n 1)
+  if [[ -z "$contigs" ]]; then
+    continue
+  fi
+  outdir="$PROKKA_DIR/$sample"
+  mkdir -p "$outdir"
+  prokka --outdir "$outdir" \
+         --prefix "$sample" \
+         --kingdom Bacteria \
+         --genus Mycobacterium \
+         --species tuberculosis \
+         --cpus 4 \
+         --force "$contigs"
+done
+```
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+###### Step 4: Make the script executable
+``` bash
+chmod +x run_prokka_spades.sh
+```
+###### Step 5: Activate environment and run
+``` bash
+conda activate prokka_env
+./run_prokka_spades.sh
+```
+
+Prokka annotation results for both Shovill and SPAdes, we can visualize them in multiple ways. The simplest approach is to summarize key annotation metrics per sample and plot them using Python.
+
+Here’s a clean workflow using matplotlib/seaborn.
+
+##### Step 1: Install necessary Python packages
+``` bash
+conda activate your_env
+conda install pandas matplotlib seaborn -y
+``` 
+##### Step 2: Create a Python script
+``` bash
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import glob
+import os
+
+# Function to parse Prokka summary.txt
+def parse_prokka_summary(prokka_dir):
+    data = []
+    for sample_dir in glob.glob(f"{prokka_dir}/*"):
+        sample = os.path.basename(sample_dir)
+        summary_file = os.path.join(sample_dir, f"{sample}.txt")
+        if os.path.isfile(summary_file):
+            summary = {line.split(':')[0].strip(): line.split(':')[1].strip() 
+                       for line in f if ':' in line} if (f:=open(summary_file)) else {}
+            summary['Sample'] = sample
+            data.append(summary)
+            f.close()
+    return pd.DataFrame(data)
+
+# Load Shovill and SPAdes results
+shovill_df = parse_prokka_summary("prokka_results_shovill")
+spades_df = parse_prokka_summary("prokka_results_spades")
+
+shovill_df['Assembler'] = 'Shovill'
+spades_df['Assembler'] = 'SPAdes'
+
+df = pd.concat([shovill_df, spades_df], ignore_index=True)
+
+# List of numeric columns to include
+features = ['CDS','tRNAs','rRNAs','tmRNAs','Repeat_regions','pseudogenes','rRNA operons','CRISPRs']
+features = [f for f in features if f in df.columns]
+
+# Convert columns to numeric
+for col in features:
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Melt for plotting
+df_melt = df.melt(id_vars=['Sample','Assembler'], value_vars=features, 
+                  var_name='Feature', value_name='Count')
+
+# Grouped barplot
+plt.figure(figsize=(14,8))
+sns.barplot(x='Sample', y='Count', hue='Feature', data=df_melt, ci=None)
+plt.xticks(rotation=90)
+plt.ylabel('Count')
+plt.title('Prokka Annotation Features per Sample (Shovill vs SPAdes)')
+plt.legend(bbox_to_anchor=(1.05,1), loc='upper left')
+plt.tight_layout()
+plt.savefig('csv_output/prokka_all_features_comparison.png')
+plt.show()
+
+# Optional: heatmap of features per sample and assembler
+heatmap_df = df.set_index(['Sample','Assembler'])[features]
+plt.figure(figsize=(12,8))
+sns.heatmap(heatmap_df.fillna(0), annot=True, fmt=".0f", cmap="YlGnBu")
+plt.title('Heatmap of Prokka Annotation Features')
+plt.tight_layout()
+plt.savefig('csv_output/prokka_heatmap_features.png')
+plt.show()
+``` 
+
+##### Step 3: Run the script
+``` bash
+python visualize_prokka.py
+```
+merge this with the assembly statistics (N50, contigs, GC%) so that both assembly and annotation metrics are in one visualization
+
+
+##### Step 1: Prepare the Python script
+``` bash
+nano visualize_combined_metrics.py
+``` 
+##### Step 2: Create a Python script
+``` bash
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load assembly metrics (from assembly-scan CSVs)
+shovill_assembly = pd.read_csv("csv_output/shovill_assembly_scan.csv")
+spades_assembly = pd.read_csv("csv_output/spades_assembly_scan.csv")
+
+shovill_assembly['Assembler'] = 'Shovill'
+spades_assembly['Assembler'] = 'SPAdes'
+
+assembly_df = pd.concat([shovill_assembly, spades_assembly], ignore_index=True)
+
+# Aggregate assembly metrics per sample
+assembly_summary = assembly_df.groupby(['Sample','Assembler']).agg(
+    NumContigs=('Contig','count'),
+    TotalLength=('Length','sum'),
+    AvgGC=('GC%','mean')
+).reset_index()
+
+# Load Prokka annotation metrics
+def parse_prokka_summary(prokka_dir):
+    import glob, os
+    data = []
+    for sample_dir in glob.glob(f"{prokka_dir}/*"):
+        sample = os.path.basename(sample_dir)
+        summary_file = os.path.join(sample_dir, f"{sample}.txt")
+        if os.path.isfile(summary_file):
+            with open(summary_file) as f:
+                summary = {line.split(':')[0].strip(): line.split(':')[1].strip() 
+                           for line in f if ':' in line}
+            summary['Sample'] = sample
+            data.append(summary)
+    return pd.DataFrame(data)
+
+shovill_prokka = parse_prokka_summary("prokka_results_shovill")
+spades_prokka = parse_prokka_summary("prokka_results_spades")
+
+shovill_prokka['Assembler'] = 'Shovill'
+spades_prokka['Assembler'] = 'SPAdes'
+
+prokka_df = pd.concat([shovill_prokka, spades_prokka], ignore_index=True)
+
+# List of annotation features to include
+features = ['CDS','tRNAs','rRNAs','tmRNAs','Repeat_regions','pseudogenes','CRISPRs']
+features = [f for f in features if f in prokka_df.columns]
+
+for col in features:
+    prokka_df[col] = pd.to_numeric(prokka_df[col], errors='coerce')
+
+prokka_summary = prokka_df[['Sample','Assembler'] + features]
+
+# Merge assembly and annotation metrics
+combined_df = assembly_summary.merge(prokka_summary, on=['Sample','Assembler'], how='outer')
+
+# Save combined CSV
+combined_df.to_csv("csv_output/combined_assembly_annotation_metrics.csv", index=False)
+
+# -------------------------
+# Visualization
+# -------------------------
+
+# Melt for grouped barplot
+melt_features = ['NumContigs','TotalLength','AvgGC'] + features
+df_melt = combined_df.melt(id_vars=['Sample','Assembler'], value_vars=melt_features,
+                           var_name='Feature', value_name='Value')
+
+plt.figure(figsize=(16,8))
+sns.barplot(x='Sample', y='Value', hue='Feature', data=df_melt)
+plt.xticks(rotation=90)
+plt.title('Combined Assembly and Annotation Metrics per Sample')
+plt.tight_layout()
+plt.savefig('csv_output/combined_metrics_barplot.png')
+plt.show()
+
+# Heatmap version
+heatmap_df = combined_df.set_index(['Sample','Assembler'])[melt_features]
+plt.figure(figsize=(14,10))
+sns.heatmap(heatmap_df.fillna(0), annot=True, fmt=".1f", cmap='YlOrRd')
+plt.title('Heatmap of Combined Assembly and Annotation Metrics')
+plt.tight_layout()
+plt.savefig('csv_output/combined_metrics_heatmap.png')
+plt.show()
+
+``` 
+
+##### Step 3: Run the script
+``` bash
+python visualize_combined_metrics.py
+```
