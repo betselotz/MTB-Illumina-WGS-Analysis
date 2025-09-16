@@ -268,7 +268,6 @@ For *M. tuberculosis* (MTB), this step is especially important due to its **clin
   - Drug-resistance predictions.  
 
 ✅ **Goal:** Confirm GC content (~65%) and check species purity.
-
 ---
 
 ### 🔹 3. Evaluating Assembly Accuracy
@@ -279,7 +278,6 @@ For *M. tuberculosis* (MTB), this step is especially important due to its **clin
   - Faulty gene presence/absence analyses.  
 
 ✅ **Goal:** Use metrics like **N50, contig counts, and read mapping** to verify assembly integrity.
-
 
 ### 🔹 4. Enabling Reliable Phylogenetics
 - MTB phylogenetic studies depend on **precise SNP alignments**.  
@@ -382,8 +380,6 @@ for sample_dir in "$SHOVILL_DIR"/*; do
 done
 
 echo "All Shovill assembly stats saved to $OUTFILE"
-
-
 ```
 
 ##### Step 3: Save and exit nano
@@ -451,11 +447,6 @@ chmod +x run_spades_stats.sh
 conda activate bbmap_env
 ./run_spades_stats.sh
 ```
-
-
-
-
-
 ### 2. Using seqkit to explore assembly
 ###### Activate the environment
 ``` bash
@@ -493,19 +484,23 @@ echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CS
 for sample_out in "$SHOVILL_DIR"/*; do
   [[ -d "$sample_out" ]] || continue
   sample=$(basename "$sample_out")
-  contigs=$(ls "$sample_out"/*_contigs.fa 2>/dev/null | head -n 1)
-  if [[ -z "$contigs" ]]; then
-    continue
-  fi
+  
+  contigs=("$sample_out"/*_contigs.fa)
+  [[ -f "${contigs[0]}" ]] || continue
+  contigs="${contigs[0]}"
+
   outdir="$QUAST_DIR/$sample"
   mkdir -p "$outdir"
+
   quast "$contigs" -o "$outdir" --csv
-  stats_file="$outdir/report.tsv"
+
+  stats_file="$outdir/report.csv"
   if [[ -f "$stats_file" ]]; then
-    stats=$(sed -n '2p' "$stats_file" | tr '\t' ',')
+    stats=$(sed -n '2p' "$stats_file")
     echo "${sample},${stats}" >> "$CSV_FILE"
   fi
 done
+
 ```
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
@@ -524,7 +519,7 @@ conda activate seqkit_env
 ### running QUAST on all SPAdes assemblies and collecting key statistics into a single CSV.
 ##### Step 1: Create the script
 ```bash
-nano run_quast_spades_clean.sh
+nano run_quast_spades.sh
 ```
 #####  Step 2: Paste the following into `run_seqkit_on_shovill.sh`
 
@@ -543,19 +538,23 @@ echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CS
 for sample_out in "$SPADES_DIR"/*; do
   [[ -d "$sample_out" ]] || continue
   sample=$(basename "$sample_out")
-  contigs=$(ls "$sample_out"/*_contigs.fasta 2>/dev/null | head -n 1)
-  if [[ -z "$contigs" ]]; then
-    continue
-  fi
+  
+  contigs=("$sample_out"/*_contigs.fasta)
+  [[ -f "${contigs[0]}" ]] || continue
+  contigs="${contigs[0]}"
+
   outdir="$QUAST_DIR/$sample"
   mkdir -p "$outdir"
+
   quast "$contigs" -o "$outdir" --csv
-  stats_file="$outdir/report.tsv"
+
+  stats_file="$outdir/report.csv"
   if [[ -f "$stats_file" ]]; then
-    stats=$(sed -n '2p' "$stats_file" | tr '\t' ',')
+    stats=$(sed -n '2p' "$stats_file")
     echo "${sample},${stats}" >> "$CSV_FILE"
   fi
 done
+
 ```
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
@@ -563,12 +562,12 @@ Press Ctrl + X → Exit nano
 
 ##### Step 4: Make the script executable
 ```bash
-chmod +x run_quast_spades_clean.sh
+chmod +x run_quast_spades.sh
 ```
 ##### Step 5: Activate environment and run
 ```bash
 conda activate seqkit_env
-./run_quast_spades_clean.sh
+./run_quast_spades.sh
 ```
 
 
