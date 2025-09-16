@@ -355,31 +355,34 @@ nano run_shovill_stats.sh
 #!/bin/bash
 set -euo pipefail
 
-# Activate BBMap environment
+source ~/miniconda3/etc/profile.d/conda.sh
 conda activate bbmap_env
 
 SHOVILL_DIR="shovill_results"
-CSV_OUTDIR="csv_output"
-mkdir -p "$CSV_OUTDIR"
+TSV_OUTDIR="csv_output"
+mkdir -p "$TSV_OUTDIR"
 
-# Create CSV header
-echo "Sample,Contigs,Total_bp,Average,Min,Max,N50,L50,GC%" > "$CSV_OUTDIR/shovill_assembly_stats.csv"
+first_sample=true
+OUTFILE="$TSV_OUTDIR/shovill_assembly_stats.tsv"
 
-# Loop over all Shovill samples
 for sample_dir in "$SHOVILL_DIR"/*; do
     sample=$(basename "$sample_dir")
     contig_file="$sample_dir/${sample}_contigs.fa"
 
     if [[ -f "$contig_file" ]]; then
         echo "Processing $sample..."
-        # Run stats.sh and append CSV line
-        stats.sh in="$contig_file" format=csv | tail -n +2 | awk -v s="$sample" -F',' '{print s","$0}' >> "$CSV_OUTDIR/shovill_assembly_stats.csv"
+        if $first_sample; then
+            echo -e "Sample\t$(stats.sh in="$contig_file" format=3 | head -n1)" > "$OUTFILE"
+            first_sample=false
+        fi
+        stats.sh in="$contig_file" format=3 | tail -n +2 | awk -v s="$sample" 'BEGIN{OFS="\t"} {print s,$0}' >> "$OUTFILE"
     else
         echo ">> Contig file not found for $sample, skipping."
     fi
 done
 
-echo "All Shovill assembly stats saved to $CSV_OUTDIR/shovill_assembly_stats.csv"
+echo "All Shovill assembly stats saved to $OUTFILE"
+
 
 ```
 
@@ -406,32 +409,33 @@ nano run_spades_stats.sh
 #!/bin/bash
 set -euo pipefail
 
-# Activate BBMap environment
+source ~/miniconda3/etc/profile.d/conda.sh
 conda activate bbmap_env
 
 SPADES_DIR="spades_results"
-CSV_OUTDIR="csv_output"
-mkdir -p "$CSV_OUTDIR"
+TSV_OUTDIR="csv_output"
+mkdir -p "$TSV_OUTDIR"
 
-# Create CSV header
-echo "Sample,Contigs,Total_bp,Average,Min,Max,N50,L50,GC%" > "$CSV_OUTDIR/spades_assembly_stats.csv"
+first_sample=true
+OUTFILE="$TSV_OUTDIR/spades_assembly_stats.tsv"
 
-# Loop over all SPAdes samples
 for sample_dir in "$SPADES_DIR"/*; do
     sample=$(basename "$sample_dir")
     contig_file="$sample_dir/${sample}_contigs.fasta"
 
     if [[ -f "$contig_file" ]]; then
         echo "Processing $sample..."
-        # Run stats.sh and append CSV line
-        stats.sh in="$contig_file" format=csv | tail -n +2 | awk -v s="$sample" -F',' '{print s","$0}' >> "$CSV_OUTDIR/spades_assembly_stats.csv"
+        if $first_sample; then
+            echo -e "Sample\t$(stats.sh in="$contig_file" format=3 | head -n1)" > "$OUTFILE"
+            first_sample=false
+        fi
+        stats.sh in="$contig_file" format=3 | tail -n +2 | awk -v s="$sample" 'BEGIN{OFS="\t"} {print s,$0}' >> "$OUTFILE"
     else
         echo ">> Contig file not found for $sample, skipping."
     fi
 done
 
-echo "All SPAdes assembly stats saved to $CSV_OUTDIR/spades_assembly_stats.csv"
-
+echo "All SPAdes assembly stats saved to $OUTFILE"
 ```
 
 ##### Step 3: Save and exit nano
