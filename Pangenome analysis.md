@@ -474,7 +474,7 @@ seqkit fx2tab -nl ./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
 Collect the key statistics in a single CSV file
 ##### Step 1: Create the script
 ```bash
-nano run_quast_shovill_clean.sh
+nano run_quast_shovill.sh
 ```
 #####  Step 2: Paste the following into `run_seqkit_on_shovill.sh`
 
@@ -513,12 +513,12 @@ Press Ctrl + X → Exit nano
 
 ##### Step 4: Make the script executable
 ```bash
-chmod +x run_quast_shovill_clean.sh
+chmod +x run_quast_shovill.sh
 ```
 ##### Step 5: Activate environment and run
 ```bash
 conda activate seqkit_env
-./run_quast_shovill_clean.sh
+./run_quast_shovill.sh
 ```
 
 ### running QUAST on all SPAdes assemblies and collecting key statistics into a single CSV.
