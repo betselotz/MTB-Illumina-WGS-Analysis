@@ -40,16 +40,33 @@ bash sra_download.sh
 > **Tip:** Tip: Sometimes, we may need to download data directly from a BioSample list. In such cases, we can manually search for specific samples based on their metadata, then use the BioSample ID in SRA Explorer to download the corresponding fastq.gz files
 #### Method 2: Using SRA Toolkit / ENA Run Accessions (for large datasets)
 
-##### A. Get all run accessions from ENA
+##### A. download all FASTQ files from an ENA
 
 ```bash
-curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB3334&result=read_run&fields=run_accession" | tail -n +2 > runs.txt
+#!/bin/bash
+set -euo pipefail
+
+OUTDIR="./fastq_files"
+mkdir -p "$OUTDIR"
+
+PROJECT="PRJEB12345"
+
+ENA_URLS=$(curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${PROJECT}&result=read_run&fields=fastq_ftp&format=tsv&download=true" \
+            | tail -n +2 \
+            | tr ';' '\n')
+
+for URL in $ENA_URLS; do
+    FILE="${OUTDIR}/$(basename $URL)"
+    wget -c "ftp://$URL" -O "$FILE"
+done
+
 ```
 <details>
 <summary>🌍 Get Run Accessions from ENA</summary>
 
 
-##### B. Get all run accessions from NCBI
+##### B. download all FASTQ files from an NCBI
+use fasterq-dump to automatically download all FASTQ files from a given Bioproject (PRJNA1104194) and save them as gzipped paired-end FASTQ files
 ```bash
 #!/bin/bash
 set -euo pipefail
