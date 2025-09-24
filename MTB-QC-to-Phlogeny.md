@@ -49,16 +49,20 @@ set -euo pipefail
 OUTDIR="./fastq_files"
 mkdir -p "$OUTDIR"
 
-PROJECT="PRJEB12345"
+PROJECT="PRJEB13960"
 
-ENA_URLS=$(curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${PROJECT}&result=read_run&fields=fastq_ftp&format=tsv&download=true" \
-            | tail -n +2 \
-            | tr ';' '\n')
+URL_LIST=$(mktemp)
+curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${PROJECT}&result=read_run&fields=fastq_ftp&format=tsv&download=true" \
+    | tail -n +2 \
+    | tr ';' '\n' > "$URL_LIST"
 
-for URL in $ENA_URLS; do
+while read -r URL; do
     FILE="${OUTDIR}/$(basename $URL)"
     wget -c "ftp://$URL" -O "$FILE"
-done
+done < "$URL_LIST"
+
+rm "$URL_LIST"
+
 ```
 
 ##### B. download all FASTQ files from an NCBI
@@ -76,6 +80,10 @@ SRR_LIST=$(mktemp)
 esearch -db sra -query "$BIOPROJECT" | efetch -format runinfo | cut -d',' -f1 | grep SRR > "$SRR_LIST"
 
 while read -r SRR; do
+    # Download SRA file (resumable)
+    prefetch --max-size 500G "$SRR"
+    
+    # Convert to gzipped FASTQ, split paired-end
     fasterq-dump "$SRR" --split-files --gzip -O "$OUTDIR"
 done < "$SRR_LIST"
 
