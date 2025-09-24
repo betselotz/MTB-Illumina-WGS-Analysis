@@ -38,6 +38,31 @@ bash sra_download.sh
 ```
 > **Tip:** Tip: This method is user-friendly and ideal for small projects (<500 samples). For large-scale datasets, use the command-line method below.
 > **Tip:** Tip: Sometimes, we may need to download data directly from a BioSample list. In such cases, we can manually search for specific samples based on their metadata, then use the BioSample ID in SRA Explorer to download the corresponding fastq.gz files
+
+renamed all our FASTQ files so that each one is simply
+```bash
+#!/bin/bash
+set -euo pipefail
+
+cd Djibouti/PRJNA957249/
+
+for f in *.fastq.gz; do
+    sample_id=$(echo "$f" | grep -oE "SRR[0-9]+")
+    
+    if [[ "$f" =~ _1\.fastq\.gz$ ]]; then
+        new_name="${sample_id}_1.fastq.gz"
+    elif [[ "$f" =~ _2\.fastq\.gz$ ]]; then
+        new_name="${sample_id}_2.fastq.gz"
+    else
+        new_name="${sample_id}.fastq.gz"
+    fi
+
+    mv -n "$f" "$new_name"
+done
+```
+
+
+
 #### Method 2: Using SRA Toolkit / ENA Run Accessions (for large datasets)
 
 ##### A. download all FASTQ files from an ENA
