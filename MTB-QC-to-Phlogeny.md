@@ -49,6 +49,29 @@ curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB3334&res
 <summary>🌍 Get Run Accessions from ENA</summary>
 
 
+##### B. Get all run accessions from NCBI
+```bash
+#!/bin/bash
+set -euo pipefail
+
+OUTDIR="./fastq_files"
+mkdir -p "$OUTDIR"
+
+BIOPROJECT="PRJNA1104194"
+
+SRR_LIST=$(mktemp)
+esearch -db sra -query "$BIOPROJECT" | efetch -format runinfo | cut -d',' -f1 | grep SRR > "$SRR_LIST"
+
+while read -r SRR; do
+    fasterq-dump "$SRR" --split-files --gzip -O "$OUTDIR"
+done < "$SRR_LIST"
+
+rm "$SRR_LIST"
+
+```
+
+
+
 
 ## Checking FASTQ
 
