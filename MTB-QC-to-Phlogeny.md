@@ -52,16 +52,37 @@ mkdir -p "$OUTDIR"
 PROJECT="PRJEB13960"
 
 URL_LIST=$(mktemp)
+echo "[INFO] Fetching FASTQ URLs for $PROJECT..."
 curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${PROJECT}&result=read_run&fields=fastq_ftp&format=tsv&download=true" \
     | tail -n +2 \
     | tr ';' '\n' > "$URL_LIST"
+echo "[INFO] Found $(wc -l < "$URL_LIST") files to download."
 
-while read -r URL; do
-    FILE="${OUTDIR}/$(basename $URL)"
+MAX_JOBS=8  # Number of parallel downloads (adjust to your CPU/RAM)
+function download_file {
+    local URL="$1"
+    local FILE="${OUTDIR}/$(basename $URL)"
+
+    if [[ -f "$FILE" ]]; then
+        echo "[SKIP] $FILE already exists."
+        return
+    fi
+
+    echo "[DOWNLOAD] $FILE"
     wget -c "ftp://$URL" -O "$FILE"
-done < "$URL_LIST"
+    echo "[DONE] $FILE"
+}
+
+# Export function for parallel
+export -f download_file
+export OUTDIR
+
+# Run parallel downloads
+cat "$URL_LIST" | xargs -n 1 -P "$MAX_JOBS" -I {} bash -c 'download_file "$@"' _ {}
 
 rm "$URL_LIST"
+echo "[ALL DONE] All files processed."
+
 
 ```
 
@@ -77,17 +98,32 @@ mkdir -p "$OUTDIR"
 BIOPROJECT="PRJNA1104194"
 
 SRR_LIST=$(mktemp)
+echo "[INFO] Fetching SRR IDs for $BIOPROJECT..."
 esearch -db sra -query "$BIOPROJECT" | efetch -format runinfo | cut -d',' -f1 | grep SRR > "$SRR_LIST"
+echo "[INFO] Found $(wc -l < "$SRR_LIST") SRR runs."
 
 while read -r SRR; do
-    # Download SRA file (resumable)
+    FASTQ1="$OUTDIR/${SRR}_1.fastq.gz"
+    FASTQ2="$OUTDIR/${SRR}_2.fastq.gz"
+
+    if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
+        echo "[SKIP] $SRR already exists. Skipping."
+        continue
+    fi
+
+    echo "[STEP] Downloading SRA file for $SRR..."
     prefetch --max-size 500G "$SRR"
-    
-    # Convert to gzipped FASTQ, split paired-end
-    fasterq-dump "$SRR" --split-files --gzip -O "$OUTDIR"
+
+    echo "[STEP] Converting $SRR to gzipped FASTQ with multithreading..."
+    # Use 16 threads for faster extraction (adjust -e and -t as needed)
+    fasterq-dump "$SRR" --split-files --gzip -O "$OUTDIR" -e 16 -t /tmp
+
+    echo "[DONE] $SRR downloaded and converted."
 done < "$SRR_LIST"
 
 rm "$SRR_LIST"
+echo "[ALL DONE] All SRRs processed."
+
 
 ```
 
