@@ -40,11 +40,14 @@ bash sra_download.sh
 > **Tip:** Tip: Sometimes, we may need to download data directly from a BioSample list. In such cases, we can manually search for specific samples based on their metadata, then use the BioSample ID in SRA Explorer to download the corresponding fastq.gz files
 
 renamed all our FASTQ files so that each one is simply
+Change directory to where the fastq is saved
+```bash
+cd raw_data
+```
+
 ```bash
 #!/bin/bash
 set -euo pipefail
-
-cd Djibouti/PRJNA957249/
 
 for f in *.fastq.gz; do
     sample_id=$(echo "$f" | grep -oE "SRR[0-9]+")
@@ -59,9 +62,8 @@ for f in *.fastq.gz; do
 
     mv -n "$f" "$new_name"
 done
+
 ```
-
-
 
 #### Method 2: Using SRA Toolkit / ENA Run Accessions (for large datasets)
 
