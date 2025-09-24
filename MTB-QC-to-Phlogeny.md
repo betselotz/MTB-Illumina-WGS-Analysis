@@ -84,9 +84,15 @@ curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${PROJECT}&re
     | tr ';' '\n' > "$URL_LIST"
 echo "[INFO] Found $(wc -l < "$URL_LIST") files to download."
 
-MAX_JOBS=8  # Number of parallel downloads (adjust to your CPU/RAM)
+# Detect CPU cores and set parallel downloads based on system
+CPU_CORES=$(nproc)
+AVAILABLE_RAM_GB=$(free -g | awk '/^Mem:/ {print $2}')
+MAX_JOBS=$((CPU_CORES / 2))   # half of CPU cores for parallel downloads
+echo "[INFO] Using $MAX_JOBS parallel downloads."
+
 function download_file {
     local URL="$1"
+    local OUTDIR="$2"
     local FILE="${OUTDIR}/$(basename $URL)"
 
     if [[ -f "$FILE" ]]; then
@@ -99,17 +105,14 @@ function download_file {
     echo "[DONE] $FILE"
 }
 
-# Export function for parallel
 export -f download_file
 export OUTDIR
 
-# Run parallel downloads
-cat "$URL_LIST" | xargs -n 1 -P "$MAX_JOBS" -I {} bash -c 'download_file "$@"' _ {}
+# Run parallel downloads using xargs
+cat "$URL_LIST" | xargs -n 1 -P "$MAX_JOBS" -I {} bash -c 'download_file "$@"' _ {} "$OUTDIR"
 
 rm "$URL_LIST"
 echo "[ALL DONE] All files processed."
-
-
 ```
 
 ##### B. download all FASTQ files from an NCBI
@@ -128,29 +131,47 @@ echo "[INFO] Fetching SRR IDs for $BIOPROJECT..."
 esearch -db sra -query "$BIOPROJECT" | efetch -format runinfo | cut -d',' -f1 | grep SRR > "$SRR_LIST"
 echo "[INFO] Found $(wc -l < "$SRR_LIST") SRR runs."
 
-while read -r SRR; do
+# Detect CPU cores and available RAM
+CPU_CORES=$(nproc)
+AVAILABLE_RAM_GB=$(free -g | awk '/^Mem:/ {print $2}')
+MAX_JOBS=$((CPU_CORES / 2))     # half of cores for parallel SRRs
+THREADS=$((CPU_CORES / MAX_JOBS)) # threads per fasterq-dump
+
+TMP_DIR="/dev/shm/fasterq_tmp"
+mkdir -p "$TMP_DIR"
+
+echo "[INFO] Using $MAX_JOBS parallel jobs, $THREADS threads per SRR, temp dir: $TMP_DIR"
+
+function process_srr {
+    local SRR="$1"
+    local OUTDIR="$2"
+    local TMP_DIR="$3"
+    local THREADS="$4"
+
     FASTQ1="$OUTDIR/${SRR}_1.fastq.gz"
     FASTQ2="$OUTDIR/${SRR}_2.fastq.gz"
 
     if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
-        echo "[SKIP] $SRR already exists. Skipping."
-        continue
+        echo "[SKIP] $SRR already exists."
+        return
     fi
 
-    echo "[STEP] Downloading SRA file for $SRR..."
+    echo "[STEP] Downloading $SRR..."
     prefetch --max-size 500G "$SRR"
 
-    echo "[STEP] Converting $SRR to gzipped FASTQ with multithreading..."
-    # Use 16 threads for faster extraction (adjust -e and -t as needed)
-    fasterq-dump "$SRR" --split-files --gzip -O "$OUTDIR" -e 16 -t /tmp
+    echo "[STEP] Converting $SRR to gzipped FASTQ using $THREADS threads..."
+    fasterq-dump "$SRR" --split-files --gzip -O "$OUTDIR" -e "$THREADS" -t "$TMP_DIR"
 
-    echo "[DONE] $SRR downloaded and converted."
-done < "$SRR_LIST"
+    echo "[DONE] $SRR processed."
+}
+
+export -f process_srr
+export OUTDIR TMP_DIR THREADS
+
+cat "$SRR_LIST" | xargs -n 1 -P "$MAX_JOBS" -I {} bash -c 'process_srr "$@"' _ {} "$OUTDIR" "$TMP_DIR" "$THREADS"
 
 rm "$SRR_LIST"
 echo "[ALL DONE] All SRRs processed."
-
-
 ```
 
 
