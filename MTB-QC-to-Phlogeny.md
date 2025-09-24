@@ -59,11 +59,7 @@ for URL in $ENA_URLS; do
     FILE="${OUTDIR}/$(basename $URL)"
     wget -c "ftp://$URL" -O "$FILE"
 done
-
 ```
-<details>
-<summary>🌍 Get Run Accessions from ENA</summary>
-
 
 ##### B. download all FASTQ files from an NCBI
 use fasterq-dump to automatically download all FASTQ files from a given Bioproject (PRJNA1104194) and save them as gzipped paired-end FASTQ files
