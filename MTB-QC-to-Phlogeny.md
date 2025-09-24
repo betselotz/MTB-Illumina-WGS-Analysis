@@ -50,7 +50,7 @@ cd raw_data
 set -euo pipefail
 
 for f in *.fastq.gz; do
-    sample_id=$(echo "$f" | grep -oE "SRR[0-9]+")
+    sample_id=$(echo "$f" | grep -oE "(SRR|ERR)[0-9]+")
     
     if [[ "$f" =~ _1\.fastq\.gz$ ]]; then
         new_name="${sample_id}_1.fastq.gz"
@@ -62,7 +62,6 @@ for f in *.fastq.gz; do
 
     mv -n "$f" "$new_name"
 done
-
 ```
 
 #### Method 2: Using SRA Toolkit / ENA Run Accessions (for large datasets)
