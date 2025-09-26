@@ -78,41 +78,66 @@ mkdir -p "$OUTDIR"
 PROJECT="PRJEB13960"
 
 URL_LIST=$(mktemp)
-echo "[INFO] Fetching FASTQ URLs for $PROJECT..."
-curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${PROJECT}&result=read_run&fields=fastq_ftp&format=tsv&download=true" \
+trap "rm -f $URL_LIST" EXIT
+
+echo "[INFO] Fetching SRA URLs for $PROJECT..."
+curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${PROJECT}&result=read_run&fields=run_accession,sra_ftp&format=tsv&download=true" \
     | tail -n +2 \
-    | tr ';' '\n' > "$URL_LIST"
-echo "[INFO] Found $(wc -l < "$URL_LIST") files to download."
+    | awk '{print $1"\t"$2}' \
+    | grep -v '^$' > "$URL_LIST"
 
-# Detect CPU cores and set parallel downloads based on system
+TOTAL=$(wc -l < "$URL_LIST")
+echo "[INFO] Found $TOTAL SRA entries."
+
 CPU_CORES=$(nproc)
-AVAILABLE_RAM_GB=$(free -g | awk '/^Mem:/ {print $2}')
-MAX_JOBS=$((CPU_CORES / 2))   # half of CPU cores for parallel downloads
-echo "[INFO] Using $MAX_JOBS parallel downloads."
+MAX_JOBS=$((CPU_CORES / 2))
+[[ $MAX_JOBS -lt 1 ]] && MAX_JOBS=1
+echo "[INFO] Using $MAX_JOBS parallel jobs."
 
-function download_file {
-    local URL="$1"
-    local OUTDIR="$2"
-    local FILE="${OUTDIR}/$(basename $URL)"
+process_sra() {
+    local SAMPLE="$1"
+    local URL="$2"
+    local OUTDIR="$3"
 
-    if [[ -f "$FILE" ]]; then
-        echo "[SKIP] $FILE already exists."
+    # Skip if FASTQ already exists
+    if [[ -f "$OUTDIR/${SAMPLE}_1.fastq.gz" || -f "$OUTDIR/${SAMPLE}.fastq.gz" ]]; then
+        echo "[SKIP] $SAMPLE already converted."
         return
     fi
 
-    echo "[DOWNLOAD] $FILE"
-    wget -c "ftp://$URL" -O "$FILE"
-    echo "[DONE] $FILE"
+    local SRA_FILE="${SAMPLE}.sra"
+
+    # If SRA already exists anywhere under current directory, use it
+    if [[ -f "$SRA_FILE" ]]; then
+        echo "[FOUND] Using existing $SRA_FILE"
+    else
+        FOUND=$(find . -type f -name "${SAMPLE}.sra" | head -n 1 || true)
+        if [[ -n "$FOUND" ]]; then
+            echo "[FOUND] Using existing $FOUND"
+            ln -s "$FOUND" "$SRA_FILE"
+        else
+            echo "[DOWNLOAD] $SRA_FILE"
+            wget -c "ftp://$URL" -O "$SRA_FILE"
+        fi
+    fi
+
+    echo "[CONVERT] $SRA_FILE → FASTQ"
+    fasterq-dump --split-files --gzip -O "$OUTDIR" "$SRA_FILE"
+
+    echo "[CLEANUP] Removing $SRA_FILE and cache..."
+    rm -f "$SRA_FILE"
+    rm -rf "${SAMPLE}" # sra-tools cache dirs
+
+    echo "[DONE] $SAMPLE"
 }
 
-export -f download_file
+export -f process_sra
 export OUTDIR
 
-# Run parallel downloads using xargs
-cat "$URL_LIST" | xargs -n 1 -P "$MAX_JOBS" -I {} bash -c 'download_file "$@"' _ {} "$OUTDIR"
+cat "$URL_LIST" | xargs -n 2 -P "$MAX_JOBS" bash -c 'process_sra "$@"' _
 
-rm "$URL_LIST"
-echo "[ALL DONE] All files processed."
+echo "[ALL DONE] Conversion finished."
+
 ```
 
 ##### B. download all FASTQ files from an NCBI
@@ -127,42 +152,62 @@ mkdir -p "$OUTDIR"
 BIOPROJECT="PRJNA1104194"
 
 SRR_LIST=$(mktemp)
+trap "rm -f $SRR_LIST" EXIT
+
 echo "[INFO] Fetching SRR IDs for $BIOPROJECT..."
 esearch -db sra -query "$BIOPROJECT" | efetch -format runinfo | cut -d',' -f1 | grep SRR > "$SRR_LIST"
 echo "[INFO] Found $(wc -l < "$SRR_LIST") SRR runs."
 
-# Detect CPU cores and available RAM
 CPU_CORES=$(nproc)
 AVAILABLE_RAM_GB=$(free -g | awk '/^Mem:/ {print $2}')
-MAX_JOBS=$((CPU_CORES / 2))     # half of cores for parallel SRRs
-THREADS=$((CPU_CORES / MAX_JOBS)) # threads per fasterq-dump
+MAX_JOBS=$((CPU_CORES / 2))
+[[ $MAX_JOBS -lt 1 ]] && MAX_JOBS=1
+THREADS=$((CPU_CORES / MAX_JOBS))
 
 TMP_DIR="/dev/shm/fasterq_tmp"
 mkdir -p "$TMP_DIR"
 
 echo "[INFO] Using $MAX_JOBS parallel jobs, $THREADS threads per SRR, temp dir: $TMP_DIR"
 
-function process_srr {
+process_srr() {
     local SRR="$1"
     local OUTDIR="$2"
     local TMP_DIR="$3"
     local THREADS="$4"
 
-    FASTQ1="$OUTDIR/${SRR}_1.fastq.gz"
-    FASTQ2="$OUTDIR/${SRR}_2.fastq.gz"
+    local FASTQ1="$OUTDIR/${SRR}_1.fastq.gz"
+    local FASTQ2="$OUTDIR/${SRR}_2.fastq.gz"
 
-    if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
-        echo "[SKIP] $SRR already exists."
+    if [[ -f "$FASTQ1" || -f "$FASTQ2" ]]; then
+        echo "[SKIP] $SRR already converted."
         return
     fi
 
-    echo "[STEP] Downloading $SRR..."
-    prefetch --max-size 500G "$SRR"
+    local SRA_FILE="${SRR}.sra"
 
-    echo "[STEP] Converting $SRR to gzipped FASTQ using $THREADS threads..."
-    fasterq-dump "$SRR" --split-files --gzip -O "$OUTDIR" -e "$THREADS" -t "$TMP_DIR"
+    # Use existing SRA if present locally
+    if [[ -f "$SRA_FILE" ]]; then
+        echo "[FOUND] Using local $SRA_FILE"
+    else
+        FOUND=$(find . -type f -name "${SRR}.sra" | head -n 1 || true)
+        if [[ -n "$FOUND" ]]; then
+            echo "[FOUND] Using existing $FOUND"
+            ln -s "$FOUND" "$SRA_FILE"
+        else
+            echo "[STEP] Downloading $SRR..."
+            prefetch --max-size 500G "$SRR"
+            mv "$HOME/ncbi/public/sra/${SRR}.sra" .
+        fi
+    fi
 
-    echo "[DONE] $SRR processed."
+    echo "[STEP] Converting $SRR to gzipped FASTQ with $THREADS threads..."
+    fasterq-dump "$SRA_FILE" --split-files --gzip -O "$OUTDIR" -e "$THREADS" -t "$TMP_DIR"
+
+    echo "[CLEANUP] Removing $SRA_FILE and cache..."
+    rm -f "$SRA_FILE"
+    rm -rf "${SRR}"
+
+    echo "[DONE] $SRR"
 }
 
 export -f process_srr
@@ -170,8 +215,8 @@ export OUTDIR TMP_DIR THREADS
 
 cat "$SRR_LIST" | xargs -n 1 -P "$MAX_JOBS" -I {} bash -c 'process_srr "$@"' _ {} "$OUTDIR" "$TMP_DIR" "$THREADS"
 
-rm "$SRR_LIST"
-echo "[ALL DONE] All SRRs processed."
+echo "[ALL DONE] Conversion finished for $BIOPROJECT."
+
 ```
 
 
