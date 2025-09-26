@@ -512,7 +512,7 @@ chmod +x run_quast_shovill.sh
 ```
 ##### Step 5: Activate environment and run
 ```bash
-conda activate seqkit_env
+conda activate quast_env
 ./run_quast_shovill.sh
 ```
 
@@ -566,7 +566,7 @@ chmod +x run_quast_spades.sh
 ```
 ##### Step 5: Activate environment and run
 ```bash
-conda activate seqkit_env
+conda activate quast_env
 ./run_quast_spades.sh
 ```
 
