@@ -527,21 +527,33 @@ set -euo pipefail
 SPADES_DIR="spades_results"
 CSV_OUTDIR="csv_output"
 mkdir -p "$CSV_OUTDIR"
-
 CSV_FILE="$CSV_OUTDIR/spades_assembly_scan.csv"
-echo "Sample,Contig,Length,GC%" > "$CSV_FILE"
 
-for sample_dir in "$SPADES_DIR"/*; do
-  [[ -d "$sample_dir" ]] || continue
-  sample=$(basename "$sample_dir")
-  contig_file="$sample_dir/${sample}_contigs.fasta"
-  
-  if [[ -f "$contig_file" ]]; then
-    assembly-scan "$contig_file" --transpose | \
-    tail -n +2 | \
-    awk -v s="$sample" -F'\t' '{print s","$1","$2","$3}' >> "$CSV_FILE"
-  fi
+echo "Sample,total_contig,total_contig_length,max_contig_length,mean_contig_length,median_contig_length,min_contig_length,n50_contig_length,l50_contig_count,contig_percent_a,contig_percent_c,contig_percent_g,contig_percent_t,contigs_greater_1k,contigs_greater_10k,contigs_greater_100k" > "$CSV_FILE"
+
+for sample_dir in "$SPADES_DIR"/*/; do
+    sample=$(basename "$sample_dir")
+    contig_file="${sample_dir}${sample}_contigs.fasta"
+
+    if [[ -f "$contig_file" ]]; then
+        tmp=$(mktemp)
+        assembly-scan "$contig_file" --transpose | tail -n +2 > "$tmp"
+
+        declare -A data
+        while IFS=$'\t' read -r contig metric value; do
+            data["$metric"]="$value"
+        done < "$tmp"
+
+        rm "$tmp"
+
+        printf "%s" "$sample" >> "$CSV_FILE"
+        for col in total_contig total_contig_length max_contig_length mean_contig_length median_contig_length min_contig_length n50_contig_length l50_contig_count contig_percent_a contig_percent_c contig_percent_g contig_percent_t contigs_greater_1k contigs_greater_10k contigs_greater_100k; do
+            printf ",%s" "${data[$col]:-0}" >> "$CSV_FILE"
+        done
+        echo "" >> "$CSV_FILE"
+    fi
 done
+
 ``` 
 ######   Step 2:Create the Shovill assembly-scan script
 ``` bash
@@ -555,21 +567,33 @@ set -euo pipefail
 SHOVILL_DIR="shovill_results"
 CSV_OUTDIR="csv_output"
 mkdir -p "$CSV_OUTDIR"
+CSV_FILE="$CSV_OUTDIR/spades_assembly_scan.csv"
 
-CSV_FILE="$CSV_OUTDIR/shovill_assembly_scan.csv"
-echo "Sample,Contig,Length,GC%" > "$CSV_FILE"
+echo "Sample,total_contig,total_contig_length,max_contig_length,mean_contig_length,median_contig_length,min_contig_length,n50_contig_length,l50_contig_count,contig_percent_a,contig_percent_c,contig_percent_g,contig_percent_t,contigs_greater_1k,contigs_greater_10k,contigs_greater_100k" > "$CSV_FILE"
 
-for sample_dir in "$SHOVILL_DIR"/*; do
-  [[ -d "$sample_dir" ]] || continue
-  sample=$(basename "$sample_dir")
-  contig_file="$sample_dir/${sample}_contigs.fa"
-  
-  if [[ -f "$contig_file" ]]; then
-    assembly-scan "$contig_file" --transpose | \
-    tail -n +2 | \
-    awk -v s="$sample" -F'\t' '{print s","$1","$2","$3}' >> "$CSV_FILE"
-  fi
+for sample_dir in "$SHOVILL_DIR"/*/; do
+    sample=$(basename "$sample_dir")
+    contig_file="${sample_dir}${sample}_contigs.fa"
+
+    if [[ -f "$contig_file" ]]; then
+        tmp=$(mktemp)
+        assembly-scan "$contig_file" --transpose | tail -n +2 > "$tmp"
+
+        declare -A data
+        while IFS=$'\t' read -r contig metric value; do
+            data["$metric"]="$value"
+        done < "$tmp"
+
+        rm "$tmp"
+
+        printf "%s" "$sample" >> "$CSV_FILE"
+        for col in total_contig total_contig_length max_contig_length mean_contig_length median_contig_length min_contig_length n50_contig_length l50_contig_count contig_percent_a contig_percent_c contig_percent_g contig_percent_t contigs_greater_1k contigs_greater_10k contigs_greater_100k; do
+            printf ",%s" "${data[$col]:-0}" >> "$CSV_FILE"
+        done
+        echo "" >> "$CSV_FILE"
+    fi
 done
+
 
 ``` 
 ###### Step 3: Make scripts executable
