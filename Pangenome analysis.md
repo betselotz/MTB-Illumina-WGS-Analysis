@@ -654,7 +654,8 @@ Paste this into the file:
 set -euo pipefail
 
 SPADES_DIR="spades_results"
-CHECKM_DIR="checkm_results_spades"
+CHECKM_PARENT="checkm_results"
+CHECKM_DIR="$CHECKM_PARENT/checkm_results_spades"
 CSV_OUTDIR="csv_output"
 
 mkdir -p "$CHECKM_DIR" "$CSV_OUTDIR"
@@ -665,17 +666,18 @@ mkdir -p "$INPUT_DIR"
 for sample_out in "$SPADES_DIR"/*; do
   [[ -d "$sample_out" ]] || continue
   sample=$(basename "$sample_out")
-  contigs=("$sample_out"/*_contigs.fasta)
-  [[ -f "${contigs[0]}" ]] || continue
-  cp "${contigs[0]}" "$INPUT_DIR/${sample}.fasta"
+  contigs_file=("$sample_out"/*_contigs.fasta)
+  [[ -f "${contigs_file[0]}" ]] || continue
+  cp "${contigs_file[0]}" "$INPUT_DIR/${sample}.fasta"
 done
 
-# Run CheckM lineage workflow
+# Run CheckM lineage workflow (completeness, contamination, heterogeneity)
 checkm lineage_wf -x fasta "$INPUT_DIR" "$CHECKM_DIR" -t 8
 
 # Generate CSV summary
 CSV_FILE="$CSV_OUTDIR/checkm_summary_spades.csv"
 checkm qa "$CHECKM_DIR/lineage.ms" "$CHECKM_DIR" -o 2 -t 8 > "$CSV_FILE"
+
 ``` 
 ######   Step 2:Create the Shovill CheckM script
 ``` bash
@@ -687,7 +689,8 @@ Paste this into the file:
 set -euo pipefail
 
 SHOVILL_DIR="shovill_results"
-CHECKM_DIR="checkm_results_shovill"
+CHECKM_PARENT="checkm_results"
+CHECKM_DIR="$CHECKM_PARENT/checkm_results_shovill"
 CSV_OUTDIR="csv_output"
 
 mkdir -p "$CHECKM_DIR" "$CSV_OUTDIR"
@@ -698,9 +701,9 @@ mkdir -p "$INPUT_DIR"
 for sample_out in "$SHOVILL_DIR"/*; do
   [[ -d "$sample_out" ]] || continue
   sample=$(basename "$sample_out")
-  contigs=("$sample_out"/*_contigs.fa)
-  [[ -f "${contigs[0]}" ]] || continue
-  cp "${contigs[0]}" "$INPUT_DIR/${sample}.fasta"
+  contigs_file=("$sample_out"/*_contigs.fa)
+  [[ -f "${contigs_file[0]}" ]] || continue
+  cp "${contigs_file[0]}" "$INPUT_DIR/${sample}.fasta"
 done
 
 # Run CheckM lineage workflow
@@ -709,6 +712,7 @@ checkm lineage_wf -x fasta "$INPUT_DIR" "$CHECKM_DIR" -t 8
 # Generate CSV summary
 CSV_FILE="$CSV_OUTDIR/checkm_summary_shovill.csv"
 checkm qa "$CHECKM_DIR/lineage.ms" "$CHECKM_DIR" -o 2 -t 8 > "$CSV_FILE"
+
 ``` 
 ###### Step 3: Make scripts executable
 ``` bash
