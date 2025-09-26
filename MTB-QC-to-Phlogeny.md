@@ -99,44 +99,16 @@ process_sra() {
     local URL="$2"
     local OUTDIR="$3"
 
+    local FASTQ1="$OUTDIR/${SAMPLE}_1.fastq.gz"
+    local FASTQ2="$OUTDIR/${SAMPLE}_2.fastq.gz"
+
     # Skip if FASTQ already exists
-    if [[ -f "$OUTDIR/${SAMPLE}_1.fastq.gz" || -f "$OUTDIR/${SAMPLE}.fastq.gz" ]]; then
+    if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
         echo "[SKIP] $SAMPLE already converted."
         return
     fi
 
-    local SRA_FILE="${SAMPLE}.sra"
-
-    # If SRA already exists anywhere under current directory, use it
-    if [[ -f "$SRA_FILE" ]]; then
-        echo "[FOUND] Using existing $SRA_FILE"
-    else
-        FOUND=$(find . -type f -name "${SAMPLE}.sra" | head -n 1 || true)
-        if [[ -n "$FOUND" ]]; then
-            echo "[FOUND] Using existing $FOUND"
-            ln -s "$FOUND" "$SRA_FILE"
-        else
-            echo "[DOWNLOAD] $SRA_FILE"
-            wget -c "ftp://$URL" -O "$SRA_FILE"
-        fi
-    fi
-
-    echo "[CONVERT] $SRA_FILE → FASTQ"
-    fasterq-dump --split-files --gzip -O "$OUTDIR" "$SRA_FILE"
-
-    echo "[CLEANUP] Removing $SRA_FILE and cache..."
-    rm -f "$SRA_FILE"
-    rm -rf "${SAMPLE}" # sra-tools cache dirs
-
-    echo "[DONE] $SAMPLE"
-}
-
-export -f process_sra
-export OUTDIR
-
-cat "$URL_LIST" | xargs -n 2 -P "$MAX_JOBS" bash -c 'process_sra "$@"' _
-
-echo "[ALL DONE] Conversion finished."
+    local SRA_DIR="./sra_downloads/${SAM
 
 ```
 
@@ -159,10 +131,9 @@ esearch -db sra -query "$BIOPROJECT" | efetch -format runinfo | cut -d',' -f1 | 
 echo "[INFO] Found $(wc -l < "$SRR_LIST") SRR runs."
 
 CPU_CORES=$(nproc)
-AVAILABLE_RAM_GB=$(free -g | awk '/^Mem:/ {print $2}')
 MAX_JOBS=$((CPU_CORES / 2))
 [[ $MAX_JOBS -lt 1 ]] && MAX_JOBS=1
-THREADS=$((CPU_CORES / MAX_JOBS))
+THREADS=2  # threads per SRR, adjust if needed
 
 TMP_DIR="/dev/shm/fasterq_tmp"
 mkdir -p "$TMP_DIR"
@@ -178,48 +149,47 @@ process_srr() {
     local FASTQ1="$OUTDIR/${SRR}_1.fastq.gz"
     local FASTQ2="$OUTDIR/${SRR}_2.fastq.gz"
 
-    if [[ -f "$FASTQ1" || -f "$FASTQ2" ]]; then
+    # Skip if already converted
+    if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
         echo "[SKIP] $SRR already converted."
         return
     fi
 
-    local SRA_FILE="${SRR}.sra"
+    local SRA_DIR="./sra_downloads/${SRR}"
+    local SRA_FILE="${SRA_DIR}/${SRR}.sra"
 
-    # Use existing SRA if present locally
-    if [[ -f "$SRA_FILE" ]]; then
-        echo "[FOUND] Using local $SRA_FILE"
+    mkdir -p "$SRA_DIR"
+
+    # Download if SRA not present
+    if [[ ! -f "$SRA_FILE" ]]; then
+        echo "[STEP] Downloading $SRR..."
+        prefetch --max-size 500G "$SRR" -O "$SRA_DIR"
     else
-        FOUND=$(find . -type f -name "${SRR}.sra" | head -n 1 || true)
-        if [[ -n "$FOUND" ]]; then
-            echo "[FOUND] Using existing $FOUND"
-            ln -s "$FOUND" "$SRA_FILE"
-        else
-            echo "[STEP] Downloading $SRR..."
-            prefetch --max-size 500G "$SRR"
-            mv "$HOME/ncbi/public/sra/${SRR}.sra" .
-        fi
+        echo "[FOUND] Using existing $SRA_FILE"
     fi
 
-    echo "[STEP] Converting $SRR to gzipped FASTQ with $THREADS threads..."
-    fasterq-dump "$SRA_FILE" --split-files --gzip -O "$OUTDIR" -e "$THREADS" -t "$TMP_DIR"
+    # Convert to fastq.gz
+    echo "[CONVERT] $SRR → FASTQ"
+    fasterq-dump "$SRA_FILE" --split-files --gzip -O "$OUTDIR" -t "$TMP_DIR" -e "$THREADS"
 
-    echo "[CLEANUP] Removing $SRA_FILE and cache..."
-    rm -f "$SRA_FILE"
-    rm -rf "${SRR}"
-
-    echo "[DONE] $SRR"
+    # Cleanup only if conversion succeeded
+    if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
+        echo "[CLEANUP] Removing $SRA_DIR..."
+        rm -rf "$SRA_DIR"
+        echo "[DONE] $SRR conversion and cleanup complete."
+    else
+        echo "[WARN] Conversion failed for $SRR. SRA folder retained."
+    fi
 }
 
 export -f process_srr
 export OUTDIR TMP_DIR THREADS
 
-cat "$SRR_LIST" | xargs -n 1 -P "$MAX_JOBS" -I {} bash -c 'process_srr "$@"' _ {} "$OUTDIR" "$TMP_DIR" "$THREADS"
+cat "$SRR_LIST" | xargs -n 1 -P "$MAX_JOBS" bash -c 'process_srr "$@"' _ {} "$OUTDIR" "$TMP_DIR" "$THREADS"
 
 echo "[ALL DONE] Conversion finished for $BIOPROJECT."
 
 ```
-
-
 
 
 ## Checking FASTQ
