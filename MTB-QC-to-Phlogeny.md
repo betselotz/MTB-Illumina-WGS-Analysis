@@ -118,72 +118,66 @@ use fasterq-dump to automatically download all FASTQ files from a given Bioproje
 #!/bin/bash
 set -euo pipefail
 
-OUTDIR="./fastq_files"
-mkdir -p "$OUTDIR"
+# Directories
+SRA_DIR="./sra_files"
+FASTQ_DIR="./fastq_files"
+mkdir -p "$SRA_DIR" "$FASTQ_DIR"
 
-BIOPROJECT="PRJNA1104194"
+# Input: file with SRR IDs (one per line)
+SRR_LIST="srr_list.txt"
 
-SRR_LIST=$(mktemp)
-trap "rm -f $SRR_LIST" EXIT
+# Max download attempts
+MAX_ATTEMPTS=5
+SLEEP_BETWEEN_ATTEMPTS=30
 
-echo "[INFO] Fetching SRR IDs for $BIOPROJECT..."
-esearch -db sra -query "$BIOPROJECT" | efetch -format runinfo | cut -d',' -f1 | grep SRR > "$SRR_LIST"
-echo "[INFO] Found $(wc -l < "$SRR_LIST") SRR runs."
+# Batch size for parallel processing
+BATCH_SIZE=10
 
-CPU_CORES=$(nproc)
-MAX_JOBS=$((CPU_CORES / 2))
-[[ $MAX_JOBS -lt 1 ]] && MAX_JOBS=1
-THREADS=2
-
-TMP_DIR="/dev/shm/fasterq_tmp"
-mkdir -p "$TMP_DIR"
-
-process_srr() {
+# Function to download and convert one SRR
+download_convert_srr() {
     local SRR="$1"
-    local OUTDIR="$2"
-    local TMP_DIR="$3"
-    local THREADS="$4"
 
-    local FASTQ1="$OUTDIR/${SRR}_1.fastq.gz"
-    local FASTQ2="$OUTDIR/${SRR}_2.fastq.gz"
-
-    if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
+    # Skip if FASTQ already exists
+    if [[ -f "$FASTQ_DIR/${SRR}_1.fastq.gz" && -f "$FASTQ_DIR/${SRR}_2.fastq.gz" ]]; then
         echo "[SKIP] $SRR already converted."
         return
     fi
 
-    local SRA_DIR="./sra_downloads/${SRR}"
-    local SRA_FILE="${SRA_DIR}/${SRR}.sra"
+    # Download with retries
+    local attempt=1
+    while [[ $attempt -le $MAX_ATTEMPTS ]]; do
+        echo "[INFO] Downloading $SRR (attempt $attempt)..."
+        if prefetch "$SRR" -O "$SRA_DIR"; then
+            echo "[SUCCESS] $SRR downloaded."
+            break
+        else
+            echo "[WARN] Attempt $attempt failed for $SRR. Retrying in $SLEEP_BETWEEN_ATTEMPTS seconds..."
+            sleep "$SLEEP_BETWEEN_ATTEMPTS"
+            ((attempt++))
+        fi
+    done
 
-    mkdir -p "$SRA_DIR"
-
-    if [[ ! -f "$SRA_FILE" ]]; then
-        echo "[STEP] Downloading $SRR..."
-        prefetch --max-size 500G "$SRR" -O "$SRA_DIR"
+    if [[ $attempt -gt $MAX_ATTEMPTS ]]; then
+        echo "[ERROR] Failed to download $SRR after $MAX_ATTEMPTS attempts."
+        return
     fi
 
-    echo "[CONVERT] $SRR → FASTQ"
-    fasterq-dump "$SRA_FILE" --split-files -O "$OUTDIR" -t "$TMP_DIR" -e "$THREADS"
+    # Convert to gzipped FASTQ
+    echo "[INFO] Converting $SRR to FASTQ..."
+    fasterq-dump "$SRA_DIR/$SRR/$SRR.sra" --split-files --gzip -O "$FASTQ_DIR" || {
+        echo "[ERROR] Conversion failed for $SRR."
+    }
 
-    echo "[GZIP] Compressing FASTQ files..."
-    gzip -f "$OUTDIR/${SRR}_1.fastq" "$OUTDIR/${SRR}_2.fastq"
-
-    if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
-        echo "[CLEANUP] Removing $SRA_DIR..."
-        rm -rf "$SRA_DIR"
-        echo "[DONE] $SRR conversion complete."
-    else
-        echo "[WARN] Conversion failed for $SRR. SRA folder retained."
-    fi
+    # Optional: remove SRA to save space
+    # rm -rf "$SRA_DIR/$SRR"
 }
 
-export -f process_srr
-export OUTDIR TMP_DIR THREADS
+export -f download_convert_srr
+export SRA_DIR FASTQ_DIR MAX_ATTEMPTS SLEEP_BETWEEN_ATTEMPTS
 
-# Properly pass SRR IDs to function
-cat "$SRR_LIST" | xargs -n 1 -P "$MAX_JOBS" bash -c 'process_srr "$0" "$OUTDIR" "$TMP_DIR" "$THREADS"' 
+# Process in batches
+cat "$SRR_LIST" | xargs -n 1 -P "$BATCH_SIZE" -I {} bash -c 'download_convert_srr "$@"' _ {}
 
-echo "[ALL DONE] Conversion finished for $BIOPROJECT."
 
 ```
 
