@@ -67,12 +67,12 @@ done
 #### Method 2: Using SRA Toolkit / ENA Run Accessions (for large datasets)
 
 ##### A. download all FASTQ files from an ENA
-
+download_sra_ena.sh (download-only, skip existing)
 ```bash
 #!/bin/bash
 set -euo pipefail
 
-OUTDIR="./fastq_files"
+OUTDIR="./sra_downloads"
 mkdir -p "$OUTDIR"
 
 PROJECT="PRJEB13960"
@@ -94,56 +94,87 @@ MAX_JOBS=$((CPU_CORES / 2))
 [[ $MAX_JOBS -lt 1 ]] && MAX_JOBS=1
 echo "[INFO] Using $MAX_JOBS parallel jobs."
 
-process_sra() {
+download_sra() {
     local SAMPLE="$1"
     local URL="$2"
-    local OUTDIR="$3"
 
-    local FASTQ1="$OUTDIR/${SAMPLE}_1.fastq.gz"
-    local FASTQ2="$OUTDIR/${SAMPLE}_2.fastq.gz"
-
-    # Skip if FASTQ already exists
-    if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
-        echo "[SKIP] $SAMPLE already converted."
+    local SRA_FILE="$OUTDIR/${SAMPLE}.sra"
+    if [[ -f "$SRA_FILE" ]]; then
+        echo "[SKIP] $SAMPLE already downloaded."
         return
     fi
 
-    local SRA_DIR="./sra_downloads/${SAM
+    echo "[INFO] Downloading $SAMPLE..."
+    wget -c "$URL" -O "$SRA_FILE" && echo "[SUCCESS] $SAMPLE downloaded."
+}
 
+export -f download_sra
+export OUTDIR
+
+cat "$URL_LIST" | xargs -n 2 -P "$MAX_JOBS" bash -c 'download_sra "$0" "$1"' 
 ```
+convert_sra_to_fastq.sh (convert + remove SRA after conversion)
 
-##### B. download all FASTQ files from an NCBI
-use fasterq-dump to automatically download all FASTQ files from a given Bioproject (PRJNA1104194) and save them as gzipped paired-end FASTQ files
 ```bash
 #!/bin/bash
 set -euo pipefail
 
-# Directories
-SRA_DIR="./sra_files"
+SRA_DIR="./sra_downloads"
 FASTQ_DIR="./fastq_files"
-mkdir -p "$SRA_DIR" "$FASTQ_DIR"
+mkdir -p "$FASTQ_DIR"
 
-# Input: file with SRR IDs (one per line)
+SRR_LIST=$(ls "$SRA_DIR"/*.sra | xargs -n 1 basename | sed 's/\.sra$//')
+
+for SRR in $SRR_LIST; do
+    FASTQ1="$FASTQ_DIR/${SRR}_1.fastq.gz"
+    FASTQ2="$FASTQ_DIR/${SRR}_2.fastq.gz"
+
+    if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
+        echo "[SKIP] $SRR already converted."
+        continue
+    fi
+
+    echo "[INFO] Converting $SRR to FASTQ..."
+    fasterq-dump "$SRA_DIR/$SRR.sra" --split-files --gzip -O "$FASTQ_DIR" || {
+        echo "[ERROR] Conversion failed for $SRR."
+        continue
+    }
+
+    echo "[INFO] Removing $SRR.sra to save space..."
+    rm -f "$SRA_DIR/$SRR.sra"
+done
+```
+
+
+
+##### B. download all FASTQ files from an NCBI
+use fasterq-dump to automatically download all FASTQ files from a given Bioproject (PRJNA1104194) and save them as gzipped paired-end FASTQ files
+
+download_sra.sh
+
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+SRA_DIR="./sra_files"
+mkdir -p "$SRA_DIR"
+
 SRR_LIST="srr_list.txt"
-
-# Max download attempts
 MAX_ATTEMPTS=5
 SLEEP_BETWEEN_ATTEMPTS=30
-
-# Batch size for parallel processing
 BATCH_SIZE=10
 
-# Function to download and convert one SRR
-download_convert_srr() {
+download_srr() {
     local SRR="$1"
+    local sra_path="$SRA_DIR/$SRR.sra"
 
-    # Skip if FASTQ already exists
-    if [[ -f "$FASTQ_DIR/${SRR}_1.fastq.gz" && -f "$FASTQ_DIR/${SRR}_2.fastq.gz" ]]; then
-        echo "[SKIP] $SRR already converted."
+    # Skip if SRA file already exists
+    if [[ -f "$sra_path" ]]; then
+        echo "[SKIP] $SRR already downloaded."
         return
     fi
 
-    # Download with retries
     local attempt=1
     while [[ $attempt -le $MAX_ATTEMPTS ]]; do
         echo "[INFO] Downloading $SRR (attempt $attempt)..."
@@ -159,27 +190,57 @@ download_convert_srr() {
 
     if [[ $attempt -gt $MAX_ATTEMPTS ]]; then
         echo "[ERROR] Failed to download $SRR after $MAX_ATTEMPTS attempts."
+    fi
+}
+
+export -f download_srr
+export SRA_DIR MAX_ATTEMPTS SLEEP_BETWEEN_ATTEMPTS
+
+cat "$SRR_LIST" | xargs -n 1 -P "$BATCH_SIZE" -I {} bash -c 'download_srr "$@"' _ {}
+
+```
+sra_to_fastq.sh
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+SRA_DIR="./sra_files"
+FASTQ_DIR="./fastq_files"
+mkdir -p "$FASTQ_DIR"
+
+SRR_LIST="srr_list.txt"
+BATCH_SIZE=5  # convert fewer in parallel to avoid disk IO overload
+
+convert_srr() {
+    local SRR="$1"
+
+    # Skip if FASTQ already exists
+    if [[ -f "$FASTQ_DIR/${SRR}_1.fastq.gz" && -f "$FASTQ_DIR/${SRR}_2.fastq.gz" ]]; then
+        echo "[SKIP] $SRR already converted."
         return
     fi
 
-    # Convert to gzipped FASTQ
-    echo "[INFO] Converting $SRR to FASTQ..."
-    fasterq-dump "$SRA_DIR/$SRR/$SRR.sra" --split-files --gzip -O "$FASTQ_DIR" || {
-        echo "[ERROR] Conversion failed for $SRR."
-    }
+    local sra_path="$SRA_DIR/$SRR.sra"
+    if [[ ! -f "$sra_path" ]]; then
+        echo "[WARN] $SRR.sra not found in $SRA_DIR"
+        return
+    fi
 
-    # Optional: remove SRA to save space
-    # rm -rf "$SRA_DIR/$SRR"
+    echo "[INFO] Converting $SRR to FASTQ..."
+    fasterq-dump "$sra_path" --split-files --gzip -O "$FASTQ_DIR"
+
+    echo "[INFO] Removing $SRR.sra to save space..."
+    rm -f "$sra_path"
 }
 
-export -f download_convert_srr
-export SRA_DIR FASTQ_DIR MAX_ATTEMPTS SLEEP_BETWEEN_ATTEMPTS
+export -f convert_srr
+export SRA_DIR FASTQ_DIR
 
-# Process in batches
-cat "$SRR_LIST" | xargs -n 1 -P "$BATCH_SIZE" -I {} bash -c 'download_convert_srr "$@"' _ {}
-
+cat "$SRR_LIST" | xargs -n 1 -P "$BATCH_SIZE" -I {} bash -c 'convert_srr "$@"' _ {}
 
 ```
+
 
 
 ## Checking FASTQ
