@@ -418,7 +418,8 @@ Paste this into the file:
 set -euo pipefail
 
 SPADES_DIR="spades_results"
-QUAST_DIR="quast_results_spades"
+QUAST_PARENT="quast_results"
+QUAST_DIR="$QUAST_PARENT/quast_results_spades"
 CSV_OUTDIR="csv_output"
 
 mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
@@ -430,9 +431,9 @@ for sample_out in "$SPADES_DIR"/*; do
   [[ -d "$sample_out" ]] || continue
   sample=$(basename "$sample_out")
   
-  contigs=("$sample_out"/*_contigs.fasta)
-  [[ -f "${contigs[0]}" ]] || continue
-  contigs="${contigs[0]}"
+  contigs_file=("$sample_out"/*_contigs.fasta)
+  [[ -f "${contigs_file[0]}" ]] || continue
+  contigs="${contigs_file[0]}"
 
   outdir="$QUAST_DIR/$sample"
   mkdir -p "$outdir"
@@ -453,6 +454,7 @@ for sample_out in "$SPADES_DIR"/*; do
     echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
   fi
 done
+
 ``` 
 ######   Step 2:Create the Shovill assembly-scan script
 ``` bash
@@ -464,7 +466,8 @@ Paste this into the file:
 set -euo pipefail
 
 SHOVILL_DIR="shovill_results"
-QUAST_DIR="quast_results_shovill"
+QUAST_PARENT="quast_results"
+QUAST_DIR="$QUAST_PARENT/quast_results_shovill"
 CSV_OUTDIR="csv_output"
 
 mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
@@ -476,9 +479,9 @@ for sample_out in "$SHOVILL_DIR"/*; do
   [[ -d "$sample_out" ]] || continue
   sample=$(basename "$sample_out")
   
-  contigs=("$sample_out"/*_contigs.fa)
-  [[ -f "${contigs[0]}" ]] || continue
-  contigs="${contigs[0]}"
+  contigs_file=("$sample_out"/*_contigs.fa)
+  [[ -f "${contigs_file[0]}" ]] || continue
+  contigs="${contigs_file[0]}"
 
   outdir="$QUAST_DIR/$sample"
   mkdir -p "$outdir"
@@ -499,6 +502,7 @@ for sample_out in "$SHOVILL_DIR"/*; do
     echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
   fi
 done
+
 ``` 
 ###### Step 3: Make scripts executable
 ``` bash
