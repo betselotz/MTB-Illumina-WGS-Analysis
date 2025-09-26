@@ -147,7 +147,7 @@ awk -F'[ =]' '{print $1, $2, $3, $4, $5}'
 ```
 
 
-#2️⃣ Spades
+# 2️⃣ Spades
 
 SPAdes (St. Petersburg genome assembler) is a popular **de novo assembler** used for bacterial genomes, including *Mycobacterium tuberculosis*. It works well with **paired-end Illumina reads**, especially after trimming and quality control.
 
