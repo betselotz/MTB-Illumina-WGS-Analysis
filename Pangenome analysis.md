@@ -311,34 +311,8 @@ When evaluating *Mycobacterium tuberculosis* assemblies, keep these quality thre
 </details>
 
 
-### 1. Quick assembly stats using `stats.sh`
 
-The `stats.sh` script from BBMap provides basic assembly statistics such as total length, N50, number of contigs, and GC content.
-###### Activate the environment
-```bash
-conda activate bbmap_env
-```
-###### Run stats.sh to Verify Installation
-```bash
-stats.sh
-```
-
-######  Run `stats.sh` on Shovill Assembly
-```bash
-stats.sh in=./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
-```
-
-###### Run `stats.sh` on SPAdes Assembly```
-```bash
-stats.sh in=./spades_results/ET1135_S12/ET1135_S12_contigs.fasta
-```
-
-> **Tip:** This command will display key statistics including:
-> 
-> - Total bases
-> - Number of contigs
-> - Minimum, maximum, and N50 contig lengths
-> - GC content
+### 1. Using BBMap to explore assembly
 
 We run `stats.sh` on all Shovill and spades assemblies in your shovill_results directory and save the summary results into a CSV file
 
@@ -531,7 +505,7 @@ conda activate quast_env
 ```bash
 nano run_quast_spades.sh
 ```
-#####  Step 2: Paste the following into `run_seqkit_on_shovill.sh`
+#####  Step 2: Paste the following into `run_quast_on_shovill.sh`
 
 ``` bash
 #!/bin/bash
@@ -588,9 +562,6 @@ chmod +x run_quast_spades.sh
 conda activate quast_env
 ./run_quast_spades.sh
 ```
-
-
-
 #### 3. Assembly summary with assembly-scan
 We can use another tool assembly-scan to generate summary statistics of the assembly.
 ###### Activate the environment
@@ -718,7 +689,7 @@ print(comparison)
 ``` 
 
 
-#1️⃣4️⃣ Prokka
+# 1️⃣4️⃣ Prokka
 Prokka is a rapid **prokaryotic genome annotation tool** that predicts genes, coding sequences (CDS), rRNAs, tRNAs, and other genomic features from assembled contigs or genomes.  
 
 Key points for TB genomes:
