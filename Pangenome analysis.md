@@ -467,7 +467,7 @@ Collect the key statistics in a single CSV file
 ```bash
 nano run_quast_shovill.sh
 ```
-#####  Step 2: Paste the following into `run_seqkit_on_shovill.sh`
+#####  Step 2: Paste the following into `run_quast_on_shovill.sh`
 
 ``` bash
 #!/bin/bash
@@ -476,6 +476,7 @@ set -euo pipefail
 SHOVILL_DIR="shovill_results"
 QUAST_DIR="quast_results_shovill"
 CSV_OUTDIR="csv_output"
+
 mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
 
 CSV_FILE="$CSV_OUTDIR/quast_summary_shovill.csv"
@@ -492,14 +493,23 @@ for sample_out in "$SHOVILL_DIR"/*; do
   outdir="$QUAST_DIR/$sample"
   mkdir -p "$outdir"
 
-  quast "$contigs" -o "$outdir" --csv
+  quast "$contigs" -o "$outdir" > /dev/null 2>&1
 
-  stats_file="$outdir/report.csv"
+  stats_file="$outdir/report.tsv"
   if [[ -f "$stats_file" ]]; then
-    stats=$(sed -n '2p' "$stats_file")
-    echo "${sample},${stats}" >> "$CSV_FILE"
+    num_contigs=$(awk -F'\t' '$1=="# contigs (>= 0 bp)"{print $2}' "$stats_file")
+    total_len=$(awk -F'\t' '$1=="Total length (>= 0 bp)"{print $2}' "$stats_file")
+    min_len=$(awk -F'\t' '$1=="Shortest contig"{print $2}' "$stats_file")
+    max_len=$(awk -F'\t' '$1=="Largest contig"{print $2}' "$stats_file")
+    avg_len=$(awk -F'\t' '$1=="Average contig length"{print $2}' "$stats_file")
+    n50=$(awk -F'\t' '$1=="N50"{print $2}' "$stats_file")
+    n75=$(awk -F'\t' '$1=="N75"{print $2}' "$stats_file")
+    gc=$(awk -F'\t' '$1=="GC (%)"{print $2}' "$stats_file")
+
+    echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
   fi
 done
+
 
 ```
 ##### Step 3: Save and exit nano
@@ -516,7 +526,7 @@ conda activate quast_env
 ./run_quast_shovill.sh
 ```
 
-### running QUAST on all SPAdes assemblies and collecting key statistics into a single CSV.
+### running QUAST on all SPAdes assemblies and collecting key statistics into a single report.tsv.
 ##### Step 1: Create the script
 ```bash
 nano run_quast_spades.sh
@@ -530,6 +540,7 @@ set -euo pipefail
 SPADES_DIR="spades_results"
 QUAST_DIR="quast_results_spades"
 CSV_OUTDIR="csv_output"
+
 mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
 
 CSV_FILE="$CSV_OUTDIR/quast_summary_spades.csv"
@@ -546,12 +557,20 @@ for sample_out in "$SPADES_DIR"/*; do
   outdir="$QUAST_DIR/$sample"
   mkdir -p "$outdir"
 
-  quast "$contigs" -o "$outdir" --csv
+  quast "$contigs" -o "$outdir" > /dev/null 2>&1
 
-  stats_file="$outdir/report.csv"
+  stats_file="$outdir/report.tsv"
   if [[ -f "$stats_file" ]]; then
-    stats=$(sed -n '2p' "$stats_file")
-    echo "${sample},${stats}" >> "$CSV_FILE"
+    num_contigs=$(awk -F'\t' '$1=="# contigs (>= 0 bp)"{print $2}' "$stats_file")
+    total_len=$(awk -F'\t' '$1=="Total length (>= 0 bp)"{print $2}' "$stats_file")
+    min_len=$(awk -F'\t' '$1=="Shortest contig"{print $2}' "$stats_file")
+    max_len=$(awk -F'\t' '$1=="Largest contig"{print $2}' "$stats_file")
+    avg_len=$(awk -F'\t' '$1=="Average contig length"{print $2}' "$stats_file")
+    n50=$(awk -F'\t' '$1=="N50"{print $2}' "$stats_file")
+    n75=$(awk -F'\t' '$1=="N75"{print $2}' "$stats_file")
+    gc=$(awk -F'\t' '$1=="GC (%)"{print $2}' "$stats_file")
+
+    echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
   fi
 done
 
