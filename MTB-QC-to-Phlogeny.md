@@ -133,12 +133,10 @@ echo "[INFO] Found $(wc -l < "$SRR_LIST") SRR runs."
 CPU_CORES=$(nproc)
 MAX_JOBS=$((CPU_CORES / 2))
 [[ $MAX_JOBS -lt 1 ]] && MAX_JOBS=1
-THREADS=2  # threads per SRR, adjust if needed
+THREADS=2
 
 TMP_DIR="/dev/shm/fasterq_tmp"
 mkdir -p "$TMP_DIR"
-
-echo "[INFO] Using $MAX_JOBS parallel jobs, $THREADS threads per SRR, temp dir: $TMP_DIR"
 
 process_srr() {
     local SRR="$1"
@@ -149,7 +147,6 @@ process_srr() {
     local FASTQ1="$OUTDIR/${SRR}_1.fastq.gz"
     local FASTQ2="$OUTDIR/${SRR}_2.fastq.gz"
 
-    # Skip if already converted
     if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
         echo "[SKIP] $SRR already converted."
         return
@@ -160,23 +157,21 @@ process_srr() {
 
     mkdir -p "$SRA_DIR"
 
-    # Download if SRA not present
     if [[ ! -f "$SRA_FILE" ]]; then
         echo "[STEP] Downloading $SRR..."
         prefetch --max-size 500G "$SRR" -O "$SRA_DIR"
-    else
-        echo "[FOUND] Using existing $SRA_FILE"
     fi
 
-    # Convert to fastq.gz
     echo "[CONVERT] $SRR → FASTQ"
-    fasterq-dump "$SRA_FILE" --split-files --gzip -O "$OUTDIR" -t "$TMP_DIR" -e "$THREADS"
+    fasterq-dump "$SRA_FILE" --split-files -O "$OUTDIR" -t "$TMP_DIR" -e "$THREADS"
 
-    # Cleanup only if conversion succeeded
+    echo "[GZIP] Compressing FASTQ files..."
+    gzip -f "$OUTDIR/${SRR}_1.fastq" "$OUTDIR/${SRR}_2.fastq"
+
     if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
         echo "[CLEANUP] Removing $SRA_DIR..."
         rm -rf "$SRA_DIR"
-        echo "[DONE] $SRR conversion and cleanup complete."
+        echo "[DONE] $SRR conversion complete."
     else
         echo "[WARN] Conversion failed for $SRR. SRA folder retained."
     fi
@@ -185,7 +180,8 @@ process_srr() {
 export -f process_srr
 export OUTDIR TMP_DIR THREADS
 
-cat "$SRR_LIST" | xargs -n 1 -P "$MAX_JOBS" bash -c 'process_srr "$@"' _ {} "$OUTDIR" "$TMP_DIR" "$THREADS"
+# Properly pass SRR IDs to function
+cat "$SRR_LIST" | xargs -n 1 -P "$MAX_JOBS" bash -c 'process_srr "$0" "$OUTDIR" "$TMP_DIR" "$THREADS"' 
 
 echo "[ALL DONE] Conversion finished for $BIOPROJECT."
 
