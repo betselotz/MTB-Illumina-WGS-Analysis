@@ -688,6 +688,87 @@ comparison.to_csv("csv_output/assembly_comparison_summary.csv", index=False)
 print(comparison)
 ``` 
 
+#### 4. estimate genome completeness/contamination for all assemblies with CheckM
+######   Step 1: Create the SPAdes CheckM script
+``` bash
+nano run_checkm_spades.sh
+``` 
+Paste this into the file:
+
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+SPADES_DIR="spades_results"
+CHECKM_DIR="checkm_results_spades"
+CSV_OUTDIR="csv_output"
+
+mkdir -p "$CHECKM_DIR" "$CSV_OUTDIR"
+INPUT_DIR="$CHECKM_DIR/input"
+mkdir -p "$INPUT_DIR"
+
+# Copy all contigs to a single input folder with standardized names
+for sample_out in "$SPADES_DIR"/*; do
+  [[ -d "$sample_out" ]] || continue
+  sample=$(basename "$sample_out")
+  contigs=("$sample_out"/*_contigs.fasta)
+  [[ -f "${contigs[0]}" ]] || continue
+  cp "${contigs[0]}" "$INPUT_DIR/${sample}.fasta"
+done
+
+# Run CheckM lineage workflow
+checkm lineage_wf -x fasta "$INPUT_DIR" "$CHECKM_DIR" -t 8
+
+# Generate CSV summary
+CSV_FILE="$CSV_OUTDIR/checkm_summary_spades.csv"
+checkm qa "$CHECKM_DIR/lineage.ms" "$CHECKM_DIR" -o 2 -t 8 > "$CSV_FILE"
+``` 
+######   Step 2:Create the Shovill CheckM script
+``` bash
+nano run_checkm_shovill.sh
+``` 
+Paste this into the file:
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+SHOVILL_DIR="shovill_results"
+CHECKM_DIR="checkm_results_shovill"
+CSV_OUTDIR="csv_output"
+
+mkdir -p "$CHECKM_DIR" "$CSV_OUTDIR"
+INPUT_DIR="$CHECKM_DIR/input"
+mkdir -p "$INPUT_DIR"
+
+# Copy all contigs to a single input folder
+for sample_out in "$SHOVILL_DIR"/*; do
+  [[ -d "$sample_out" ]] || continue
+  sample=$(basename "$sample_out")
+  contigs=("$sample_out"/*_contigs.fa)
+  [[ -f "${contigs[0]}" ]] || continue
+  cp "${contigs[0]}" "$INPUT_DIR/${sample}.fasta"
+done
+
+# Run CheckM lineage workflow
+checkm lineage_wf -x fasta "$INPUT_DIR" "$CHECKM_DIR" -t 8
+
+# Generate CSV summary
+CSV_FILE="$CSV_OUTDIR/checkm_summary_shovill.csv"
+checkm qa "$CHECKM_DIR/lineage.ms" "$CHECKM_DIR" -o 2 -t 8 > "$CSV_FILE"
+``` 
+###### Step 3: Make scripts executable
+``` bash
+chmod +x run_checkm_spades.sh run_checkm_shovill.sh
+``` 
+###### Step 4: Run the scripts
+``` bash
+conda activate checkm_env
+
+./run_checkm_spades.sh
+./run_checkm_shovill.sh
+``` 
+
+
 
 # 1️⃣4️⃣ Prokka
 Prokka is a rapid **prokaryotic genome annotation tool** that predicts genes, coding sequences (CDS), rRNAs, tRNAs, and other genomic features from assembled contigs or genomes.  
@@ -875,7 +956,6 @@ plt.show()
 python visualize_prokka.py
 ```
 merge this with the assembly statistics (N50, contigs, GC%) so that both assembly and annotation metrics are in one visualization
-
 
 ##### Step 1: Prepare the Python script
 ``` bash
