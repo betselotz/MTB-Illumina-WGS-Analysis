@@ -574,7 +574,7 @@ done
 ``` 
 ###### Step 3: Make scripts executable
 ``` bash
-chmod +x run_assembly_scan_shovill.sh
+chmod +x run_assembly_scan_spades.sh run_assembly_scan_shovill.sh
 ``` 
 ###### Step 4: Run the scripts
 ``` bash
