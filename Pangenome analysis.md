@@ -316,66 +316,15 @@ When evaluating *Mycobacterium tuberculosis* assemblies, keep these quality thre
 
 We run `stats.sh` on all Shovill and spades assemblies in your shovill_results directory and save the summary results into a CSV file
 
-
 script that will loop over all contig FASTA files, run stats.sh from BBMap, and save the results to a CSV file:
-##### Step 1: Create or edit the script
-```bash
-nano run_shovill_stats.sh
-```
-##### Step 2: Paste the following into the script
-```bash
-#!/bin/bash
-set -euo pipefail
 
-source ~/miniconda3/etc/profile.d/conda.sh
-conda activate bbmap_env
-
-SHOVILL_DIR="shovill_results"
-TSV_OUTDIR="csv_output"
-mkdir -p "$TSV_OUTDIR"
-
-first_sample=true
-OUTFILE="$TSV_OUTDIR/shovill_assembly_stats.tsv"
-
-for sample_dir in "$SHOVILL_DIR"/*; do
-    sample=$(basename "$sample_dir")
-    contig_file="$sample_dir/${sample}_contigs.fa"
-
-    if [[ -f "$contig_file" ]]; then
-        echo "Processing $sample..."
-        if $first_sample; then
-            echo -e "Sample\t$(stats.sh in="$contig_file" format=3 | head -n1)" > "$OUTFILE"
-            first_sample=false
-        fi
-        stats.sh in="$contig_file" format=3 | tail -n +2 | awk -v s="$sample" 'BEGIN{OFS="\t"} {print s,$0}' >> "$OUTFILE"
-    else
-        echo ">> Contig file not found for $sample, skipping."
-    fi
-done
-
-echo "All Shovill assembly stats saved to $OUTFILE"
-```
-
-##### Step 3: Save and exit nano
-Press Ctrl + O → Enter (to write the file)
-Press Ctrl + X → Exit nano
-
-###### Step 4: Make the script executable
+######   Step 1: Create the SPAdes CheckM script
 ``` bash
-chmod +x run_shovill_stats.sh
-```
-###### Step 5: Activate environment and run
-``` bash
-conda activate bbmap_env
-./run_shovill_stats.sh
-```
-
-##### Step 1: Create or edit the script
-```bash
 nano run_spades_stats.sh
-```
-##### Step 2: Paste the following into the script
-```bash
+``` 
+Paste this into the file:
+
+``` bash
 #!/bin/bash
 set -euo pipefail
 
@@ -406,106 +355,63 @@ for sample_dir in "$SPADES_DIR"/*; do
 done
 
 echo "All SPAdes assembly stats saved to $OUTFILE"
-```
-
-##### Step 3: Save and exit nano
-Press Ctrl + O → Enter (to write the file)
-Press Ctrl + X → Exit nano
-
-###### Step 4: Make the script executable
+``` 
+######   Step 2:Create the Shovill BBMap script
 ``` bash
-chmod +x run_spades_stats.sh
-```
-###### Step 5: Activate environment and run
-``` bash
-conda activate bbmap_env
-./run_spades_stats.sh
-```
-### 2. Using seqkit to explore assembly
-###### Activate the environment
-``` bash
-conda activate seqkit_env
-```
-###### Display help
-``` bash
-seqkit -h
-```
-###### Convert FASTA to tab-delimited table (sequence length and name) 
-``` bash
-seqkit fx2tab -nl ./shovill_results/ET1135_S12/ET1135_S12_contigs.fa
-```
-
-### run QUAST on all Shovill assemblies
-Collect the key statistics in a single CSV file
-##### Step 1: Create the script
-```bash
-nano run_quast_shovill.sh
-```
-#####  Step 2: Paste the following into `run_quast_on_shovill.sh`
-
+nano run_shovill_stats.sh
+``` 
+paste
 ``` bash
 #!/bin/bash
 set -euo pipefail
 
+source ~/miniconda3/etc/profile.d/conda.sh
+conda activate bbmap_env
+
 SHOVILL_DIR="shovill_results"
-QUAST_DIR="quast_results_shovill"
-CSV_OUTDIR="csv_output"
+TSV_OUTDIR="csv_output"
+mkdir -p "$TSV_OUTDIR"
 
-mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
+first_sample=true
+OUTFILE="$TSV_OUTDIR/shovill_assembly_stats.tsv"
 
-CSV_FILE="$CSV_OUTDIR/quast_summary_shovill.csv"
-echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CSV_FILE"
+for sample_dir in "$SHOVILL_DIR"/*; do
+    sample=$(basename "$sample_dir")
+    contig_file="$sample_dir/${sample}_contigs.fa"
 
-for sample_out in "$SHOVILL_DIR"/*; do
-  [[ -d "$sample_out" ]] || continue
-  sample=$(basename "$sample_out")
-  
-  contigs=("$sample_out"/*_contigs.fa)
-  [[ -f "${contigs[0]}" ]] || continue
-  contigs="${contigs[0]}"
-
-  outdir="$QUAST_DIR/$sample"
-  mkdir -p "$outdir"
-
-  quast "$contigs" -o "$outdir" > /dev/null 2>&1
-
-  stats_file="$outdir/report.tsv"
-  if [[ -f "$stats_file" ]]; then
-    num_contigs=$(awk -F'\t' '$1=="# contigs (>= 0 bp)"{print $2}' "$stats_file")
-    total_len=$(awk -F'\t' '$1=="Total length (>= 0 bp)"{print $2}' "$stats_file")
-    min_len=$(awk -F'\t' '$1=="Shortest contig"{print $2}' "$stats_file")
-    max_len=$(awk -F'\t' '$1=="Largest contig"{print $2}' "$stats_file")
-    avg_len=$(awk -F'\t' '$1=="Average contig length"{print $2}' "$stats_file")
-    n50=$(awk -F'\t' '$1=="N50"{print $2}' "$stats_file")
-    n75=$(awk -F'\t' '$1=="N75"{print $2}' "$stats_file")
-    gc=$(awk -F'\t' '$1=="GC (%)"{print $2}' "$stats_file")
-
-    echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
-  fi
+    if [[ -f "$contig_file" ]]; then
+        echo "Processing $sample..."
+        if $first_sample; then
+            echo -e "Sample\t$(stats.sh in="$contig_file" format=3 | head -n1)" > "$OUTFILE"
+            first_sample=false
+        fi
+        stats.sh in="$contig_file" format=3 | tail -n +2 | awk -v s="$sample" 'BEGIN{OFS="\t"} {print s,$0}' >> "$OUTFILE"
+    else
+        echo ">> Contig file not found for $sample, skipping."
+    fi
 done
 
+echo "All Shovill assembly stats saved to $OUTFILE"
+``` 
+###### Step 3: Make scripts executable
+``` bash
+chmod +x run_spades_stats.sh run_shovill_stats.sh
+``` 
+###### Step 4: Run the scripts
+``` bash
+conda activate bbmap_env
+./run_spades_stats.sh
+./run_shovill_stats.sh
+``` 
 
-```
-##### Step 3: Save and exit nano
-Press Ctrl + O → Enter (to write the file)
-Press Ctrl + X → Exit nano
-
-##### Step 4: Make the script executable
-```bash
-chmod +x run_quast_shovill.sh
-```
-##### Step 5: Activate environment and run
-```bash
-conda activate quast_env
-./run_quast_shovill.sh
-```
-
-### running QUAST on all SPAdes assemblies and collecting key statistics into a single report.tsv.
-##### Step 1: Create the script
-```bash
+### 2.run QUAST on all Shovill assemblies
+Collect the key statistics in a single CSV file
+running QUAST on all SPAdes assemblies and collecting key statistics into a single report.tsv. 
+######   Step 1: Create the SPAdes quast script
+``` bash
 nano run_quast_spades.sh
-```
-#####  Step 2: Paste the following into `run_quast_on_shovill.sh`
+``` 
+Paste this into the file:
 
 ``` bash
 #!/bin/bash
@@ -547,87 +453,73 @@ for sample_out in "$SPADES_DIR"/*; do
     echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
   fi
 done
-
-```
-##### Step 3: Save and exit nano
-Press Ctrl + O → Enter (to write the file)
-Press Ctrl + X → Exit nano
-
-##### Step 4: Make the script executable
-```bash
-chmod +x run_quast_spades.sh
-```
-##### Step 5: Activate environment and run
-```bash
-conda activate quast_env
-./run_quast_spades.sh
-```
-#### 3. Assembly summary with assembly-scan
-We can use another tool assembly-scan to generate summary statistics of the assembly.
-###### Activate the environment
+``` 
+######   Step 2:Create the Shovill assembly-scan script
 ``` bash
-conda activate assembly_scan_env
-```
-###### Verify the Installation
-``` bash
-assembly-scan --version
-```
-
-Shovill assemblies using `assembly-scan`
-###### Create the script for Shovill assemblies
-``` bash
-nano run_assembly_scan_shovill.sh
-```
-##### 2 Paste this:
+nano run_quast_shovill.sh
+``` 
+Paste this into the file:
 ``` bash
 #!/bin/bash
 set -euo pipefail
 
 SHOVILL_DIR="shovill_results"
+QUAST_DIR="quast_results_shovill"
 CSV_OUTDIR="csv_output"
-mkdir -p "$CSV_OUTDIR"
 
-CSV_FILE="$CSV_OUTDIR/shovill_assembly_scan.csv"
-echo "Sample,Contig,Length,GC%" > "$CSV_FILE"
+mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
 
-for sample_dir in "$SHOVILL_DIR"/*; do
-  [[ -d "$sample_dir" ]] || continue
-  sample=$(basename "$sample_dir")
-  contig_file="$sample_dir/${sample}_contigs.fa"
-  if [[ -f "$contig_file" ]]; then
-    assembly-scan "$contig_file" --transpose | awk -v s="$sample" -F'\t' 'NR>1 {print s","$1","$2","$3}' >> "$CSV_FILE"
+CSV_FILE="$CSV_OUTDIR/quast_summary_shovill.csv"
+echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CSV_FILE"
+
+for sample_out in "$SHOVILL_DIR"/*; do
+  [[ -d "$sample_out" ]] || continue
+  sample=$(basename "$sample_out")
+  
+  contigs=("$sample_out"/*_contigs.fa)
+  [[ -f "${contigs[0]}" ]] || continue
+  contigs="${contigs[0]}"
+
+  outdir="$QUAST_DIR/$sample"
+  mkdir -p "$outdir"
+
+  quast "$contigs" -o "$outdir" > /dev/null 2>&1
+
+  stats_file="$outdir/report.tsv"
+  if [[ -f "$stats_file" ]]; then
+    num_contigs=$(awk -F'\t' '$1=="# contigs (>= 0 bp)"{print $2}' "$stats_file")
+    total_len=$(awk -F'\t' '$1=="Total length (>= 0 bp)"{print $2}' "$stats_file")
+    min_len=$(awk -F'\t' '$1=="Shortest contig"{print $2}' "$stats_file")
+    max_len=$(awk -F'\t' '$1=="Largest contig"{print $2}' "$stats_file")
+    avg_len=$(awk -F'\t' '$1=="Average contig length"{print $2}' "$stats_file")
+    n50=$(awk -F'\t' '$1=="N50"{print $2}' "$stats_file")
+    n75=$(awk -F'\t' '$1=="N75"{print $2}' "$stats_file")
+    gc=$(awk -F'\t' '$1=="GC (%)"{print $2}' "$stats_file")
+
+    echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
   fi
 done
-```
-###### Save and exit nano
-
-Press CTRL + O → Enter to save
-
-Press CTRL + X to exit
-###### Make the script executable
-``` bash
-chmod +x run_assembly_scan_shovill.sh
 ``` 
-###### Run the script 
+###### Step 3: Make scripts executable
 ``` bash
-./run_assembly_scan_shovill.sh
+chmod +x run_quast_spades.sh run_quast_shovill.sh
+``` 
+###### Step 4: Run the scripts
+``` bash
+conda activate quast_env
+./run_quast_spades.sh
+./run_quast_shovill.sh
 ``` 
 
-SPAdes assemblies using assembly-scan
-
-###### 1 Activate the environment
-``` bash
-conda activate assembly_scan_env
-```
-###### Verify the Installation
-``` bash
-assembly-scan --version
-```
-######  2 Create a script for SPAdes assemblies
+### 3. Assembly summary with assembly-scan
+Collect the key statistics in a single CSV file
+running QUAST on all SPAdes assemblies and collecting key statistics into a single report.tsv. 
+######   Step 1: Create the SPAdes assembly-scan  script
 ``` bash
 nano run_assembly_scan_spades.sh
-```
-###### 3 Paste this clean version:
+``` 
+Paste this into the file:
+
 ``` bash
 #!/bin/bash
 set -euo pipefail
@@ -643,24 +535,62 @@ for sample_dir in "$SPADES_DIR"/*; do
   [[ -d "$sample_dir" ]] || continue
   sample=$(basename "$sample_dir")
   contig_file="$sample_dir/${sample}_contigs.fasta"
+  
   if [[ -f "$contig_file" ]]; then
-    assembly-scan "$contig_file" --transpose | awk -v s="$sample" -F'\t' 'NR>1 {print s","$1","$2","$3}' >> "$CSV_FILE"
+    assembly-scan "$contig_file" --transpose | \
+    tail -n +2 | \
+    awk -v s="$sample" -F'\t' '{print s","$1","$2","$3}' >> "$CSV_FILE"
   fi
 done
 ``` 
-###### 4  Save and exit nano
-
-CTRL + O → Enter
-
-CTRL + X
-###### 5 Make the script executable
+######   Step 2:Create the Shovill assembly-scan script
 ``` bash
-chmod +x run_assembly_scan_spades.sh
+nano run_assembly_scan_shovill.sh
 ``` 
-###### 6  Run the script
+Paste this into the file:
 ``` bash
+#!/bin/bash
+set -euo pipefail
+
+SHOVILL_DIR="shovill_results"
+CSV_OUTDIR="csv_output"
+mkdir -p "$CSV_OUTDIR"
+
+CSV_FILE="$CSV_OUTDIR/shovill_assembly_scan.csv"
+echo "Sample,Contig,Length,GC%" > "$CSV_FILE"
+
+for sample_dir in "$SHOVILL_DIR"/*; do
+  [[ -d "$sample_dir" ]] || continue
+  sample=$(basename "$sample_dir")
+  contig_file="$sample_dir/${sample}_contigs.fa"
+  
+  if [[ -f "$contig_file" ]]; then
+    assembly-scan "$contig_file" --transpose | \
+    tail -n +2 | \
+    awk -v s="$sample" -F'\t' '{print s","$1","$2","$3}' >> "$CSV_FILE"
+  fi
+done
+
+``` 
+###### Step 3: Make scripts executable
+``` bash
+chmod +x run_assembly_scan_shovill.sh
+``` 
+###### Step 4: Run the scripts
+``` bash
+conda activate assembly_scan_env
 ./run_assembly_scan_spades.sh
+./run_assembly_scan_shovill.sh
 ``` 
+
+
+
+
+
+
+
+
+
 
 Python Script for Detailed Comparison
 
