@@ -134,11 +134,12 @@ for R1 in "$INPUT_DIR"/*.fastq.gz; do
     continue
   fi
 
-  echo "==> Running Shovill (single-read) on: $sample"
+  echo "==> Running Shovill (single-end) on: $sample"
   mkdir -p "$sample_out"
 
   shovill \
     --R1 "$R1" \
+    --R2 "$R1" \
     --gsize "$GSIZE" \
     --outdir "$sample_out" \
     --assembler skesa \
@@ -156,6 +157,7 @@ for R1 in "$INPUT_DIR"/*.fastq.gz; do
     mv "$f" "$sample_out/${sample}_$base"
   done
 done
+
 ```
 
 ##### Step 3: Save and exit nano
