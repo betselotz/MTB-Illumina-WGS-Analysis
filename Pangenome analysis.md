@@ -712,32 +712,6 @@ conda activate assembly_scan_env
 
 
 
-Python Script for Detailed Comparison
-
-This creates a merged table with Shovill and SPAdes side by side:
-``` bash
-import pandas as pd
-
-shovill = pd.read_csv("csv_output/shovill_assembly_scan.csv")
-spades = pd.read_csv("csv_output/spades_assembly_scan.csv")
-
-shovill_summary = shovill.groupby("Sample").agg(
-    NumContigs=("Contig","count"),
-    AvgLength=("Length","mean"),
-    AvgGC=("GC%","mean")
-).reset_index()
-
-spades_summary = spades.groupby("Sample").agg(
-    NumContigs=("Contig","count"),
-    AvgLength=("Length","mean"),
-    AvgGC=("GC%","mean")
-).reset_index()
-
-comparison = shovill_summary.merge(spades_summary, on="Sample", suffixes=("_shovill","_spades"))
-comparison.to_csv("csv_output/assembly_comparison_summary.csv", index=False)
-print(comparison)
-``` 
-
 #### 4. estimate genome completeness/contamination for all assemblies with CheckM
 ######   Step 1: Create the SPAdes CheckM script
 ``` bash
@@ -821,6 +795,129 @@ conda activate checkm_env
 ./run_checkm_spades.sh
 ./run_checkm_shovill.sh
 ``` 
+
+``` bash
+nano run_shovill_contigutor.sh
+``` 
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+SHOVILL_DIR="shovill_results"
+CONTIGUTOR_DIR="CONTIGutor_results/shovill_CONTIGutor_results"
+REF_GENOME="H37Rv.gbk"
+
+mkdir -p "$CONTIGUTOR_DIR"
+
+shopt -s nullglob
+for contig in "$SHOVILL_DIR"/*/*_contigs.fa; do
+    sample=$(basename "$(dirname "$contig")")
+    sample_out="$CONTIGUTOR_DIR/$sample"
+    mkdir -p "$sample_out"
+
+    if [[ -f "$sample_out/CONTIGutor.log" ]]; then
+        echo ">> Skipping $sample (already run)"
+        continue
+    fi
+
+    echo "==> Running CONTIGutor on $sample"
+
+    perl CONTIGutor.pl \
+        -c "$contig" \
+        -r "$REF_GENOME" \
+        -o "$sample_out" \
+        > "$sample_out/CONTIGutor.log" 2>&1
+done
+
+echo ">> All runs completed. Results are in $CONTIGUTOR_DIR"
+``` 
+``` bash
+chmod +x run_shovill_contigutor.sh
+``` bash
+``` 
+
+./run_shovill_contigutor.sh
+``` 
+``` bash
+nano run_spades_contigutor.sh
+``` 
+
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+INPUT_DIR="fastp_results_min_50"
+OUTDIR="spades_results"
+THREADS=16
+MEMORY=120
+MIN_CONTIG=500
+COV_CUTOFF=30
+CONTIGUTOR_DIR="CONTIGutor_results/spades_CONTIGutor_results"
+REF_GENOME="H37Rv.gbk"
+
+mkdir -p "$CONTIGUTOR_DIR"
+
+shopt -s nullglob
+for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
+    [[ -e "$R1" ]] || continue
+
+    R2="${R1/_1.trim.fastq.gz/_2.trim.fastq.gz}"
+    if [[ ! -f "$R2" ]]; then
+        echo ">> Skipping $(basename "$R1") (no matching R2 found)" >&2
+        continue
+    fi
+
+    sample=$(basename "$R1" _1.trim.fastq.gz)
+    sample_out="$OUTDIR/$sample"
+
+    if [[ -f "$sample_out/${sample}_contigs.fasta" ]]; then
+        echo ">> Skipping $sample (already assembled)"
+    else
+        echo "==> Running SPAdes (paired-end) on: $sample"
+        mkdir -p "$sample_out"
+
+        spades.py \
+            -1 "$R1" \
+            -2 "$R2" \
+            -o "$sample_out" \
+            -t "$THREADS" \
+            -m "$MEMORY" \
+            --only-assembler \
+            --cov-cutoff "$COV_CUTOFF" \
+            > "$sample_out/${sample}_spades.log" 2>&1
+
+        if [[ -f "$sample_out/contigs.fasta" ]]; then
+            awk -v minlen="$MIN_CONTIG" 'BEGIN{RS=">"; ORS=""} length($0)>minlen+1 {print ">"$0}' \
+                "$sample_out/contigs.fasta" > "$sample_out/${sample}_contigs.fasta"
+        fi
+    fi
+
+    sample_contig="$sample_out/${sample}_contigs.fasta"
+    if [[ -f "$sample_contig" ]]; then
+        sample_cont_out="$CONTIGUTOR_DIR/$sample"
+        mkdir -p "$sample_cont_out"
+
+        if [[ -f "$sample_cont_out/CONTIGutor.log" ]]; then
+            echo ">> Skipping $sample (CONTIGutor already run)"
+            continue
+        fi
+
+        echo "==> Running CONTIGutor on $sample"
+        perl CONTIGutor.pl \
+            -c "$sample_contig" \
+            -r "$REF_GENOME" \
+            -o "$sample_cont_out" \
+            > "$sample_cont_out/CONTIGutor.log" 2>&1
+    fi
+done
+
+echo ">> All SPAdes and CONTIGutor runs completed. Results are in $CONTIGUTOR_DIR"
+``` 
+``` bash
+chmod +x run_spades_contigutor.sh
+./run_spades_contigutor.sh
+``` 
+
 
 
 
