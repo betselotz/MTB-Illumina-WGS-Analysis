@@ -28,7 +28,6 @@ set -euo pipefail
 
 INPUT_DIR="fastp_results_min_50"
 OUTDIR="shovill_results"
-mkdir -p "$OUTDIR"
 
 GSIZE=4411532
 
@@ -51,7 +50,7 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
     continue
   fi
 
-  echo "==> Running Shovill on: $sample"
+  echo "==> Running Shovill (paired-end) on: $sample"
   mkdir -p "$sample_out"
 
   shovill \
@@ -64,17 +63,17 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
     --mincov 30 \
     --depth 100 \
     --namefmt "${sample}_%05d" \
-    --cpus 4 \
-    --ram 16 \
+    --cpus 16 \
+    --ram 120 \
     --tmpdir "${TMPDIR:-/tmp}" \
     --force
 
-  echo "==> Renaming output files in: $sample_out"
   for f in "$sample_out"/*; do
     base=$(basename "$f")
     mv "$f" "$sample_out/${sample}_$base"
   done
 done
+
 ```
 <details>
 <summary>📖 Explanation of Shovill Pipeline Script</summary>
@@ -111,7 +110,53 @@ done
 - `for f in "$sample_out"/*; do ... done` → renames all files to include sample prefix.
 
 </details>
+Shovill single-read script
 
+```bash
+#!/bin/bash
+set -euo pipefail
+
+INPUT_DIR="fastp_results_min_50"
+OUTDIR="shovill_results_single"
+mkdir -p "$OUTDIR"
+
+GSIZE=4411532
+
+shopt -s nullglob
+for R1 in "$INPUT_DIR"/*.fastq.gz; do
+  [[ -e "$R1" ]] || continue
+
+  sample=$(basename "$R1" .fastq.gz)
+  sample_out="$OUTDIR/$sample"
+
+  if [[ -f "$sample_out/${sample}_contigs.fa" ]]; then
+    echo ">> Skipping $sample (already assembled)"
+    continue
+  fi
+
+  echo "==> Running Shovill (single-read) on: $sample"
+  mkdir -p "$sample_out"
+
+  shovill \
+    --R1 "$R1" \
+    --gsize "$GSIZE" \
+    --outdir "$sample_out" \
+    --assembler skesa \
+    --minlen 500 \
+    --mincov 30 \
+    --depth 100 \
+    --namefmt "${sample}_%05d" \
+    --cpus 16 \
+    --ram 120 \
+    --tmpdir "${TMPDIR:-/tmp}" \
+    --force
+
+  for f in "$sample_out"/*; do
+    base=$(basename "$f")
+    mv "$f" "$sample_out/${sample}_$base"
+  done
+done
+```
 
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
@@ -174,19 +219,17 @@ set -euo pipefail
 
 INPUT_DIR="fastp_results_min_50"
 OUTDIR="spades_results"
-mkdir -p "$OUTDIR"
 
-THREADS=4
-MEMORY=16  # in GB
+THREADS=16
+MEMORY=120
 MIN_CONTIG=500
-COV_CUTOFF=30  # minimum coverage for contigs
+COV_CUTOFF=30
 
 shopt -s nullglob
 for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
   [[ -e "$R1" ]] || continue
 
   R2="${R1/_1.trim.fastq.gz/_2.trim.fastq.gz}"
-
   if [[ ! -f "$R2" ]]; then
     echo ">> Skipping $(basename "$R1") (no matching R2 found)" >&2
     continue
@@ -200,7 +243,7 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
     continue
   fi
 
-  echo "==> Running SPAdes on: $sample"
+  echo "==> Running SPAdes (paired-end) on: $sample"
   mkdir -p "$sample_out"
 
   spades.py \
@@ -213,12 +256,59 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
     --cov-cutoff "$COV_CUTOFF" \
     > "$sample_out/${sample}_spades.log" 2>&1
 
-  # Filter contigs by minimum length
   if [[ -f "$sample_out/contigs.fasta" ]]; then
-    awk -v minlen="$MIN_CONTIG" 'BEGIN{RS=">"; ORS=""} length($0)>minlen+1 {print ">"$0}' "$sample_out/contigs.fasta" > "$sample_out/${sample}_contigs.fasta"
+    awk -v minlen="$MIN_CONTIG" 'BEGIN{RS=">"; ORS=""} length($0)>minlen+1 {print ">"$0}' \
+      "$sample_out/contigs.fasta" > "$sample_out/${sample}_contigs.fasta"
   fi
 done
+
 ```
+single-end version
+```bash
+#!/bin/bash
+set -euo pipefail
+
+INPUT_DIR="fastp_results_min_50"
+OUTDIR="spades_results_single"
+mkdir -p "$OUTDIR"
+
+THREADS=16
+MEMORY=120
+MIN_CONTIG=500
+COV_CUTOFF=30
+
+shopt -s nullglob
+for R1 in "$INPUT_DIR"/*.fastq.gz; do
+  [[ -e "$R1" ]] || continue
+
+  sample=$(basename "$R1" .fastq.gz)
+  sample_out="$OUTDIR/$sample"
+
+  if [[ -f "$sample_out/${sample}_contigs.fasta" ]]; then
+    echo ">> Skipping $sample (already assembled)"
+    continue
+  fi
+
+  echo "==> Running SPAdes (single-end) on: $sample"
+  mkdir -p "$sample_out"
+
+  spades.py \
+    -s "$R1" \
+    -o "$sample_out" \
+    -t "$THREADS" \
+    -m "$MEMORY" \
+    --only-assembler \
+    --cov-cutoff "$COV_CUTOFF" \
+    > "$sample_out/${sample}_spades.log" 2>&1
+
+  if [[ -f "$sample_out/contigs.fasta" ]]; then
+    awk -v minlen="$MIN_CONTIG" 'BEGIN{RS=">"; ORS=""} length($0)>minlen+1 {print ">"$0}' \
+      "$sample_out/contigs.fasta" > "$sample_out/${sample}_contigs.fasta"
+  fi
+done
+
+```
+
 
 ###### Step 3: Save & exit in nano:
 
