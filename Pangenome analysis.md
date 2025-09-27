@@ -803,39 +803,69 @@ nano run_shovill_contigutor.sh
 #!/bin/bash
 set -euo pipefail
 
-SHOVILL_DIR="shovill_results"
-CONTIGUTOR_DIR="CONTIGutor_results/shovill_CONTIGutor_results"
+INPUT_DIR="fastp_results_min_50"
+OUTDIR="spades_results"
+THREADS=16
+MEMORY=120
+MIN_CONTIG=500
+COV_CUTOFF=30
+CONTIGUTOR_DIR="CONTIGutor_results/spades_CONTIGutor_results"
 REF_GENOME="H37Rv.gbk"
 
 mkdir -p "$CONTIGUTOR_DIR"
 
 shopt -s nullglob
-for contig in "$SHOVILL_DIR"/*/*_contigs.fa; do
-    sample=$(basename "$(dirname "$contig")")
-    sample_out="$CONTIGUTOR_DIR/$sample"
-    mkdir -p "$sample_out"
+for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
+    [[ -e "$R1" ]] || continue
 
-    if [[ -f "$sample_out/CONTIGutor.log" ]]; then
-        echo ">> Skipping $sample (already run)"
+    R2="${R1/_1.trim.fastq.gz/_2.trim.fastq.gz}"
+    if [[ ! -f "$R2" ]]; then
+        echo ">> Skipping $(basename "$R1") (no matching R2 found)" >&2
         continue
     fi
 
-    echo "==> Running CONTIGutor on $sample"
+    sample=$(basename "$R1" _1.trim.fastq.gz)
+    sample_out="$OUTDIR/$sample"
+    mkdir -p "$sample_out"
 
-    perl CONTIGutor.pl \
-        -c "$contig" \
-        -r "$REF_GENOME" \
+    echo "==> Running SPAdes (paired-end) on: $sample"
+    spades.py \
+        -1 "$R1" \
+        -2 "$R2" \
         -o "$sample_out" \
-        > "$sample_out/CONTIGutor.log" 2>&1
+        -t "$THREADS" \
+        -m "$MEMORY" \
+        --only-assembler \
+        --cov-cutoff "$COV_CUTOFF" \
+        > "$sample_out/${sample}_spades.log" 2>&1
+
+    if [[ -f "$sample_out/contigs.fasta" ]]; then
+        awk -v minlen="$MIN_CONTIG" 'BEGIN{RS=">"; ORS=""} length($0)>minlen+1 {print ">"$0}' \
+            "$sample_out/contigs.fasta" > "$sample_out/${sample}_contigs.fasta"
+    fi
+
+    sample_contig="$sample_out/${sample}_contigs.fasta"
+    if [[ -f "$sample_contig" ]]; then
+        sample_cont_out="$CONTIGUTOR_DIR/$sample"
+        mkdir -p "$sample_cont_out"
+
+        echo "==> Running CONTIGutor on $sample"
+        perl CONTIGutor.pl \
+            -c "$sample_contig" \
+            -r "$REF_GENOME" \
+            -o "$sample_cont_out" \
+            > "$sample_cont_out/CONTIGutor.log" 2>&1
+    fi
 done
 
-echo ">> All runs completed. Results are in $CONTIGUTOR_DIR"
+echo ">> All SPAdes and CONTIGutor runs completed. Results are in $CONTIGUTOR_DIR"
+
 ``` 
 ``` bash
 chmod +x run_shovill_contigutor.sh
-``` bash
-``` 
+```
 
+``` bash
 ./run_shovill_contigutor.sh
 ``` 
 ``` bash
