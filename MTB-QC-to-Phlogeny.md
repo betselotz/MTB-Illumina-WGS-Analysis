@@ -119,49 +119,20 @@ convert_sra_to_fastq.sh (convert + remove SRA after conversion)
 #!/bin/bash
 set -euo pipefail
 
-SRA_DIR="./sra_downloads"
-FASTQ_DIR="./fastq_files"
-LOG_DIR="./conversion_logs"
-mkdir -p "$FASTQ_DIR" "$LOG_DIR"
+SRA_DIR="sra_files"
+FASTQ_DIR="fastq_files"
 
-BATCH_SIZE=5
-THREADS=4
+mkdir -p "$FASTQ_DIR"
 
-if ! command -v fasterq-dump &> /dev/null; then
-    echo "[ERROR] fasterq-dump not found. Install SRA Toolkit first."
-    exit 1
-fi
+for sra_file in "$SRA_DIR"/*.sra; do
+    sample=$(basename "$sra_file" .sra)
+    echo "[INFO] Converting $sample"
 
-convert_sra() {
-    local sra_path="$1"
-    local SRR
-    SRR=$(basename "$sra_path" .sra)
-    
-    local FASTQ1="$FASTQ_DIR/${SRR}_1.fastq.gz"
-    local FASTQ2="$FASTQ_DIR/${SRR}_2.fastq.gz"
+    fasterq-dump "$sra_file" -O "$FASTQ_DIR" --split-files --threads 4
+    pigz -p 4 "$FASTQ_DIR/${sample}"*.fastq
+done
 
-    if [[ -f "$FASTQ1" && -f "$FASTQ2" ]]; then
-        echo "[SKIP] $SRR already converted."
-        return
-    fi
-
-    echo "[INFO] Converting $SRR to FASTQ..."
-    fasterq-dump "$sra_path" --split-files --gzip --threads "$THREADS" -O "$FASTQ_DIR" &> "$LOG_DIR/${SRR}.log" || {
-        echo "[ERROR] Conversion failed for $SRR."
-        return
-    }
-
-    if [[ -f "$sra_path" ]]; then
-        rm -f "$sra_path"
-        echo "[INFO] Removed $SRR.sra to save space."
-    fi
-}
-
-export -f convert_sra
-export FASTQ_DIR LOG_DIR THREADS
-
-find "$SRA_DIR" -type f -name "*.sra" | xargs -n 1 -P "$BATCH_SIZE" bash -c 'convert_sra "$0"'
-
+echo "[INFO] All SRA files converted to FASTQ.GZ in $FASTQ_DIR"
 ```
 
 
@@ -222,45 +193,23 @@ sra_to_fastq.sh
 
 ```bash
 #!/bin/bash
+#!/bin/bash
 set -euo pipefail
 
-SRA_DIR="./sra_files"
-FASTQ_DIR="./fastq_files"
-LOG_DIR="./conversion_logs"
-mkdir -p "$FASTQ_DIR" "$LOG_DIR"
+SRA_DIR="sra_files"
+FASTQ_DIR="fastq_files"
 
-BATCH_SIZE=5
-THREADS=4
+mkdir -p "$FASTQ_DIR"
 
-if ! command -v fasterq-dump &> /dev/null; then
-    echo "[ERROR] fasterq-dump not found. Install SRA Toolkit first."
-    exit 1
-fi
+for sra_file in "$SRA_DIR"/*.sra; do
+    sample=$(basename "$sra_file" .sra)
+    echo "[INFO] Converting $sample"
 
-convert_sra() {
-    local sra_path="$1"
-    local SRR
-    SRR=$(basename "$sra_path" .sra)
-    
-    if [[ -f "$FASTQ_DIR/${SRR}_1.fastq.gz" && -f "$FASTQ_DIR/${SRR}_2.fastq.gz" ]]; then
-        echo "[SKIP] $SRR already converted."
-        return
-    fi
+    fasterq-dump "$sra_file" -O "$FASTQ_DIR" --split-files --threads 4
+    pigz -p 4 "$FASTQ_DIR/${sample}"*.fastq
+done
 
-    echo "[INFO] Converting $SRR to FASTQ..."
-    fasterq-dump "$sra_path" --split-files --gzip --threads "$THREADS" -O "$FASTQ_DIR" &> "$LOG_DIR/${SRR}.log"
-
-    if [[ -f "$sra_path" ]]; then
-        rm -f "$sra_path"
-        echo "[INFO] Removed $SRR.sra to save space."
-    fi
-}
-
-export -f convert_sra
-export FASTQ_DIR LOG_DIR THREADS
-
-find "$SRA_DIR" -type f -name "*.sra" | xargs -n 1 -P "$BATCH_SIZE" bash -c 'convert_sra "$0"'
-
+echo "[INFO] All SRA files converted to FASTQ.GZ in $FASTQ_DIR"
 ```
 
 
