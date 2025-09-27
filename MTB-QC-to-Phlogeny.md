@@ -124,22 +124,18 @@ FASTQ_DIR="fastq_files"
 
 mkdir -p "$FASTQ_DIR"
 
-for sra_file in "$SRA_DIR"/*.sra; do
-    sample=$(basename "$sra_file" .sra)
+for sra_dir in "$SRA_DIR"/*; do
+    sample=$(basename "$sra_dir")
 
-    if [[ -f "$FASTQ_DIR/${sample}_1.fastq.gz" || -f "$FASTQ_DIR/${sample}.fastq.gz" ]]; then
+    if [[ -f "$FASTQ_DIR/${sample}_1.fastq.gz" ]]; then
         echo "[SKIP] $sample already converted"
         continue
     fi
 
     echo "[INFO] Converting $sample"
-    fasterq-dump "$sra_file" -O "$FASTQ_DIR" --split-files --threads 4
+    fasterq-dump "$sample" -O "$FASTQ_DIR" --split-files --threads 4
     pigz -p 4 "$FASTQ_DIR/${sample}"*.fastq
-
-    rm -f "$sra_file"
 done
-
-echo "[INFO] Conversion complete. FASTQ files are in $FASTQ_DIR"
 
 ```
 
@@ -208,22 +204,18 @@ FASTQ_DIR="fastq_files"
 
 mkdir -p "$FASTQ_DIR"
 
-for sra_file in "$SRA_DIR"/*.sra; do
-    sample=$(basename "$sra_file" .sra)
+for sra_dir in "$SRA_DIR"/*; do
+    sample=$(basename "$sra_dir")
 
-    if [[ -f "$FASTQ_DIR/${sample}_1.fastq.gz" || -f "$FASTQ_DIR/${sample}.fastq.gz" ]]; then
+    if [[ -f "$FASTQ_DIR/${sample}_1.fastq.gz" ]]; then
         echo "[SKIP] $sample already converted"
         continue
     fi
 
     echo "[INFO] Converting $sample"
-    fasterq-dump "$sra_file" -O "$FASTQ_DIR" --split-files --threads 4
+    fasterq-dump "$sample" -O "$FASTQ_DIR" --split-files --threads 4
     pigz -p 4 "$FASTQ_DIR/${sample}"*.fastq
-
-    rm -f "$sra_file"
 done
-
-echo "[INFO] Conversion complete. FASTQ files are in $FASTQ_DIR"
 ```
 
 
