@@ -996,7 +996,7 @@ run_prokka() {
          --species tuberculosis \
          --cpus 4 \
          --evalue 1e-9 \
-         --minidentity 90 \
+         --coverage 90 \
          --force "$contigs"
 }
 
@@ -1061,7 +1061,7 @@ run_prokka() {
          --species tuberculosis \
          --cpus 4 \
          --evalue 1e-9 \
-         --minidentity 90 \
+         --coverage 90 \
          --force "$contigs"
 }
 
@@ -1069,7 +1069,6 @@ export -f run_prokka
 export PROKKA_DIR
 
 find "$SPADES_DIR" -maxdepth 1 -mindepth 1 -type d | parallel -j 8 run_prokka {}
-
 ```
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
