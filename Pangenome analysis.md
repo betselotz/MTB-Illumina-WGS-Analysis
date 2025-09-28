@@ -1067,6 +1067,57 @@ conda activate prokka_env
 ./run_prokka_spades.sh
 ```
 
+Shovill summary → CSV
+
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+mkdir -p csv_output
+output_file="csv_output/prokka_shovill_summary.csv"
+echo "Sample,CDS,rRNA,tRNA,Genome_size,GC_content" > "$output_file"
+
+for sample_dir in prokka_results/prokka_results_shovill/*; do
+    sample=$(basename "$sample_dir")
+    stats_file="$sample_dir/$sample.txt"
+    if [[ -f "$stats_file" ]]; then
+        cds=$(grep "CDS:" "$stats_file" | awk '{print $2}')
+        rrna=$(grep "rRNA:" "$stats_file" | awk '{print $2}')
+        trna=$(grep "tRNA:" "$stats_file" | awk '{print $2}')
+        genome=$(grep "Bases:" "$stats_file" | awk '{print $2}')
+        gc=$(grep "GC:" "$stats_file" | awk '{print $2}')
+        echo "$sample,$cds,$rrna,$trna,$genome,$gc" >> "$output_file"
+    fi
+done
+``` 
+
+SPAdes summary → CSV
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+mkdir -p csv_output
+output_file="csv_output/prokka_spades_summary.csv"
+echo "Sample,CDS,rRNA,tRNA,Genome_size,GC_content" > "$output_file"
+
+for sample_dir in prokka_results/prokka_results_spades/*; do
+    sample=$(basename "$sample_dir")
+    stats_file="$sample_dir/$sample.txt"
+    if [[ -f "$stats_file" ]]; then
+        cds=$(grep "CDS:" "$stats_file" | awk '{print $2}')
+        rrna=$(grep "rRNA:" "$stats_file" | awk '{print $2}')
+        trna=$(grep "tRNA:" "$stats_file" | awk '{print $2}')
+        genome=$(grep "Bases:" "$stats_file" | awk '{print $2}')
+        gc=$(grep "GC:" "$stats_file" | awk '{print $2}')
+        echo "$sample,$cds,$rrna,$trna,$genome,$gc" >> "$output_file"
+    fi
+done
+``` 
+
+
+
+
+
 Prokka annotation results for both Shovill and SPAdes, we can visualize them in multiple ways. The simplest approach is to summarize key annotation metrics per sample and plot them using Python.
 
 Here’s a clean workflow using matplotlib/seaborn.
