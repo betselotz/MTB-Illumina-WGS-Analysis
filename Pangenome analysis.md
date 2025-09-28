@@ -126,7 +126,10 @@ shopt -s nullglob
 for R1 in "$INPUT_DIR"/*.fastq.gz; do
   [[ -e "$R1" ]] || continue
 
+  # Remove .fastq.gz and optional .trim suffix
   sample=$(basename "$R1" .fastq.gz)
+  sample=${sample%.trim}
+
   sample_out="$OUTDIR/$sample"
 
   if [[ -f "$sample_out/contigs.fa" ]]; then
@@ -139,7 +142,7 @@ for R1 in "$INPUT_DIR"/*.fastq.gz; do
 
   shovill \
     --R1 "$R1" \
-    --R2 "$R1" \   # duplicate the same file for R2 (hack for single-end) 
+    --R2 "$R1" \
     --gsize "$GSIZE" \
     --outdir "$sample_out" \
     --assembler skesa \
@@ -152,7 +155,6 @@ for R1 in "$INPUT_DIR"/*.fastq.gz; do
     --tmpdir "${TMPDIR:-/tmp}" \
     --force
 done
-
 ```
 
 ##### Step 3: Save and exit nano
