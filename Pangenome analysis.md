@@ -1113,6 +1113,47 @@ for sample_dir in prokka_results/prokka_results_spades/*; do
     fi
 done
 ``` 
+Shovill function → CSV
+
+``` bash
+#!/bin/bash
+
+BASE_DIR="./prokka_results/prokka_results_shovill"
+
+for SAMPLE_DIR in "$BASE_DIR"/*/; do
+    TSV_FILE=$(find "$SAMPLE_DIR" -maxdepth 1 -type f -name "*.tsv" | head -n 1)
+    [ -z "$TSV_FILE" ] && continue
+    BASENAME=$(basename "$TSV_FILE" .tsv)
+    OUTPUT_FILE="$SAMPLE_DIR/${BASENAME}_product_stats.csv"
+    TOTAL=$(tail -n +2 "$TSV_FILE" | wc -l)
+    [ "$TOTAL" -eq 0 ] && continue
+    echo "Product,Count,Percentage" > "$OUTPUT_FILE"
+    tail -n +2 "$TSV_FILE" | cut -f7 | sed '/^$/d' | sort | uniq -c | sort -nr | \
+    awk -v total="$TOTAL" '{count=$1; $1=""; sub(/^ /,""); perc=(count/total)*100; printf "\"%s\",%d,%.2f%%\n",$0,count,perc}' >> "$OUTPUT_FILE"
+    echo "✅ Saved product stats for $(basename "$SAMPLE_DIR") to $OUTPUT_FILE"
+done
+``` 
+
+Spades function → CSV
+``` bash
+#!/bin/bash
+
+BASE_DIR="./prokka_results/prokka_results_spades"
+
+for SAMPLE_DIR in "$BASE_DIR"/*/; do
+    TSV_FILE=$(find "$SAMPLE_DIR" -maxdepth 1 -type f -name "*.tsv" | head -n 1)
+    [ -z "$TSV_FILE" ] && continue
+    BASENAME=$(basename "$TSV_FILE" .tsv)
+    OUTPUT_FILE="$SAMPLE_DIR/${BASENAME}_product_stats.csv"
+    TOTAL=$(tail -n +2 "$TSV_FILE" | wc -l)
+    [ "$TOTAL" -eq 0 ] && continue
+    echo "Product,Count,Percentage" > "$OUTPUT_FILE"
+    tail -n +2 "$TSV_FILE" | cut -f7 | sed '/^$/d' | sort | uniq -c | sort -nr | \
+    awk -v total="$TOTAL" '{count=$1; $1=""; sub(/^ /,""); perc=(count/total)*100; printf "\"%s\",%d,%.2f%%\n",$0,count,perc}' >> "$OUTPUT_FILE"
+    echo "✅ Saved product stats for $(basename "$SAMPLE_DIR") to $OUTPUT_FILE"
+done
+``` 
+
 
 
 
