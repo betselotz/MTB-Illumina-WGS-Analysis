@@ -703,14 +703,6 @@ conda activate assembly_scan_env
 ``` 
 
 
-
-
-
-
-
-
-
-
 #### 4. estimate genome completeness/contamination for all assemblies with CheckM
 ######   Step 1: Create the SPAdes CheckM script
 ``` bash
@@ -975,18 +967,27 @@ nano run_prokka_shovill.sh
 set -euo pipefail
 
 SHOVILL_DIR="shovill_results"
-PROKKA_DIR="prokka_results_shovill"
+PROKKA_BASE_DIR="prokka_results"
+PROKKA_DIR="$PROKKA_BASE_DIR/prokka_results_shovill"
+
 mkdir -p "$PROKKA_DIR"
+
+if ! command -v prokka &>/dev/null; then
+  echo "Prokka not found"
+  exit 1
+fi
 
 for sample_out in "$SHOVILL_DIR"/*; do
   [[ -d "$sample_out" ]] || continue
   sample=$(basename "$sample_out")
-  contigs=$(ls "$sample_out"/*_contigs.fa 2>/dev/null | head -n 1)
-  if [[ -z "$contigs" ]]; then
-    continue
-  fi
+  
+  contigs=("$sample_out"/*_contigs.fa)
+  contigs="${contigs[0]:-}"
+  [[ -z "$contigs" ]] && continue
+
   outdir="$PROKKA_DIR/$sample"
   mkdir -p "$outdir"
+
   prokka --outdir "$outdir" \
          --prefix "$sample" \
          --kingdom Bacteria \
@@ -995,7 +996,6 @@ for sample_out in "$SHOVILL_DIR"/*; do
          --cpus 4 \
          --force "$contigs"
 done
-
 ```
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
@@ -1023,18 +1023,27 @@ nano run_prokka_spades.sh
 set -euo pipefail
 
 SPADES_DIR="spades_results"
-PROKKA_DIR="prokka_results_spades"
+PROKKA_BASE_DIR="prokka_results"
+PROKKA_DIR="$PROKKA_BASE_DIR/prokka_results_spades"
+
 mkdir -p "$PROKKA_DIR"
+
+if ! command -v prokka &>/dev/null; then
+  echo "Prokka not found"
+  exit 1
+fi
 
 for sample_out in "$SPADES_DIR"/*; do
   [[ -d "$sample_out" ]] || continue
   sample=$(basename "$sample_out")
-  contigs=$(ls "$sample_out"/*_contigs.fasta 2>/dev/null | head -n 1)
-  if [[ -z "$contigs" ]]; then
-    continue
-  fi
+  
+  contigs=("$sample_out"/*_contigs.fasta)
+  contigs="${contigs[0]:-}"
+  [[ -z "$contigs" ]] && continue
+
   outdir="$PROKKA_DIR/$sample"
   mkdir -p "$outdir"
+
   prokka --outdir "$outdir" \
          --prefix "$sample" \
          --kingdom Bacteria \
