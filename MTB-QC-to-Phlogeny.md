@@ -1447,13 +1447,24 @@ tb-profiler collate --itol
 ```
 ##### Step 8: Combine all tbprofiler.txt into one CSV
 ```bash
-find . -name "tbprofiler.txt" \
-| exec awk 'FNR==1 && NR!=1{next} {print}' {} + \
-| sed 's/\t/,/g' \
-> tbprofiler_collated.csv
+#!/bin/bash
+set -euo pipefail
 
-echo "✅ Collated all tbprofiler.txt files into tbprofiler_collated.csv"
+OUTPUT="tbprofiler_collated.csv"
+> "$OUTPUT"  # Empty the output file
 
+first_file=true
+
+find . -name "tbprofiler.txt" | sort | while read -r file; do
+    if $first_file; then
+        awk '{gsub("\t", ","); print}' "$file" >> "$OUTPUT"
+        first_file=false
+    else
+        awk 'NR>1 {gsub("\t", ","); print}' "$file" >> "$OUTPUT"
+    fi
+done
+
+echo "✅ Collated all tbprofiler.txt files into $OUTPUT"
 ```
 <details>
 <summary>📌 Explanation of the TBProfiler collate command</summary>
