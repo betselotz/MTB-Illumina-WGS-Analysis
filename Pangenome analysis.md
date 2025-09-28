@@ -1135,7 +1135,7 @@ Shovill function → CSV
 ``` bash
 #!/bin/bash
 
-BASE_DIR="./prokka_results/prokka_results_shovill"
+BASE_DIR="./prokka_results/shovill"
 
 for SAMPLE_DIR in "$BASE_DIR"/*/; do
     TSV_FILE=$(find "$SAMPLE_DIR" -maxdepth 1 -type f -name "*.tsv" | head -n 1)
@@ -1155,7 +1155,7 @@ Spades function → CSV
 ``` bash
 #!/bin/bash
 
-BASE_DIR="./prokka_results/prokka_results_spades"
+BASE_DIR="./prokka_results/spades"
 
 for SAMPLE_DIR in "$BASE_DIR"/*/; do
     TSV_FILE=$(find "$SAMPLE_DIR" -maxdepth 1 -type f -name "*.tsv" | head -n 1)
