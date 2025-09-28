@@ -117,7 +117,7 @@ Shovill single-read script
 set -euo pipefail
 
 INPUT_DIR="fastp_results_min_50"
-OUTDIR="shovill_results_single"
+OUTDIR="shovill_results"
 mkdir -p "$OUTDIR"
 
 GSIZE=4411532
@@ -129,33 +129,28 @@ for R1 in "$INPUT_DIR"/*.fastq.gz; do
   sample=$(basename "$R1" .fastq.gz)
   sample_out="$OUTDIR/$sample"
 
-  if [[ -f "$sample_out/${sample}_contigs.fa" ]]; then
+  if [[ -f "$sample_out/contigs.fa" ]]; then
     echo ">> Skipping $sample (already assembled)"
     continue
   fi
 
-  echo "==> Running Shovill (single-end) on: $sample"
+  echo "==> Running Shovill (single-read workaround) on: $sample"
   mkdir -p "$sample_out"
 
   shovill \
     --R1 "$R1" \
-    --R2 "$R1" \
+    --R2 "$R1" \   # duplicate the same file for R2 (hack for single-end) 
     --gsize "$GSIZE" \
     --outdir "$sample_out" \
     --assembler skesa \
     --minlen 500 \
     --mincov 30 \
     --depth 100 \
-    --namefmt "${sample}_%05d" \
+    --namefmt "%05d" \
     --cpus 16 \
     --ram 120 \
     --tmpdir "${TMPDIR:-/tmp}" \
     --force
-
-  for f in "$sample_out"/*; do
-    base=$(basename "$f")
-    mv "$f" "$sample_out/${sample}_$base"
-  done
 done
 
 ```
@@ -271,7 +266,7 @@ single-end version
 set -euo pipefail
 
 INPUT_DIR="fastp_results_min_50"
-OUTDIR="spades_results_single"
+OUTDIR="spades_results"
 mkdir -p "$OUTDIR"
 
 THREADS=16
@@ -283,10 +278,13 @@ shopt -s nullglob
 for R1 in "$INPUT_DIR"/*.fastq.gz; do
   [[ -e "$R1" ]] || continue
 
+  # Remove .fastq.gz and optional .trim suffix
   sample=$(basename "$R1" .fastq.gz)
+  sample=${sample%.trim}
+
   sample_out="$OUTDIR/$sample"
 
-  if [[ -f "$sample_out/${sample}_contigs.fasta" ]]; then
+  if [[ -f "$sample_out/contigs.fasta" ]]; then
     echo ">> Skipping $sample (already assembled)"
     continue
   fi
@@ -301,14 +299,13 @@ for R1 in "$INPUT_DIR"/*.fastq.gz; do
     -m "$MEMORY" \
     --only-assembler \
     --cov-cutoff "$COV_CUTOFF" \
-    > "$sample_out/${sample}_spades.log" 2>&1
+    > "$sample_out/spades.log" 2>&1
 
   if [[ -f "$sample_out/contigs.fasta" ]]; then
     awk -v minlen="$MIN_CONTIG" 'BEGIN{RS=">"; ORS=""} length($0)>minlen+1 {print ">"$0}' \
-      "$sample_out/contigs.fasta" > "$sample_out/${sample}_contigs.fasta"
+      "$sample_out/contigs.fasta" > "$sample_out/contigs.filtered.fasta"
   fi
 done
-
 ```
 
 
