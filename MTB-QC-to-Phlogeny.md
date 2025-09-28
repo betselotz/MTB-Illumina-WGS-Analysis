@@ -121,21 +121,38 @@ set -euo pipefail
 
 SRA_DIR="sra_files"
 FASTQ_DIR="fastq_files"
-
 mkdir -p "$FASTQ_DIR"
 
-for sra_dir in "$SRA_DIR"/*; do
-    sample=$(basename "$sra_dir")
-
-    if [[ -f "$FASTQ_DIR/${sample}_1.fastq.gz" ]]; then
-        echo "[SKIP] $sample already converted"
-        continue
+convert_sra() {
+    sra="$1"
+    base=$(basename "$sra" .sra)
+    
+    if ls "$FASTQ_DIR/${base}"*.fastq.gz 1> /dev/null 2>&1; then
+        echo "Skipping $base, already converted."
+        return
     fi
 
-    echo "[INFO] Converting $sample"
-    fasterq-dump "$sample" -O "$FASTQ_DIR" --split-files --threads 4
-    pigz -p 4 "$FASTQ_DIR/${sample}"*.fastq
-done
+    echo "Starting conversion: $base"
+    fasterq-dump --split-files --outdir "$FASTQ_DIR" "$sra"
+    
+    for fq in "$FASTQ_DIR/${base}"*.fastq; do
+        echo "Compressing $fq"
+        gzip "$fq"
+    done
+
+    if ls "$FASTQ_DIR/${base}"*.fastq.gz 1> /dev/null 2>&1; then
+        echo "Conversion successful: $base. Removing original SRA."
+        rm -f "$sra"
+    else
+        echo "Conversion failed: $base"
+    fi
+}
+
+export -f convert_sra
+export FASTQ_DIR
+
+find "$SRA_DIR" -name "*.sra" | parallel -j 16 convert_sra {}
+
 
 ```
 
@@ -201,21 +218,38 @@ set -euo pipefail
 
 SRA_DIR="sra_files"
 FASTQ_DIR="fastq_files"
-
 mkdir -p "$FASTQ_DIR"
 
-for sra_dir in "$SRA_DIR"/*; do
-    sample=$(basename "$sra_dir")
-
-    if [[ -f "$FASTQ_DIR/${sample}_1.fastq.gz" ]]; then
-        echo "[SKIP] $sample already converted"
-        continue
+convert_sra() {
+    sra="$1"
+    base=$(basename "$sra" .sra)
+    
+    if ls "$FASTQ_DIR/${base}"*.fastq.gz 1> /dev/null 2>&1; then
+        echo "Skipping $base, already converted."
+        return
     fi
 
-    echo "[INFO] Converting $sample"
-    fasterq-dump "$sample" -O "$FASTQ_DIR" --split-files --threads 4
-    pigz -p 4 "$FASTQ_DIR/${sample}"*.fastq
-done
+    echo "Starting conversion: $base"
+    fasterq-dump --split-files --outdir "$FASTQ_DIR" "$sra"
+    
+    for fq in "$FASTQ_DIR/${base}"*.fastq; do
+        echo "Compressing $fq"
+        gzip "$fq"
+    done
+
+    if ls "$FASTQ_DIR/${base}"*.fastq.gz 1> /dev/null 2>&1; then
+        echo "Conversion successful: $base. Removing original SRA."
+        rm -f "$sra"
+    else
+        echo "Conversion failed: $base"
+    fi
+}
+
+export -f convert_sra
+export FASTQ_DIR
+
+find "$SRA_DIR" -name "*.sra" | parallel -j 16 convert_sra {}
+
 ```
 
 
