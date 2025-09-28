@@ -967,8 +967,7 @@ nano run_prokka_shovill.sh
 set -euo pipefail
 
 SHOVILL_DIR="shovill_results"
-PROKKA_BASE_DIR="prokka_results"
-PROKKA_DIR="$PROKKA_BASE_DIR/prokka_results_shovill"
+PROKKA_DIR="prokka_results/shovill"
 
 mkdir -p "$PROKKA_DIR"
 
@@ -977,13 +976,15 @@ if ! command -v prokka &>/dev/null; then
   exit 1
 fi
 
-for sample_out in "$SHOVILL_DIR"/*; do
-  [[ -d "$sample_out" ]] || continue
+run_prokka() {
+  sample_out="$1"
   sample=$(basename "$sample_out")
-  
+
   contigs=("$sample_out"/*_contigs.fa)
   contigs="${contigs[0]:-}"
-  [[ -z "$contigs" ]] && continue
+  [[ -z "$contigs" ]] && return
+
+  echo "Processing $sample..."
 
   outdir="$PROKKA_DIR/$sample"
   mkdir -p "$outdir"
@@ -994,8 +995,16 @@ for sample_out in "$SHOVILL_DIR"/*; do
          --genus Mycobacterium \
          --species tuberculosis \
          --cpus 4 \
+         --evalue 1e-9 \
+         --minidentity 90 \
          --force "$contigs"
-done
+}
+
+export -f run_prokka
+export PROKKA_DIR
+
+find "$SHOVILL_DIR" -maxdepth 1 -mindepth 1 -type d | parallel -j 8 run_prokka {}
+
 ```
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
@@ -1023,8 +1032,7 @@ nano run_prokka_spades.sh
 set -euo pipefail
 
 SPADES_DIR="spades_results"
-PROKKA_BASE_DIR="prokka_results"
-PROKKA_DIR="$PROKKA_BASE_DIR/prokka_results_spades"
+PROKKA_DIR="prokka_results/spades"
 
 mkdir -p "$PROKKA_DIR"
 
@@ -1033,13 +1041,15 @@ if ! command -v prokka &>/dev/null; then
   exit 1
 fi
 
-for sample_out in "$SPADES_DIR"/*; do
-  [[ -d "$sample_out" ]] || continue
+run_prokka() {
+  sample_out="$1"
   sample=$(basename "$sample_out")
-  
+
   contigs=("$sample_out"/*_contigs.fasta)
   contigs="${contigs[0]:-}"
-  [[ -z "$contigs" ]] && continue
+  [[ -z "$contigs" ]] && return
+
+  echo "Processing $sample..."
 
   outdir="$PROKKA_DIR/$sample"
   mkdir -p "$outdir"
@@ -1050,8 +1060,16 @@ for sample_out in "$SPADES_DIR"/*; do
          --genus Mycobacterium \
          --species tuberculosis \
          --cpus 4 \
+         --evalue 1e-9 \
+         --minidentity 90 \
          --force "$contigs"
-done
+}
+
+export -f run_prokka
+export PROKKA_DIR
+
+find "$SPADES_DIR" -maxdepth 1 -mindepth 1 -type d | parallel -j 8 run_prokka {}
+
 ```
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
