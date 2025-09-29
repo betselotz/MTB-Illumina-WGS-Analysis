@@ -161,7 +161,17 @@ find "$SRA_DIR" -name "*.sra" | parallel -j 16 convert_sra {}
 ##### B. download all FASTQ files from an NCBI
 use fasterq-dump to automatically download all FASTQ files from a given Bioproject (PRJNA1104194) and save them as gzipped paired-end FASTQ files
 
-download_sra.sh
+
+Get SRR run accessions for the BioProject
+
+You can use NCBI’s Entrez Direct tools (esearch, efetch) to query SRA and pull out the SRR run IDs. For example:
+
+```bash
+esearch -db sra -query PRJNA1109750 | efetch -format runinfo | cut -d "," -f 1 | grep SRR > srr_list.txt
+```
+Use the srr_list.txt to download the data
+
+Once you have the SRR list, you can download all the SRA files or convert them to FASTQ using the SRA Toolkit. For example:
 
 
 ```bash
