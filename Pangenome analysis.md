@@ -1339,3 +1339,21 @@ plt.show()
 ``` bash
 python visualize_combined_metrics.py
 ```
+
+
+panoroo 
+
+``` bash
+cond activate panaroo_env
+``` 
+
+
+``` bash
+mkdir -p panaroo_results && \
+panaroo -i $(find prokka_results -name "*.gff") \
+        -o panaroo_results \
+        --clean-mode strict \
+        --remove-invalid-genes \
+        --core_threshold 99 \
+        -t 8
+``` 
