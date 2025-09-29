@@ -279,35 +279,23 @@ COV_CUTOFF=30
 shopt -s nullglob
 for R1 in "$INPUT_DIR"/*.fastq.gz; do
   [[ -e "$R1" ]] || continue
-
-  # Remove .fastq.gz and optional .trim suffix
   sample=$(basename "$R1" .fastq.gz)
   sample=${sample%.trim}
-
   sample_out="$OUTDIR/$sample"
-
-  if [[ -f "$sample_out/contigs.fasta" ]]; then
+  if [[ -f "$sample_out/${sample}_contigs.fasta" ]]; then
     echo ">> Skipping $sample (already assembled)"
     continue
   fi
-
   echo "==> Running SPAdes (single-end) on: $sample"
   mkdir -p "$sample_out"
-
-  spades.py \
-    -s "$R1" \
-    -o "$sample_out" \
-    -t "$THREADS" \
-    -m "$MEMORY" \
-    --only-assembler \
-    --cov-cutoff "$COV_CUTOFF" \
-    > "$sample_out/spades.log" 2>&1
-
+  spades.py -s "$R1" -o "$sample_out" -t "$THREADS" -m "$MEMORY" --only-assembler --cov-cutoff "$COV_CUTOFF" > "$sample_out/spades.log" 2>&1
   if [[ -f "$sample_out/contigs.fasta" ]]; then
     awk -v minlen="$MIN_CONTIG" 'BEGIN{RS=">"; ORS=""} length($0)>minlen+1 {print ">"$0}' \
-      "$sample_out/contigs.fasta" > "$sample_out/contigs.filtered.fasta"
+      "$sample_out/contigs.fasta" > "$sample_out/${sample}_contigs.filtered.fasta"
+    mv "$sample_out/contigs.fasta" "$sample_out/${sample}_contigs.fasta"
   fi
 done
+
 ```
 
 
