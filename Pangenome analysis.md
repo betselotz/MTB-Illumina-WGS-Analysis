@@ -856,6 +856,62 @@ for DELTA in mummer_results/*.filtered.delta; do
     mummerplot --png --large -p mummer_results/"$SAMPLE" "$DELTA"
 done
 ``` 
+QUAST comparison script
+###### Step 1 — Open a new script
+``` bash
+nano run_quast_comparison.sh
+``` 
+
+###### Step 2 — Paste this clean script
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+# Create output directory
+mkdir -p quast_results
+
+# Loop through all Shovill sample folders
+for SHOVILL_DIR in shovill_results/*; do
+    SAMPLE_ID=$(basename "$SHOVILL_DIR")
+    
+    # Shovill contig file
+    SHOVILL=$(ls "$SHOVILL_DIR"/${SAMPLE_ID}_contigs.fa 2>/dev/null || true)
+    
+    # SPAdes contig file
+    SPADES=$(ls spades_results/"$SAMPLE_ID"/contigs.fasta 2>/dev/null || true)
+
+    # Skip if either assembly is missing
+    if [[ -z "$SHOVILL" || -z "$SPADES" ]]; then
+        echo "Skipping $SAMPLE_ID (missing Shovill or SPAdes assembly)"
+        continue
+    fi
+
+    echo "📊 Running QUAST for $SAMPLE_ID..."
+
+    quast.py \
+      "$SHOVILL" "$SPADES" \
+      -o quast_results/"$SAMPLE_ID" \
+      --labels Shovill SPAdes \
+      --threads 8
+done
+``` 
+###### Step 3 — Save and exit
+
+Press CTRL + O → Enter → CTRL + X
+###### Step 4 — Make the script executable
+```bash
+chmod +x run_quast_comparison.sh
+```
+###### Step 5 — Run the script
+```bash
+conda activate quast_env
+./run_quast_comparison.sh
+```
+
+
+
+
+
 
 
 
@@ -1016,8 +1072,6 @@ echo ">> All SPAdes and CONTIGutor runs completed. Results are in $CONTIGUTOR_DI
 chmod +x run_spades_contigutor.sh
 ./run_spades_contigutor.sh
 ``` 
-
-
 
 
 # 1️⃣4️⃣ Prokka
