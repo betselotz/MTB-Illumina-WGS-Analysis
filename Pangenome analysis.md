@@ -416,6 +416,8 @@ SPADES_CSV="$CSV_OUTDIR/quast_summary_spades.csv"
 SHOVILL_CSV="$CSV_OUTDIR/quast_summary_shovill.csv"
 COMBINED_CSV="$CSV_OUTDIR/quast_summary_combined.csv"
 
+rm -f "$SPADES_CSV" "$SHOVILL_CSV" "$COMBINED_CSV"
+
 echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$SPADES_CSV"
 echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$SHOVILL_CSV"
 
@@ -427,33 +429,31 @@ compute_metrics() {
     MINLEN=$(echo "$lengths" | sort -n | head -1)
     MAXLEN=$(echo "$lengths" | sort -nr | head -1)
     AVG=$(echo "$lengths" | awk -v n="$NUMCONTIGS" '{s+=$1} END{print s/n}')
-    N50=$(echo "$lengths" | awk -v total="$TOTALLEN" 'BEGIN{c=0} {c+=$1; if(c>=total/2){print $1; exit}}')
-    N75=$(echo "$lengths" | awk -v total="$TOTALLEN" 'BEGIN{c=0} {c+=$1; if(c>=total*0.75){print $1; exit}}')
+    lengths_desc=$(echo "$lengths" | sort -nr)
+    N50=$(awk -v total="$TOTALLEN" 'BEGIN{c=0} {c+=$1; if(c>=total/2){print $1; exit}}' <<< "$lengths_desc")
+    N75=$(awk -v total="$TOTALLEN" 'BEGIN{c=0} {c+=$1; if(c>=total*0.75){print $1; exit}}' <<< "$lengths_desc")
     GC=$(awk '/^>/{next} {g+=gsub(/[Gg]/,"")+gsub(/[Cc]/,""); n+=length($0)} END{if(n>0) print g/n*100}' "$CONTIG_FILE")
     echo "$NUMCONTIGS,$TOTALLEN,$MINLEN,$MAXLEN,$AVG,$N50,$N75,$GC"
 }
 
 run_quast_parallel() {
-    ASSEMBLER_NAME="$1"
-    ASSEMBLER_DIR="$2"
-    CONTIG_PATTERN="$3"
-    QUAST_DIR="$4"
-    CSV_FILE="$5"
+    ASSEMBLER_DIR="$1"
+    CONTIG_PATTERN="$2"
+    QUAST_DIR="$3"
+    CSV_FILE="$4"
 
     mkdir -p "$QUAST_DIR"
-    echo "===== Starting QUAST for $ASSEMBLER_NAME ====="
 
     for sample_out in "$ASSEMBLER_DIR"/*; do
         [[ -d "$sample_out" ]] || continue
         sample=$(basename "$sample_out")
         contigs_file=("$sample_out"/$CONTIG_PATTERN)
-        [[ -f "${contigs_file[0]}" ]] || { echo "⚠️  Skipping $sample: contigs not found"; continue; }
+        [[ -f "${contigs_file[0]}" ]] || continue
         contigs="${contigs_file[0]}"
         outdir="$QUAST_DIR/$sample"
         mkdir -p "$outdir"
 
         (
-            echo "🔹 [$ASSEMBLER_NAME] Processing $sample..."
             quast "$contigs" -o "$outdir" --min-contig 0 > /dev/null 2>&1
             stats_file="$outdir/report.tsv"
             if [[ -f "$stats_file" ]]; then
@@ -472,29 +472,24 @@ run_quast_parallel() {
                     N75=$(echo $metrics | cut -d, -f7)
                 fi
                 echo "$sample,${NUMCONTIGS:-NA},${TOTALLEN:-NA},${MINLEN:-NA},${MAXLEN:-NA},${AVG:-NA},${N50:-NA},${N75:-NA},${GC:-NA}" >> "$CSV_FILE"
-                echo "   ✅ Completed $sample"
-            else
-                echo "⚠️  QUAST report missing for $sample"
             fi
         ) &
     done
     wait
-    echo "===== Finished QUAST for $ASSEMBLER_NAME ====="
 }
 
-# Run SPAdes and Shovill in parallel
-run_quast_parallel "SPAdes" "$SPADES_DIR" "*_contigs.fasta" "$SPADES_QUAST" "$SPADES_CSV" &
-run_quast_parallel "Shovill" "$SHOVILL_DIR" "*contigs*.fa*" "$SHOVILL_QUAST" "$SHOVILL_CSV" &
+run_quast_parallel "$SPADES_DIR" "*_contigs.fasta" "$SPADES_QUAST" "$SPADES_CSV" &
+run_quast_parallel "$SHOVILL_DIR" "*contigs*.fa*" "$SHOVILL_QUAST" "$SHOVILL_CSV" &
 wait
 
-# Combine CSVs (skip headers from individual CSVs)
-echo "===== Combining SPAdes and Shovill CSVs ====="
-echo "Sample,NumContigs_SPADES,TotalLength_SPADES,MinLen_SPADES,MaxLen_SPADES,AverageLen_SPADES,N50_SPADES,N75_SPADES,GC_SPADES,NumContigs_SHOVILL,TotalLength_SHOVILL,MinLen_SHOVILL,MaxLen_SHOVILL,AverageLen_SHOVILL,N50_SHOVILL,N75_SHOVILL,GC_SHOVILL" > "$COMBINED_CSV"
 join -t, -1 1 -2 1 \
     <(tail -n +2 "$SPADES_CSV" | sort -t, -k1,1) \
-    <(tail -n +2 "$SHOVILL_CSV" | sort -t, -k1,1) \
-    >> "$COMBINED_CSV"
-echo "✅ Combined CSV created: $COMBINED_CSV"
+    <(tail -n +2 "$SHOVILL_CSV" | sort -t, -k1,1) | \
+awk -F, 'BEGIN {OFS=","} {print $1,$2,$10,$3,$11,$4,$12,$5,$13,$6,$14,$7,$15,$8,$16,$9,$17}' > "$COMBINED_CSV.tmp"
+
+echo "Sample,NumContigs_SPADES,NumContigs_SHOVILL,TotalLength_SPADES,TotalLength_SHOVILL,MinLen_SPADES,MinLen_SHOVILL,MaxLen_SPADES,MaxLen_SHOVILL,AverageLen_SPADES,AverageLen_SHOVILL,N50_SPADES,N50_SHOVILL,N75_SPADES,N75_SHOVILL,GC_SPADES,GC_SHOVILL" | cat - "$COMBINED_CSV.tmp" > "$COMBINED_CSV"
+
+rm -f "$SPADES_CSV" "$SHOVILL_CSV" "$COMBINED_CSV.tmp"
 
 ``` 
 
