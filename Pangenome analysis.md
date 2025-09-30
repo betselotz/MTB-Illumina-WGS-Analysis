@@ -896,33 +896,50 @@ nano run_quast_comparison.sh
 #!/bin/bash
 set -euo pipefail
 
-# Create output directory
-mkdir -p quast_results
+mkdir -p mummer_results
+mkdir -p csv_output
 
-# Loop through all Shovill sample folders
-for SHOVILL_DIR in shovill_results/*; do
-    SAMPLE_ID=$(basename "$SHOVILL_DIR")
-    
-    # Shovill contig file
-    SHOVILL=$(ls "$SHOVILL_DIR"/${SAMPLE_ID}_contigs.fa 2>/dev/null || true)
-    
-    # SPAdes contig file
-    SPADES=$(ls spades_results/"$SAMPLE_ID"/contigs.fasta 2>/dev/null || true)
+TMP_CSV="csv_output/mummer_alignment_comparison_unsorted.csv"
+FINAL_CSV="csv_output/mummer_alignment_comparison.csv"
 
-    # Skip if either assembly is missing
-    if [[ -z "$SHOVILL" || -z "$SPADES" ]]; then
-        echo "Skipping $SAMPLE_ID (missing Shovill or SPAdes assembly)"
+echo "Sample,Shovill_Length,SPAdes_Length,Total_Aligned_Bases,Avg_Identity,Num_Aligned_Blocks,Length_Difference,Percent_Sh_vs_SP,Percent_SP_vs_Sh,Percent_Length_Diff" > "$TMP_CSV"
+
+for SAMPLE_ID in $(ls shovill_results); do
+    SHOVILL="shovill_results/${SAMPLE_ID}/${SAMPLE_ID}_contigs.fa"
+    SPADES="spades_results/${SAMPLE_ID}/contigs.fasta"
+
+    if [[ ! -f "$SHOVILL" || ! -f "$SPADES" ]]; then
+        echo "Skipping $SAMPLE_ID (missing assembly)"
         continue
     fi
 
-    echo "📊 Running QUAST for $SAMPLE_ID..."
+    SAMPLE_OUT="mummer_results/${SAMPLE_ID}"
+    mkdir -p "$SAMPLE_OUT"
 
-    quast.py \
-      "$SHOVILL" "$SPADES" \
-      -o quast_results/"$SAMPLE_ID" \
-      --labels Shovill SPAdes \
-      --threads 8
+    nucmer --maxmatch --prefix="$SAMPLE_OUT/$SAMPLE_ID" "$SHOVILL" "$SPADES"
+    dnadiff -p "$SAMPLE_OUT/$SAMPLE_ID" "$SHOVILL" "$SPADES"
+
+    SHOVILL_LEN=$(awk '/^>/ {if(seq){total+=length(seq)}; seq=""} /^[ACGTN]+$/ {seq=seq $0} END{total+=length(seq); print total}' "$SHOVILL")
+    SPADES_LEN=$(awk '/^>/ {if(seq){total+=length(seq)}; seq=""} /^[ACGTN]+$/ {seq=seq $0} END{total+=length(seq); print total}' "$SPADES")
+
+    TOTAL_ALIGNED=$(awk '/^AlignedBases/{gsub(",","",$2); print $2}' "$SAMPLE_OUT/$SAMPLE_ID.report")
+    AVG_IDENTITY=$(awk '/^AvgIdentity/{gsub("%","",$2); print $2}' "$SAMPLE_OUT/$SAMPLE_ID.report")
+    NUM_BLOCKS=$(awk '/^TotalRefMatches/{gsub(",","",$2); print $2}' "$SAMPLE_OUT/$SAMPLE_ID.report")
+
+    LENGTH_DIFF=$(( SPADES_LEN - SHOVILL_LEN ))
+    PERCENT_SH_vs_SP=$(awk -v aligned="$TOTAL_ALIGNED" -v len="$SHOVILL_LEN" 'BEGIN{if(len>0) printf "%.2f", (aligned/len)*100; else print 0}')
+    PERCENT_SP_vs_SH=$(awk -v aligned="$TOTAL_ALIGNED" -v len="$SPADES_LEN" 'BEGIN{if(len>0) printf "%.2f", (aligned/len)*100; else print 0}')
+    PERCENT_LENGTH_DIFF=$(awk -v diff="$LENGTH_DIFF" -v len="$SHOVILL_LEN" 'BEGIN{if(len>0) printf "%.2f", (diff/len)*100; else print 0}')
+
+    echo "${SAMPLE_ID},${SHOVILL_LEN},${SPADES_LEN},${TOTAL_ALIGNED},${AVG_IDENTITY},${NUM_BLOCKS},${LENGTH_DIFF},${PERCENT_SH_vs_SP},${PERCENT_SP_vs_SH},${PERCENT_LENGTH_DIFF}" >> "$TMP_CSV"
+
+    mummerplot --png --large -p "$SAMPLE_OUT/$SAMPLE_ID" "$SAMPLE_OUT/$SAMPLE_ID.delta"
+    rm -f "$SAMPLE_OUT/$SAMPLE_ID.gp"
 done
+
+(head -n 1 "$TMP_CSV" && tail -n +2 "$TMP_CSV" | sort -t',' -k8,8nr) > "$FINAL_CSV"
+rm -f "$TMP_CSV"
+
 ``` 
 ###### Step 3 — Save and exit
 
