@@ -788,38 +788,34 @@ set -euo pipefail
 
 mkdir -p mummer_results
 
-# Loop through all Shovill sample folders
+if ! command -v gnuplot &>/dev/null; then
+    echo "⚠️  gnuplot not found. PNG plots will be skipped."
+fi
+
 for SHOVILL_DIR in shovill_results/*; do
     SAMPLE_ID=$(basename "$SHOVILL_DIR")
-    
-    # Shovill contig file
     SHOVILL=$(ls "$SHOVILL_DIR"/${SAMPLE_ID}_contigs.fa 2>/dev/null || true)
-    
-    # SPAdes contig file
     SPADES=$(ls spades_results/"$SAMPLE_ID"/contigs.fasta 2>/dev/null || true)
 
-    # Skip if either assembly is missing
     if [[ -z "$SHOVILL" || -z "$SPADES" ]]; then
         echo "Skipping $SAMPLE_ID (missing Shovill or SPAdes assembly)"
         continue
     fi
 
     echo "🔍 Comparing $SAMPLE_ID (Shovill vs SPAdes)..."
+    OUT_PREFIX="mummer_results/$SAMPLE_ID"
 
-    # Run nucmer
-    nucmer --mincluster=500 --prefix=mummer_results/"$SAMPLE_ID" "$SHOVILL" "$SPADES"
+    nucmer --mincluster=500 --prefix="$OUT_PREFIX" "$SHOVILL" "$SPADES"
+    delta-filter -1 -l 1000 "$OUT_PREFIX.delta" > "$OUT_PREFIX.filtered.delta"
+    show-coords -rcl "$OUT_PREFIX.filtered.delta" > "$OUT_PREFIX.coords"
+    dnadiff -p "$OUT_PREFIX" "$SHOVILL" "$SPADES"
 
-    # Filter alignments
-    delta-filter -1 -l 1000 mummer_results/"$SAMPLE_ID".delta > mummer_results/"$SAMPLE_ID".filtered.delta
-
-    # Show coords
-    show-coords -rcl mummer_results/"$SAMPLE_ID".filtered.delta > mummer_results/"$SAMPLE_ID".coords
-
-    # dnadiff report
-    dnadiff -p mummer_results/"$SAMPLE_ID" "$SHOVILL" "$SPADES"
-
-    # Dotplot
-    mummerplot --png --large -p mummer_results/"$SAMPLE_ID" mummer_results/"$SAMPLE_ID".filtered.delta
+    if command -v gnuplot &>/dev/null; then
+        mummerplot --png --large --layout --color -p "$OUT_PREFIX" "$OUT_PREFIX.filtered.delta"
+        echo "✅ Plot generated: $OUT_PREFIX.png"
+    else
+        echo "⚠️  Plot skipped for $SAMPLE_ID (gnuplot missing)"
+    fi
 done
 ``` 
 
