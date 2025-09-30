@@ -846,6 +846,28 @@ mummerplot --png --large \
   -p mummer_results/SRR32861807 \
   mummer_results/SRR32861807.filtered.delta
 ``` 
+
+`--layout` separates forward and reverse matches into two distinct panels, making inversions and rearrangements easier to spot.
+
+Still lightweight; no extra software needed beyond gnuplot.
+
+``` bash
+mummerplot --png --large --layout -p mummer_results/SRR32861807 mummer_results/SRR32861807.filtered.delta
+``` 
+Zoom in on regions
+
+If you’re interested in specific regions:
+``` bash
+mummerplot --png --large --xrange=100000-500000 --yrange=100000-500000 -p zoom_plot mummer_results/SRR32861807.filtered.delta
+``` 
+Use external visualization tools
+dnadiff + mummerplot
+
+Run dnadiff on your assemblies:
+``` bash
+dnadiff reference.fasta query.fasta -p dnadiff_results
+``` 
+
 Loop to generate dotplots for all samples
 
 If you want dotplots for all your samples automatically:
@@ -856,7 +878,11 @@ for DELTA in mummer_results/*.filtered.delta; do
     mummerplot --png --large -p mummer_results/"$SAMPLE" "$DELTA"
 done
 ``` 
-QUAST comparison script
+
+
+
+
+comparison script
 ###### Step 1 — Open a new script
 ``` bash
 nano run_quast_comparison.sh
@@ -1229,7 +1255,7 @@ echo "Sample,CDS,rRNA,tRNA,Genome_size,GC_content" > "$output_file"
 for sample_dir in prokka_results/prokka_results_shovill/*; do
     sample=$(basename "$sample_dir")
     stats_file="$sample_dir/$sample.txt"
-    if [[ -f "$stats_file" ]]; then
+    if [[ -f "$stats_fimerplot visualile" ]]; then
         cds=$(grep "CDS:" "$stats_file" | awk '{print $2}')
         rrna=$(grep "rRNA:" "$stats_file" | awk '{print $2}')
         trna=$(grep "tRNA:" "$stats_file" | awk '{print $2}')
