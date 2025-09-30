@@ -786,38 +786,40 @@ Step 2 — Paste this clean script
 #!/bin/bash
 set -euo pipefail
 
-# Create results directory
 mkdir -p mummer_results
 
-# Loop through all samples that exist in shovill_results
-for SHOVILL in shovill_results/*/contigs.fa; do
-    SAMPLE_ID=$(basename "$(dirname "$SHOVILL")")
-    SPADES="spades_results/${SAMPLE_ID}/contigs.fasta"
+# Loop through all Shovill sample folders
+for SHOVILL_DIR in shovill_results/*; do
+    SAMPLE_ID=$(basename "$SHOVILL_DIR")
+    
+    # Shovill contig file
+    SHOVILL=$(ls "$SHOVILL_DIR"/${SAMPLE_ID}_contigs.fa 2>/dev/null || true)
+    
+    # SPAdes contig file
+    SPADES=$(ls spades_results/"$SAMPLE_ID"/contigs.fasta 2>/dev/null || true)
 
-    # Skip if SPAdes assembly does not exist
-    if [[ ! -f "$SPADES" ]]; then
-        echo "Skipping $SAMPLE_ID (no SPAdes result found)"
+    # Skip if either assembly is missing
+    if [[ -z "$SHOVILL" || -z "$SPADES" ]]; then
+        echo "Skipping $SAMPLE_ID (missing Shovill or SPAdes assembly)"
         continue
     fi
 
     echo "🔍 Comparing $SAMPLE_ID (Shovill vs SPAdes)..."
 
-    # Run nucmer alignment
-    nucmer --mincluster=500 --prefix=mummer_results/${SAMPLE_ID} "$SHOVILL" "$SPADES"
+    # Run nucmer
+    nucmer --mincluster=500 --prefix=mummer_results/"$SAMPLE_ID" "$SHOVILL" "$SPADES"
 
-    # Filter alignments (one-to-one, ≥1000 bp)
-    delta-filter -1 -l 1000 mummer_results/${SAMPLE_ID}.delta > mummer_results/${SAMPLE_ID}.filtered.delta
+    # Filter alignments
+    delta-filter -1 -l 1000 mummer_results/"$SAMPLE_ID".delta > mummer_results/"$SAMPLE_ID".filtered.delta
 
-    # Generate alignment coordinates
-    show-coords -rcl mummer_results/${SAMPLE_ID}.filtered.delta > mummer_results/${SAMPLE_ID}.coords
+    # Show coords
+    show-coords -rcl mummer_results/"$SAMPLE_ID".filtered.delta > mummer_results/"$SAMPLE_ID".coords
 
-    # High-level comparison report
-    dnadiff -p mummer_results/${SAMPLE_ID} "$SHOVILL" "$SPADES"
+    # dnadiff report
+    dnadiff -p mummer_results/"$SAMPLE_ID" "$SHOVILL" "$SPADES"
 
-    # Dotplot visualization
-    mummerplot --png --large \
-      -p mummer_results/${SAMPLE_ID} \
-      mummer_results/${SAMPLE_ID}.filtered.delta
+    # Dotplot
+    mummerplot --png --large -p mummer_results/"$SAMPLE_ID" mummer_results/"$SAMPLE_ID".filtered.delta
 done
 ``` 
 
