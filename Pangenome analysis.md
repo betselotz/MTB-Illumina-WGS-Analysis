@@ -389,106 +389,12 @@ When evaluating *Mycobacterium tuberculosis* assemblies, keep these quality thre
 
 </details>
 
-
-
-### 1. Using BBMap to explore assembly
-
-We run `stats.sh` on all Shovill and spades assemblies in your shovill_results directory and save the summary results into a CSV file
-
-script that will loop over all contig FASTA files, run stats.sh from BBMap, and save the results to a CSV file:
-
-######   Step 1: Create the SPAdes CheckM script
-``` bash
-nano run_spades_stats.sh
-``` 
-Paste this into the file:
-
-``` bash
-#!/bin/bash
-set -euo pipefail
-
-source ~/miniconda3/etc/profile.d/conda.sh
-conda activate bbmap_env
-
-SPADES_DIR="spades_results"
-TSV_OUTDIR="csv_output"
-mkdir -p "$TSV_OUTDIR"
-
-first_sample=true
-OUTFILE="$TSV_OUTDIR/spades_assembly_stats.tsv"
-
-for sample_dir in "$SPADES_DIR"/*; do
-    sample=$(basename "$sample_dir")
-    contig_file="$sample_dir/${sample}_contigs.fasta"
-
-    if [[ -f "$contig_file" ]]; then
-        echo "Processing $sample..."
-        if $first_sample; then
-            echo -e "Sample\t$(stats.sh in="$contig_file" format=3 | head -n1)" > "$OUTFILE"
-            first_sample=false
-        fi
-        stats.sh in="$contig_file" format=3 | tail -n +2 | awk -v s="$sample" 'BEGIN{OFS="\t"} {print s,$0}' >> "$OUTFILE"
-    else
-        echo ">> Contig file not found for $sample, skipping."
-    fi
-done
-
-echo "All SPAdes assembly stats saved to $OUTFILE"
-``` 
-######   Step 2:Create the Shovill BBMap script
-``` bash
-nano run_shovill_stats.sh
-``` 
-paste
-``` bash
-#!/bin/bash
-set -euo pipefail
-
-source ~/miniconda3/etc/profile.d/conda.sh
-conda activate bbmap_env
-
-SHOVILL_DIR="shovill_results"
-TSV_OUTDIR="csv_output"
-mkdir -p "$TSV_OUTDIR"
-
-first_sample=true
-OUTFILE="$TSV_OUTDIR/shovill_assembly_stats.tsv"
-
-for sample_dir in "$SHOVILL_DIR"/*; do
-    sample=$(basename "$sample_dir")
-    contig_file="$sample_dir/${sample}_contigs.fa"
-
-    if [[ -f "$contig_file" ]]; then
-        echo "Processing $sample..."
-        if $first_sample; then
-            echo -e "Sample\t$(stats.sh in="$contig_file" format=3 | head -n1)" > "$OUTFILE"
-            first_sample=false
-        fi
-        stats.sh in="$contig_file" format=3 | tail -n +2 | awk -v s="$sample" 'BEGIN{OFS="\t"} {print s,$0}' >> "$OUTFILE"
-    else
-        echo ">> Contig file not found for $sample, skipping."
-    fi
-done
-
-echo "All Shovill assembly stats saved to $OUTFILE"
-``` 
-###### Step 3: Make scripts executable
-``` bash
-chmod +x run_spades_stats.sh run_shovill_stats.sh
-``` 
-###### Step 4: Run the scripts
-``` bash
-conda activate bbmap_env
-./run_spades_stats.sh
-./run_shovill_stats.sh
-``` 
-
-### 2.run QUAST on all Shovill assemblies
+### 1.run QUAST on all Shovill assemblies
 Collect the key statistics in a single CSV file
 running QUAST on all SPAdes assemblies and collecting key statistics into a single report.tsv. 
-######   Step 1: Create the SPAdes quast script
+######   Step 1: Open nano and create the script
 ``` bash
-nano run_quast_spades.sh
+nano quast_compare_parallel.sh
 ``` 
 Paste this into the file:
 
@@ -497,101 +403,109 @@ Paste this into the file:
 set -euo pipefail
 
 SPADES_DIR="spades_results"
-QUAST_PARENT="quast_results"
-QUAST_DIR="$QUAST_PARENT/quast_results_spades"
-CSV_OUTDIR="csv_output"
-
-mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
-
-CSV_FILE="$CSV_OUTDIR/quast_summary_spades.csv"
-echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CSV_FILE"
-
-for sample_out in "$SPADES_DIR"/*; do
-  [[ -d "$sample_out" ]] || continue
-  sample=$(basename "$sample_out")
-  
-  contigs_file=("$sample_out"/*_contigs.fasta)
-  [[ -f "${contigs_file[0]}" ]] || continue
-  contigs="${contigs_file[0]}"
-
-  outdir="$QUAST_DIR/$sample"
-  mkdir -p "$outdir"
-
-  quast "$contigs" -o "$outdir" > /dev/null 2>&1
-
-  stats_file="$outdir/report.tsv"
-  if [[ -f "$stats_file" ]]; then
-    num_contigs=$(awk -F'\t' '$1=="# contigs (>= 0 bp)"{print $2}' "$stats_file")
-    total_len=$(awk -F'\t' '$1=="Total length (>= 0 bp)"{print $2}' "$stats_file")
-    min_len=$(awk -F'\t' '$1=="Shortest contig"{print $2}' "$stats_file")
-    max_len=$(awk -F'\t' '$1=="Largest contig"{print $2}' "$stats_file")
-    avg_len=$(awk -F'\t' '$1=="Average contig length"{print $2}' "$stats_file")
-    n50=$(awk -F'\t' '$1=="N50"{print $2}' "$stats_file")
-    n75=$(awk -F'\t' '$1=="N75"{print $2}' "$stats_file")
-    gc=$(awk -F'\t' '$1=="GC (%)"{print $2}' "$stats_file")
-
-    echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
-  fi
-done
-
-``` 
-######   Step 2:Create the Shovill assembly-scan script
-``` bash
-nano run_quast_shovill.sh
-``` 
-Paste this into the file:
-``` bash
-#!/bin/bash
-set -euo pipefail
-
 SHOVILL_DIR="shovill_results"
 QUAST_PARENT="quast_results"
-QUAST_DIR="$QUAST_PARENT/quast_results_shovill"
 CSV_OUTDIR="csv_output"
 
-mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
+mkdir -p "$QUAST_PARENT" "$CSV_OUTDIR"
 
-CSV_FILE="$CSV_OUTDIR/quast_summary_shovill.csv"
-echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CSV_FILE"
+SPADES_QUAST="$QUAST_PARENT/quast_results_spades"
+SHOVILL_QUAST="$QUAST_PARENT/quast_results_shovill"
 
-for sample_out in "$SHOVILL_DIR"/*; do
-  [[ -d "$sample_out" ]] || continue
-  sample=$(basename "$sample_out")
-  
-  contigs_file=("$sample_out"/*_contigs.fa)
-  [[ -f "${contigs_file[0]}" ]] || continue
-  contigs="${contigs_file[0]}"
+SPADES_CSV="$CSV_OUTDIR/quast_summary_spades.csv"
+SHOVILL_CSV="$CSV_OUTDIR/quast_summary_shovill.csv"
+COMBINED_CSV="$CSV_OUTDIR/quast_summary_combined.csv"
 
-  outdir="$QUAST_DIR/$sample"
-  mkdir -p "$outdir"
+echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$SPADES_CSV"
+echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$SHOVILL_CSV"
 
-  quast "$contigs" -o "$outdir" > /dev/null 2>&1
+compute_metrics() {
+    CONTIG_FILE="$1"
+    lengths=$(awk '/^>/{if(seq) print length(seq); seq=""} !/^>/{seq=seq $0} END{if(seq) print length(seq)}' "$CONTIG_FILE")
+    NUMCONTIGS=$(echo "$lengths" | wc -l)
+    TOTALLEN=$(echo "$lengths" | awk '{s+=$1} END{print s}')
+    MINLEN=$(echo "$lengths" | sort -n | head -1)
+    MAXLEN=$(echo "$lengths" | sort -nr | head -1)
+    AVG=$(echo "$lengths" | awk -v n="$NUMCONTIGS" '{s+=$1} END{print s/n}')
+    N50=$(echo "$lengths" | awk -v total="$TOTALLEN" 'BEGIN{c=0} {c+=$1; if(c>=total/2){print $1; exit}}')
+    N75=$(echo "$lengths" | awk -v total="$TOTALLEN" 'BEGIN{c=0} {c+=$1; if(c>=total*0.75){print $1; exit}}')
+    GC=$(awk '/^>/{next} {g+=gsub(/[Gg]/,"")+gsub(/[Cc]/,""); n+=length($0)} END{if(n>0) print g/n*100}' "$CONTIG_FILE")
+    echo "$NUMCONTIGS,$TOTALLEN,$MINLEN,$MAXLEN,$AVG,$N50,$N75,$GC"
+}
 
-  stats_file="$outdir/report.tsv"
-  if [[ -f "$stats_file" ]]; then
-    num_contigs=$(awk -F'\t' '$1=="# contigs (>= 0 bp)"{print $2}' "$stats_file")
-    total_len=$(awk -F'\t' '$1=="Total length (>= 0 bp)"{print $2}' "$stats_file")
-    min_len=$(awk -F'\t' '$1=="Shortest contig"{print $2}' "$stats_file")
-    max_len=$(awk -F'\t' '$1=="Largest contig"{print $2}' "$stats_file")
-    avg_len=$(awk -F'\t' '$1=="Average contig length"{print $2}' "$stats_file")
-    n50=$(awk -F'\t' '$1=="N50"{print $2}' "$stats_file")
-    n75=$(awk -F'\t' '$1=="N75"{print $2}' "$stats_file")
-    gc=$(awk -F'\t' '$1=="GC (%)"{print $2}' "$stats_file")
+run_quast_parallel() {
+    ASSEMBLER_NAME="$1"
+    ASSEMBLER_DIR="$2"
+    CONTIG_PATTERN="$3"
+    QUAST_DIR="$4"
+    CSV_FILE="$5"
 
-    echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
-  fi
-done
+    mkdir -p "$QUAST_DIR"
+    echo "===== Starting QUAST for $ASSEMBLER_NAME ====="
+
+    for sample_out in "$ASSEMBLER_DIR"/*; do
+        [[ -d "$sample_out" ]] || continue
+        sample=$(basename "$sample_out")
+        contigs_file=("$sample_out"/$CONTIG_PATTERN)
+        [[ -f "${contigs_file[0]}" ]] || { echo "⚠️  Skipping $sample: contigs not found"; continue; }
+        contigs="${contigs_file[0]}"
+        outdir="$QUAST_DIR/$sample"
+        mkdir -p "$outdir"
+
+        (
+            echo "🔹 [$ASSEMBLER_NAME] Processing $sample..."
+            quast "$contigs" -o "$outdir" --min-contig 0 > /dev/null 2>&1
+            stats_file="$outdir/report.tsv"
+            if [[ -f "$stats_file" ]]; then
+                NUMCONTIGS=$(awk -F'\t' '$1~/contigs \(>= 0 bp\)/{print $2}' "$stats_file")
+                TOTALLEN=$(awk -F'\t' '$1~/Total length \(>= 0 bp\)/{print $2}' "$stats_file")
+                MINLEN=$(awk -F'\t' '$1~/Shortest contig|Min contig/{print $2}' "$stats_file")
+                MAXLEN=$(awk -F'\t' '$1~/Largest contig|max contig/{print $2}' "$stats_file")
+                AVG=$(awk -F'\t' '$1~/Average contig length|Mean contig length/{print $2}' "$stats_file")
+                N50=$(awk -F'\t' '$1=="N50"{print $2}' "$stats_file")
+                N75=$(awk -F'\t' '$1=="N75"{print $2}' "$stats_file")
+                GC=$(awk -F'\t' '$1~/GC/ {print $2}' "$stats_file")
+                if [[ -z "$MINLEN" || "$MINLEN" == "NA" ]]; then
+                    metrics=$(compute_metrics "$contigs")
+                    MINLEN=$(echo $metrics | cut -d, -f3)
+                    AVG=$(echo $metrics | cut -d, -f5)
+                    N75=$(echo $metrics | cut -d, -f7)
+                fi
+                echo "$sample,${NUMCONTIGS:-NA},${TOTALLEN:-NA},${MINLEN:-NA},${MAXLEN:-NA},${AVG:-NA},${N50:-NA},${N75:-NA},${GC:-NA}" >> "$CSV_FILE"
+                echo "   ✅ Completed $sample"
+            else
+                echo "⚠️  QUAST report missing for $sample"
+            fi
+        ) &
+    done
+    wait
+    echo "===== Finished QUAST for $ASSEMBLER_NAME ====="
+}
+
+# Run SPAdes and Shovill in parallel
+run_quast_parallel "SPAdes" "$SPADES_DIR" "*_contigs.fasta" "$SPADES_QUAST" "$SPADES_CSV" &
+run_quast_parallel "Shovill" "$SHOVILL_DIR" "*contigs*.fa*" "$SHOVILL_QUAST" "$SHOVILL_CSV" &
+wait
+
+# Combine CSVs (skip headers from individual CSVs)
+echo "===== Combining SPAdes and Shovill CSVs ====="
+echo "Sample,NumContigs_SPADES,TotalLength_SPADES,MinLen_SPADES,MaxLen_SPADES,AverageLen_SPADES,N50_SPADES,N75_SPADES,GC_SPADES,NumContigs_SHOVILL,TotalLength_SHOVILL,MinLen_SHOVILL,MaxLen_SHOVILL,AverageLen_SHOVILL,N50_SHOVILL,N75_SHOVILL,GC_SHOVILL" > "$COMBINED_CSV"
+join -t, -1 1 -2 1 \
+    <(tail -n +2 "$SPADES_CSV" | sort -t, -k1,1) \
+    <(tail -n +2 "$SHOVILL_CSV" | sort -t, -k1,1) \
+    >> "$COMBINED_CSV"
+echo "✅ Combined CSV created: $COMBINED_CSV"
 
 ``` 
+
 ###### Step 3: Make scripts executable
 ``` bash
-chmod +x run_quast_spades.sh run_quast_shovill.sh
+chmod +x quast_compare_parallel.sh
 ``` 
 ###### Step 4: Run the scripts
 ``` bash
 conda activate quast_env
-./run_quast_spades.sh
-./run_quast_shovill.sh
+./quast_compare_parallel.sh
 ``` 
 
 ### 3. Assembly summary with assembly-scan
