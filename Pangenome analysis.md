@@ -777,11 +777,11 @@ conda activate checkm_env
 5. 
 
 
-Step 1 — Open a new script
+###### Step 1 — Open a new script
 ``` bash
 nano run_mummer_comparison.sh
 ``` 
-Step 2 — Paste this clean script
+###### Step 2 — Paste this clean script
 ``` bash
 #!/bin/bash
 set -euo pipefail
@@ -823,20 +823,41 @@ for SHOVILL_DIR in shovill_results/*; do
 done
 ``` 
 
-Step 3 — Save and exit
+###### Step 3 — Save and exit
 
 Press CTRL + O → Enter → CTRL + X
 
-Step 4 — Make it executable
+###### Step 4 — Make it executable
 
 ``` bash
 chmod +x run_mummer_comparison.sh
 ``` 
-Step 5 — Run it
+###### Step 5 — Run it
 ``` bash
 conda activate mummer_env
 ./run_mummer_comparison.sh
 ``` 
+###### Step 6 — Dotplot Visualization
+
+MUMmer provides mummerplot to visualize genome assembly alignments. This shows synteny, rearrangements, inversions, and gaps between your Shovill vs SPAdes assemblies.
+Command for a single sample:
+``` bash
+mummerplot --png --large \
+  -p mummer_results/SRR32861807 \
+  mummer_results/SRR32861807.filtered.delta
+``` 
+Loop to generate dotplots for all samples
+
+If you want dotplots for all your samples automatically:
+``` bash
+for DELTA in mummer_results/*.filtered.delta; do
+    SAMPLE=$(basename "$DELTA" .filtered.delta)
+    echo "Generating dotplot for $SAMPLE..."
+    mummerplot --png --large -p mummer_results/"$SAMPLE" "$DELTA"
+done
+``` 
+
+
 
 
 
