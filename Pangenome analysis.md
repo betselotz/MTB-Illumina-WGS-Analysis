@@ -492,7 +492,10 @@ echo "Sample,NumContigs_SPADES,NumContigs_SHOVILL,TotalLength_SPADES,TotalLength
 rm -f "$SPADES_CSV" "$SHOVILL_CSV" "$COMBINED_CSV.tmp"
 
 ``` 
-
+Delete any leftover temp files from previous runs:
+``` bash
+rm -f csv_output/spades_tmp.csv csv_output/shovill_tmp.csv csv_output/combined_raw.csv
+``` 
 ###### Step 3: Make scripts executable
 ``` bash
 chmod +x quast_compare_parallel.sh
