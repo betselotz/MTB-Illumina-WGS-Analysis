@@ -789,7 +789,7 @@ set -euo pipefail
 mkdir -p mummer_results
 
 if ! command -v gnuplot &>/dev/null; then
-    echo "⚠️  gnuplot not found. PNG plots will be skipped."
+    echo "⚠️ gnuplot not found. PNG plots will be skipped."
 fi
 
 for SHOVILL_DIR in shovill_results/*; do
@@ -803,7 +803,10 @@ for SHOVILL_DIR in shovill_results/*; do
     fi
 
     echo "🔍 Comparing $SAMPLE_ID (Shovill vs SPAdes)..."
-    OUT_PREFIX="mummer_results/$SAMPLE_ID"
+
+    SAMPLE_OUTDIR="mummer_results/$SAMPLE_ID"
+    mkdir -p "$SAMPLE_OUTDIR"
+    OUT_PREFIX="$SAMPLE_OUTDIR/$SAMPLE_ID"
 
     nucmer --mincluster=500 --prefix="$OUT_PREFIX" "$SHOVILL" "$SPADES"
     delta-filter -1 -l 1000 "$OUT_PREFIX.delta" > "$OUT_PREFIX.filtered.delta"
@@ -811,12 +814,16 @@ for SHOVILL_DIR in shovill_results/*; do
     dnadiff -p "$OUT_PREFIX" "$SHOVILL" "$SPADES"
 
     if command -v gnuplot &>/dev/null; then
-        mummerplot --png --large --layout --color -p "$OUT_PREFIX" "$OUT_PREFIX.filtered.delta"
-        echo "✅ Plot generated: $OUT_PREFIX.png"
+        mummerplot --png --large --layout --color \
+            -p "$OUT_PREFIX" \
+            "$OUT_PREFIX.filtered.delta"
+
+        echo "✅ Plot generated for $SAMPLE_ID: $OUT_PREFIX.png"
     else
-        echo "⚠️  Plot skipped for $SAMPLE_ID (gnuplot missing)"
+        echo "⚠️ Plot skipped for $SAMPLE_ID (gnuplot missing)"
     fi
 done
+
 ``` 
 
 ###### Step 3 — Save and exit
@@ -838,9 +845,9 @@ conda activate mummer_env
 MUMmer provides mummerplot to visualize genome assembly alignments. This shows synteny, rearrangements, inversions, and gaps between your Shovill vs SPAdes assemblies.
 Command for a single sample:
 ``` bash
-mummerplot --png --large \
-  -p mummer_results/SRR32861807 \
-  mummer_results/SRR32861807.filtered.delta
+mummerplot --png --large --layout --color \
+  -p mummer_results/SRR32861807/SRR32861807 \
+  mummer_results/SRR32861807/SRR32861807.filtered.delta
 ``` 
 
 `--layout` separates forward and reverse matches into two distinct panels, making inversions and rearrangements easier to spot.
