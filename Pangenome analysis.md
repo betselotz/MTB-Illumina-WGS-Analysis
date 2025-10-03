@@ -1495,11 +1495,9 @@ for f in $PROKKA_DIR/*/*.faa; do
     cp "$f" .
 done
 
-cat *.faa > all_genomes.faa
+makeblastdb -in *.faa -dbtype prot -parse_seqids -out all_genomes_db
 
-makeblastdb -in all_genomes.faa -dbtype prot -parse_seqids -out all_genomes_db
-
-blastp -query all_genomes.faa -db all_genomes_db -outfmt 6 -evalue 1e-5 -num_threads $THREADS -out all_vs_all.blast
+blastp -query *.faa -db all_genomes_db -outfmt 6 -evalue 1e-5 -num_threads $THREADS -out all_vs_all.blast
 
 get_homologues.pl -d ./ -c -t $THREADS -n $MIN_CLUSTER_SIZE
 
@@ -1512,6 +1510,7 @@ plot_pancore_matrix.pl -m ${PAN_OUTPUT}_cluster.tab -o $PLOT_OUTPUT -p $(ls $PRO
 echo "Pan-genome analysis complete"
 echo "Core/Soft-core/Shell/Cloud genes: summary/"
 echo "Pan/Core genome plots: $PLOT_OUTPUT/"
+
 
 ``` 
 Save and exit
@@ -1635,7 +1634,37 @@ Output folder: cog_results
 
 ``` bash
 #!/bin/bash
-set -euo pipefail
+set -euo #!/bin/bash
+WORKDIR=$(pwd)
+PROKKA_DIR="$WORKDIR/prokka_results/shovill"
+THREADS=32
+MIN_CLUSTER_SIZE=2
+PAN_OUTPUT="pan_genome_matrix"
+PLOT_OUTPUT="plots"
+
+mkdir -p "$WORKDIR/gethomologues_results"
+cd "$WORKDIR/gethomologues_results"
+
+for f in $PROKKA_DIR/*/*.faa; do
+    cp "$f" .
+done
+
+makeblastdb -in *.faa -dbtype prot -parse_seqids -out all_genomes_db
+
+blastp -query *.faa -db all_genomes_db -outfmt 6 -evalue 1e-5 -num_threads $THREADS -out all_vs_all.blast
+
+get_homologues.pl -d ./ -c -t $THREADS -n $MIN_CLUSTER_SIZE
+
+compare_clusters.pl -d ./ -o $PAN_OUTPUT
+
+parse_pangenome_matrix.pl -m ${PAN_OUTPUT}_cluster.tab -o summary
+
+plot_pancore_matrix.pl -m ${PAN_OUTPUT}_cluster.tab -o $PLOT_OUTPUT -p $(ls $PROKKA_DIR | wc -l) -t 1000 -r
+
+echo "Pan-genome analysis complete"
+echo "Core/Soft-core/Shell/Cloud genes: summary/"
+echo "Pan/Core genome plots: $PLOT_OUTPUT/"
+pipefail
 
 PROJECT_DIR="/media/betselot_z/DATADRIVE0/betselot/TB/TB_project/Illumina/WGS/paired_end/PRJNA1247743"
 PANAROO_PROTEINS="$PROJECT_DIR/panaroo_results/pan_genome_reference.fa"
