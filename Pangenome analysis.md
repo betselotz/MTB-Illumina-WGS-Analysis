@@ -1524,10 +1524,54 @@ chmod +x run_gethomologues.sh
 ./run_gethomologues.sh
 ``` 
 
+``` bash
+nano run_pangenome_analysis.R
+``` 
 
+``` bash
+library(ggplot2)
+library(reshape2)
 
+workdir <- getwd()
+results_dir <- file.path(workdir, "gethomologues_results")
+tab_file <- list.files(results_dir, pattern = "pan_genome_matrix.*\\.tab$", full.names = TRUE)
 
+if(length(tab_file) == 0){
+  stop("No pan-genome matrix .tab file found in gethomologues_results/")
+}
 
+pangenome <- read.table(tab_file[1], header = TRUE, sep = "\t", check.names = FALSE)
+pangenome_long <- melt(pangenome, id.vars = "Cluster")
+
+presence_absence <- pangenome_long
+presence_absence$value[presence_absence$value != "" & presence_absence$value != "0"] <- 1
+presence_absence$value[presence_absence$value == ""] <- 0
+presence_absence$value <- as.numeric(presence_absence$value)
+
+cluster_summary <- aggregate(value ~ Cluster, data = presence_absence, sum)
+num_genomes <- ncol(pangenome) - 1
+cluster_summary$type <- cut(cluster_summary$value,
+                            breaks = c(-1, num_genomes - 1, num_genomes),
+                            labels = c("Accessory", "Core"))
+
+write.table(cluster_summary, file = file.path(results_dir, "cluster_summary.tsv"),
+            sep = "\t", row.names = FALSE, quote = FALSE)
+
+pdf(file.path(results_dir, "pan_core_plot.pdf"), width = 8, height = 6)
+ggplot(cluster_summary, aes(x = type, fill = type)) +
+  geom_bar() +
+  labs(title = "Pan-Core Genome Plot", x = "Gene Type", y = "Number of Clusters") +
+  theme_minimal()
+dev.off()
+```
+``` bash
+chmod +x run_pangenome_analysis.R
+``` 
+
+``` bash
+conda activate r_env
+Rscript run_pangenome_analysis.R
+``` 
 
 
 
