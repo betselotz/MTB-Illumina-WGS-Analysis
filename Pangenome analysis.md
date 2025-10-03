@@ -1263,187 +1263,6 @@ done
 ``` 
 
 
-
-
-
-
-Prokka annotation results for both Shovill and SPAdes, we can visualize them in multiple ways. The simplest approach is to summarize key annotation metrics per sample and plot them using Python.
-
-Here’s a clean workflow using matplotlib/seaborn.
-
-##### Step 1: Install necessary Python packages
-``` bash
-conda activate your_env
-conda install pandas matplotlib seaborn -y
-``` 
-##### Step 2: Create a Python script
-``` bash
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import glob
-import os
-
-# Function to parse Prokka summary.txt
-def parse_prokka_summary(prokka_dir):
-    data = []
-    for sample_dir in glob.glob(f"{prokka_dir}/*"):
-        sample = os.path.basename(sample_dir)
-        summary_file = os.path.join(sample_dir, f"{sample}.txt")
-        if os.path.isfile(summary_file):
-            summary = {line.split(':')[0].strip(): line.split(':')[1].strip() 
-                       for line in f if ':' in line} if (f:=open(summary_file)) else {}
-            summary['Sample'] = sample
-            data.append(summary)
-            f.close()
-    return pd.DataFrame(data)
-
-# Load Shovill and SPAdes results
-shovill_df = parse_prokka_summary("prokka_results_shovill")
-spades_df = parse_prokka_summary("prokka_results_spades")
-
-shovill_df['Assembler'] = 'Shovill'
-spades_df['Assembler'] = 'SPAdes'
-
-df = pd.concat([shovill_df, spades_df], ignore_index=True)
-
-# List of numeric columns to include
-features = ['CDS','tRNAs','rRNAs','tmRNAs','Repeat_regions','pseudogenes','rRNA operons','CRISPRs']
-features = [f for f in features if f in df.columns]
-
-# Convert columns to numeric
-for col in features:
-    df[col] = pd.to_numeric(df[col], errors='coerce')
-
-# Melt for plotting
-df_melt = df.melt(id_vars=['Sample','Assembler'], value_vars=features, 
-                  var_name='Feature', value_name='Count')
-
-# Grouped barplot
-plt.figure(figsize=(14,8))
-sns.barplot(x='Sample', y='Count', hue='Feature', data=df_melt, ci=None)
-plt.xticks(rotation=90)
-plt.ylabel('Count')
-plt.title('Prokka Annotation Features per Sample (Shovill vs SPAdes)')
-plt.legend(bbox_to_anchor=(1.05,1), loc='upper left')
-plt.tight_layout()
-plt.savefig('csv_output/prokka_all_features_comparison.png')
-plt.show()
-
-# Optional: heatmap of features per sample and assembler
-heatmap_df = df.set_index(['Sample','Assembler'])[features]
-plt.figure(figsize=(12,8))
-sns.heatmap(heatmap_df.fillna(0), annot=True, fmt=".0f", cmap="YlGnBu")
-plt.title('Heatmap of Prokka Annotation Features')
-plt.tight_layout()
-plt.savefig('csv_output/prokka_heatmap_features.png')
-plt.show()
-``` 
-
-##### Step 3: Run the script
-``` bash
-python visualize_prokka.py
-```
-merge this with the assembly statistics (N50, contigs, GC%) so that both assembly and annotation metrics are in one visualization
-
-##### Step 1: Prepare the Python script
-``` bash
-nano visualize_combined_metrics.py
-``` 
-##### Step 2: Create a Python script
-``` bash
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# Load assembly metrics (from assembly-scan CSVs)
-shovill_assembly = pd.read_csv("csv_output/shovill_assembly_scan.csv")
-spades_assembly = pd.read_csv("csv_output/spades_assembly_scan.csv")
-
-shovill_assembly['Assembler'] = 'Shovill'
-spades_assembly['Assembler'] = 'SPAdes'
-
-assembly_df = pd.concat([shovill_assembly, spades_assembly], ignore_index=True)
-
-# Aggregate assembly metrics per sample
-assembly_summary = assembly_df.groupby(['Sample','Assembler']).agg(
-    NumContigs=('Contig','count'),
-    TotalLength=('Length','sum'),
-    AvgGC=('GC%','mean')
-).reset_index()
-
-# Load Prokka annotation metrics
-def parse_prokka_summary(prokka_dir):
-    import glob, os
-    data = []
-    for sample_dir in glob.glob(f"{prokka_dir}/*"):
-        sample = os.path.basename(sample_dir)
-        summary_file = os.path.join(sample_dir, f"{sample}.txt")
-        if os.path.isfile(summary_file):
-            with open(summary_file) as f:
-                summary = {line.split(':')[0].strip(): line.split(':')[1].strip() 
-                           for line in f if ':' in line}
-            summary['Sample'] = sample
-            data.append(summary)
-    return pd.DataFrame(data)
-
-shovill_prokka = parse_prokka_summary("prokka_results_shovill")
-spades_prokka = parse_prokka_summary("prokka_results_spades")
-
-shovill_prokka['Assembler'] = 'Shovill'
-spades_prokka['Assembler'] = 'SPAdes'
-
-prokka_df = pd.concat([shovill_prokka, spades_prokka], ignore_index=True)
-
-# List of annotation features to include
-features = ['CDS','tRNAs','rRNAs','tmRNAs','Repeat_regions','pseudogenes','CRISPRs']
-features = [f for f in features if f in prokka_df.columns]
-
-for col in features:
-    prokka_df[col] = pd.to_numeric(prokka_df[col], errors='coerce')
-
-prokka_summary = prokka_df[['Sample','Assembler'] + features]
-
-# Merge assembly and annotation metrics
-combined_df = assembly_summary.merge(prokka_summary, on=['Sample','Assembler'], how='outer')
-
-# Save combined CSV
-combined_df.to_csv("csv_output/combined_assembly_annotation_metrics.csv", index=False)
-
-# -------------------------
-# Visualization
-# -------------------------
-
-# Melt for grouped barplot
-melt_features = ['NumContigs','TotalLength','AvgGC'] + features
-df_melt = combined_df.melt(id_vars=['Sample','Assembler'], value_vars=melt_features,
-                           var_name='Feature', value_name='Value')
-
-plt.figure(figsize=(16,8))
-sns.barplot(x='Sample', y='Value', hue='Feature', data=df_melt)
-plt.xticks(rotation=90)
-plt.title('Combined Assembly and Annotation Metrics per Sample')
-plt.tight_layout()
-plt.savefig('csv_output/combined_metrics_barplot.png')
-plt.show()
-
-# Heatmap version
-heatmap_df = combined_df.set_index(['Sample','Assembler'])[melt_features]
-plt.figure(figsize=(14,10))
-sns.heatmap(heatmap_df.fillna(0), annot=True, fmt=".1f", cmap='YlOrRd')
-plt.title('Heatmap of Combined Assembly and Annotation Metrics')
-plt.tight_layout()
-plt.savefig('csv_output/combined_metrics_heatmap.png')
-plt.show()
-
-``` 
-
-##### Step 3: Run the script
-``` bash
-python visualize_combined_metrics.py
-```
-
-
 panoroo 
 
 ``` bash
@@ -1459,4 +1278,68 @@ panaroo -i $(find prokka_results -name "*.gff") \
         --remove-invalid-genes \
         --core_threshold 99 \
         -t 8
+```
+
+
+
+
+Pan-genome COG Functional Analysis Workflow
+Objective: Assign COG categories to core, accessory, and singleton genes from Panaroo output, and visualize their distribution.
+Setup Project and Output Folder
+Navigated to our project directory:
+``` bash
+cd /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/Illumina/WGS/paired_end/PRJNA1247743
 ``` 
+
+Create a folder for COG functional annotation results:
+``` bash
+mkdir -p cog_results
+```
+Install COGclassifier (if not already installed)
+
+COGclassifier simplifies functional annotation by downloading and using the COG database automatically.
+``` bash
+pip install cogclassifier
+``` 
+Download / Prepare COG Database (optional if you want local copy)
+
+If you prefer to manually keep a local copy of the COG database, you can create a folder:
+``` bash
+mkdir -p ~/databases/COG2020
+cd ~/databases/COG2020
+``` 
+
+
+Run COGclassifier on Panaroo Representative Proteins
+Input: panaroo_results/pan_genome_reference.fa
+Output folder: cog_results
+
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+PROJECT_DIR="/media/betselot_z/DATADRIVE0/betselot/TB/TB_project/Illumina/WGS/paired_end/PRJNA1247743"
+PANAROO_PROTEINS="$PROJECT_DIR/panaroo_results/pan_genome_reference.fa"
+COG_OUTPUT="$PROJECT_DIR/cog_results"
+THREADS=16
+
+mkdir -p "$COG_OUTPUT"
+
+echo "Input file: $PANAROO_PROTEINS"
+echo "Output folder: $COG_OUTPUT"
+echo "Using $THREADS threads"
+
+COGclassifier -i "$PANAROO_PROTEINS" \
+              -o "$COG_OUTPUT" \
+              --thread_num "$THREADS"
+
+echo "COGclassifier finished. Key output files:"
+echo " - cog_classify.tsv (per-gene COG assignments)"
+echo " - cog_count.tsv (summary counts per COG category)"
+echo " - rpsblast.tsv (raw RPS-BLAST results)"
+echo " - cog_count_barchart.html (interactive bar chart)"
+echo " - cog_count_piechart.html (interactive pie chart)"
+echo "Note: PNG plots may fail on Linux. Use HTML charts or install vl-convert to fix."
+
+``` 
+
