@@ -20,3 +20,14 @@ Check installation:
 ``` bash
 get_homologues.pl -h
 ``` 
+
+OMCL (OrthoMCL clustering, -M flag)
+``` bash
+conda activate gethomologues_env
+
+# Required for OMCL clustering
+conda install -c bioconda mcl
+
+# Optional but recommended for full functionality
+conda install -c bioconda cogtriangles hmmer
+``` 
