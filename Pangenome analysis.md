@@ -1071,55 +1071,15 @@ Run the script
 python3 compare_assemblers.py
 ``` 
 
+MUMMER
+create nano script 
+``` bash
+run_mummer_comparison.sh
+``` 
 
-
-
-
-# 1️⃣4️⃣ Prokka
-Prokka is a rapid **prokaryotic genome annotation tool** that predicts genes, coding sequences (CDS), rRNAs, tRNAs, and other genomic features from assembled contigs or genomes.  
-
-Key points for TB genomes:
-
-- Annotates **Mycobacterium tuberculosis** genomes with correct taxonomy using `--genus` and `--species`.  
-- Produces multiple output files, including **GFF3**, **FASTA of proteins**, and **GenBank format**, which are useful for downstream analysis.  
-- Supports **multi-threading** (`--cpus`) to speed up processing of multiple genomes.  
-- Works seamlessly with **Shovill-assembled contigs** and   **spades-assembled contigs**
-- Output files are organized per sample directory with a consistent naming prefix for easy pipeline integration.  
-
-> ⚠ Note: Prokka relies on the quality of the assembly; fragmented or low-coverage assemblies may result in incomplete annotations.
-
-Prokka for Shovill assemblies
-##### Step 1: Create or edit the script
-```bash
-nano run_prokka_shovill.sh
-```
-##### Step 2: Paste the following into the script
-
-```bash
+paste
+``` bash
 #!/bin/bash
-set -euo pipefail
-
-SHOVILL_DIR="shovill_results"
-PROKKA_DIR="prokka_results/shovill"
-
-mkdir -p "$PROKKA_DIR"
-
-if ! command -v prokka &>/dev/null; then
-  echo "Prokka not found"
-  exit 1
-fi
-
-run_prokka() {
-  sample_out="$1"
-  sample=$(basename "$sample_out")
-
-  contigs=("$sample_out"/*_contigs.fa)
-  contigs="${contigs[0]:-}"
-  [[ -z "$contigs" ]] && return
-
-  echo "Processing $sample..."
-
-  outdir="$PROKKA_D#!/bin/bash
 
 SHOVILL_DIR="shovill_results"
 SPADES_DIR="spades_results"
@@ -1158,14 +1118,15 @@ for SHOVILL_SAMPLE in "$SHOVILL_DIR"/*; do
 
         dnadiff -p "$PREFIX" "$SHOVILL" "$SPADES" || { echo "⚠️ dnadiff failed for $SAMPLE_ID" | tee -a "$ERROR_LOG"; continue; }
 
-        # Extract SNPs
         SNP_FILE="$PREFIX.snps"
-        if [[ -f "$SNP_FILE" ]]; then
-            NUM_SNPS=$(($(wc -l < "$SNP_FILE") - 1))  # subtract header line
+        show-snps -ClrT "$PREFIX.filtered.delta" > "$SNP_FILE"
+
+        if [[ -s "$SNP_FILE" ]]; then
+            NUM_SNPS=$(($(wc -l < "$SNP_FILE") - 1))
             echo "🧬 $NUM_SNPS SNPs detected for $SAMPLE_ID"
         else
             NUM_SNPS=0
-            echo "⚠️ SNP file missing for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+            echo "⚠️ No SNPs detected for $SAMPLE_ID" | tee -a "$ERROR_LOG"
         fi
 
         echo "✅ Completed $SAMPLE_ID"
@@ -1176,7 +1137,56 @@ for SHOVILL_SAMPLE in "$SHOVILL_DIR"/*; do
 done
 
 echo "📊 MUMmer processing done. Check $OUTDIR for results."
-IR/$sample"
+
+``` 
+
+
+
+# 1️⃣4️⃣ Prokka
+Prokka is a rapid **prokaryotic genome annotation tool** that predicts genes, coding sequences (CDS), rRNAs, tRNAs, and other genomic features from assembled contigs or genomes.  
+
+Key points for TB genomes:
+
+- Annotates **Mycobacterium tuberculosis** genomes with correct taxonomy using `--genus` and `--species`.  
+- Produces multiple output files, including **GFF3**, **FASTA of proteins**, and **GenBank format**, which are useful for downstream analysis.  
+- Supports **multi-threading** (`--cpus`) to speed up processing of multiple genomes.  
+- Works seamlessly with **Shovill-assembled contigs** and   **spades-assembled contigs**
+- Output files are organized per sample directory with a consistent naming prefix for easy pipeline integration.  
+
+> ⚠ Note: Prokka relies on the quality of the assembly; fragmented or low-coverage assemblies may result in incomplete annotations.
+
+Prokka for Shovill assemblies
+##### Step 1: Create or edit the script
+```bash
+nano run_prokka_shovill.sh
+```
+##### Step 2: Paste the following into the script
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+SPADES_DIR="spades_results"
+PROKKA_DIR="prokka_results/spades"
+
+mkdir -p "$PROKKA_DIR"
+
+if ! command -v prokka &>/dev/null; then
+  echo "Prokka not found"
+  exit 1
+fi
+
+run_prokka() {
+  sample_out="$1"
+  sample=$(basename "$sample_out")
+
+  contigs=("$sample_out"/*_contigs.fasta)
+  contigs="${contigs[0]:-}"
+  [[ -z "$contigs" ]] && return
+
+  echo "Processing $sample..."
+
+  outdir="$PROKKA_DIR/$sample"
   mkdir -p "$outdir"
 
   prokka --outdir "$outdir" \
@@ -1193,8 +1203,7 @@ IR/$sample"
 export -f run_prokka
 export PROKKA_DIR
 
-find "$SHOVILL_DIR" -maxdepth 1 -mindepth 1 -type d | parallel -j 8 run_prokka {}
-
+find "$SPADES_DIR" -maxdepth 1 -mindepth 1 -type d | parallel -j 8 run_prokka {}
 ```
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
@@ -1627,114 +1636,4 @@ ggplot(curve_data, aes(x = NumGenomes)) +
 dev.off()
 ``` 
 
-
-panoroo 
-
-``` bash
-cond activate panaroo_env
-``` 
-
-
-``` bash
-mkdir -p panaroo_results && \
-panaroo -i $(find prokka_results -name "*.gff") \
-        -o panaroo_results \
-        --clean-mode strict \
-        --remove-invalid-genes \
-        --core_threshold 99 \
-        -t 8
-```
-
-
-
-
-Pan-genome COG Functional Analysis Workflow
-Objective: Assign COG categories to core, accessory, and singleton genes from Panaroo output, and visualize their distribution.
-Setup Project and Output Folder
-Navigated to our project directory:
-``` bash
-cd /media/betselot_z/DATADRIVE0/betselot/TB/TB_project/Illumina/WGS/paired_end/PRJNA1247743
-``` 
-
-Create a folder for COG functional annotation results:
-``` bash
-mkdir -p cog_results
-```
-Install COGclassifier (if not already installed)
-
-COGclassifier simplifies functional annotation by downloading and using the COG database automatically.
-``` bash
-pip install cogclassifier
-``` 
-Download / Prepare COG Database (optional if you want local copy)
-
-If you prefer to manually keep a local copy of the COG database, you can create a folder:
-``` bash
-mkdir -p ~/databases/COG2020
-cd ~/databases/COG2020
-``` 
-
-
-Run COGclassifier on Panaroo Representative Proteins
-Input: panaroo_results/pan_genome_reference.fa
-Output folder: cog_results
-
-``` bash
-#!/bin/bash
-set -euo #!/bin/bash
-WORKDIR=$(pwd)
-PROKKA_DIR="$WORKDIR/prokka_results/shovill"
-THREADS=32
-MIN_CLUSTER_SIZE=2
-PAN_OUTPUT="pan_genome_matrix"
-PLOT_OUTPUT="plots"
-
-mkdir -p "$WORKDIR/gethomologues_results"
-cd "$WORKDIR/gethomologues_results"
-
-for f in $PROKKA_DIR/*/*.faa; do
-    cp "$f" .
-done
-
-makeblastdb -in *.faa -dbtype prot -parse_seqids -out all_genomes_db
-
-blastp -query *.faa -db all_genomes_db -outfmt 6 -evalue 1e-5 -num_threads $THREADS -out all_vs_all.blast
-
-get_homologues.pl -d ./ -c -t $THREADS -n $MIN_CLUSTER_SIZE
-
-compare_clusters.pl -d ./ -o $PAN_OUTPUT
-
-parse_pangenome_matrix.pl -m ${PAN_OUTPUT}_cluster.tab -o summary
-
-plot_pancore_matrix.pl -m ${PAN_OUTPUT}_cluster.tab -o $PLOT_OUTPUT -p $(ls $PROKKA_DIR | wc -l) -t 1000 -r
-
-echo "Pan-genome analysis complete"
-echo "Core/Soft-core/Shell/Cloud genes: summary/"
-echo "Pan/Core genome plots: $PLOT_OUTPUT/"
-pipefail
-
-PROJECT_DIR="/media/betselot_z/DATADRIVE0/betselot/TB/TB_project/Illumina/WGS/paired_end/PRJNA1247743"
-PANAROO_PROTEINS="$PROJECT_DIR/panaroo_results/pan_genome_reference.fa"
-COG_OUTPUT="$PROJECT_DIR/cog_results"
-THREADS=16
-
-mkdir -p "$COG_OUTPUT"
-
-echo "Input file: $PANAROO_PROTEINS"
-echo "Output folder: $COG_OUTPUT"
-echo "Using $THREADS threads"
-
-COGclassifier -i "$PANAROO_PROTEINS" \
-              -o "$COG_OUTPUT" \
-              --thread_num "$THREADS"
-
-echo "COGclassifier finished. Key output files:"
-echo " - cog_classify.tsv (per-gene COG assignments)"
-echo " - cog_count.tsv (summary counts per COG category)"
-echo " - rpsblast.tsv (raw RPS-BLAST results)"
-echo " - cog_count_barchart.html (interactive bar chart)"
-echo " - cog_count_piechart.html (interactive pie chart)"
-echo "Note: PNG plots may fail on Linux. Use HTML charts or install vl-convert to fix."
-
-``` 
 
