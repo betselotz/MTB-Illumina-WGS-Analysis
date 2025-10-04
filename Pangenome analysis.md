@@ -532,8 +532,8 @@ x = np.arange(len(samples))
 width = 0.35
 
 plt.figure(figsize=(12,6))
-plt.bar(x - width/2, df['N50_SPADES'], width, label='SPAdes')
-plt.bar(x + width/2, df['N50_SHOVILL'], width, label='Shovill')
+plt.bar(x - width/2, df['N50_SPADES'], width, label='SPAdes', color='orange')
+plt.bar(x + width/2, df['N50_SHOVILL'], width, label='Shovill', color='blue')
 plt.xticks(x, samples, rotation=90)
 plt.ylabel('N50')
 plt.title('QUAST N50 Comparison')
@@ -543,8 +543,8 @@ plt.savefig(os.path.join(output_dir, "N50_comparison.png"), dpi=300)
 plt.close()
 
 plt.figure(figsize=(12,6))
-plt.bar(x - width/2, df['TotalLength_SPADES'], width, label='SPAdes')
-plt.bar(x + width/2, df['TotalLength_SHOVILL'], width, label='Shovill')
+plt.bar(x - width/2, df['TotalLength_SPADES'], width, label='SPAdes', color='orange')
+plt.bar(x + width/2, df['TotalLength_SHOVILL'], width, label='Shovill', color='blue')
 plt.xticks(x, samples, rotation=90)
 plt.ylabel('Total Length')
 plt.title('QUAST Total Length Comparison')
@@ -552,7 +552,6 @@ plt.legend()
 plt.tight_layout()
 plt.savefig(os.path.join(output_dir, "TotalLength_comparison.png"), dpi=300)
 plt.close()
-
 ``` 
 Save and exit nano
 
@@ -563,8 +562,6 @@ Run the script
 ``` bash
 python3 quast_compare.py
 ``` 
-
-
 
 
 ### 3. Assembly summary with assembly-scan
