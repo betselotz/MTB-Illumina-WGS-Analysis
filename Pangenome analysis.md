@@ -1199,6 +1199,61 @@ echo "📊 MUMmer processing done. Check $OUTDIR for results."
 ``` 
 
 
+``` bash
+nano generate_summary.sh
+``` 
+
+``` bash
+#!/bin/bash
+
+OUTDIR="mummer_results"
+SUMMARY="$OUTDIR/summary.tsv"
+ERROR_LOG="$OUTDIR/errors_summary.log"
+
+echo -e "Sample\tShovill_Length\tSPAdes_Length\tTotal_Aligned_Bases\tPercent_Aligned\tAvg_Identity\tTotal_SNPs\tLength_Difference\tPercent_Length_Diff" > "$SUMMARY"
+> "$ERROR_LOG"
+
+for REPORT in "$OUTDIR"/*/*.report; do
+    SAMPLE_ID=$(basename "$REPORT" .report)
+
+    if [[ ! -f "$REPORT" ]]; then
+        echo "⚠️ Report missing for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+        continue
+    fi
+
+    Shovill_Len=$(grep 'TotalBases' "$REPORT" | head -1 | awk '{print $2}')
+    Spades_Len=$(grep 'TotalBases' "$REPORT" | head -1 | awk '{print $3}')
+
+    Total_Aligned_Bases=$(grep 'AlignedBases' "$REPORT" | head -1 | awk '{print $2}' | sed 's/([^)]*)//')
+    Percent_Aligned=$(grep 'AlignedBases' "$REPORT" | head -1 | awk '{print $2}' | sed 's/.*(\([0-9.]*\)%).*/\1/')
+
+    Avg_Identity=$(grep -A1 'M-to-M' "$REPORT" | tail -1 | awk '{print $3}')
+
+    SNP_FILE="${REPORT%.report}.snps"
+    if [[ -f "$SNP_FILE" ]]; then
+        Total_SNPs=$(awk 'NR>3 && $2 != "." && $3 != "." {count++} END {print count}' "$SNP_FILE")
+    else
+        Total_SNPs="NA"
+        echo "⚠️ SNP file missing for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+    fi
+
+    if [[ -z "$Shovill_Len" || -z "$Spades_Len" ]]; then
+        echo "⚠️ Could not extract lengths for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+        continue
+    fi
+
+    Length_Diff=$((Spades_Len - Shovill_Len))
+    Abs_Diff=${Length_Diff#-}
+    Percent_Diff=$(awk -v d=$Abs_Diff -v s=$Shovill_Len 'BEGIN{printf "%.2f", (d/s)*100}')
+
+    echo -e "$SAMPLE_ID\t$Shovill_Len\t$Spades_Len\t$Total_Aligned_Bases\t$Percent_Aligned\t$Avg_Identity\t$Total_SNPs\t$Length_Diff\t$Percent_Diff" >> "$SUMMARY"
+done
+
+echo "📊 Summary generated: $SUMMARY"
+echo "Errors logged (if any): $ERROR_LOG"
+
+``` 
+
 
 # 1️⃣4️⃣ Prokka
 Prokka is a rapid **prokaryotic genome annotation tool** that predicts genes, coding sequences (CDS), rRNAs, tRNAs, and other genomic features from assembled contigs or genomes.  
