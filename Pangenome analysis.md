@@ -1421,14 +1421,14 @@ pangenome_long <- melt(pangenome, id.vars = "Cluster")
 
 presence_absence <- pangenome_long
 presence_absence$value[presence_absence$value != "" & presence_absence$value != "0"] <- 1
-presence_absence$value[presence_absence$value == ""] <- 0
+presence_absence$value[presence_absence$value == "" | presence_absence$value == "0"] <- 0
 presence_absence$value <- as.numeric(presence_absence$value)
 
 cluster_summary <- aggregate(value ~ Cluster, data = presence_absence, sum)
 num_genomes <- ncol(pangenome) - 1
 cluster_summary$type <- cut(cluster_summary$value,
-                            breaks = c(-1, num_genomes - 1, num_genomes),
-                            labels = c("Accessory", "Core"))
+                            breaks = c(-1, 2, floor(0.95*num_genomes)-1, num_genomes-1, num_genomes),
+                            labels = c("Cloud", "Shell", "Soft-core", "Core"))
 
 write.table(cluster_summary, file = file.path(results_dir, "cluster_summary.tsv"),
             sep = "\t", row.names = FALSE, quote = FALSE)
@@ -1436,8 +1436,10 @@ write.table(cluster_summary, file = file.path(results_dir, "cluster_summary.tsv"
 pdf(file.path(results_dir, "pan_core_plot.pdf"), width = 8, height = 6)
 ggplot(cluster_summary, aes(x = type, fill = type)) +
   geom_bar() +
+  geom_text(stat='count', aes(label=..count..), vjust=-0.5) +
   labs(title = "Pan-Core Genome Plot", x = "Gene Type", y = "Number of Clusters") +
-  theme_minimal()
+  theme_minimal() +
+  scale_fill_manual(values = c("Cloud"="#FF9999","Shell"="#FFCC66","Soft-core"="#66CC99","Core"="#3399FF"))
 dev.off()
 ```
 ``` bash
