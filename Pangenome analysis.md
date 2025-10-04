@@ -1481,6 +1481,8 @@ nano run_gethomologues.sh
 Paste the following:
 ``` bash
 #!/bin/bash
+set -euo pipefail
+
 WORKDIR=$(pwd)
 PROKKA_DIR="$WORKDIR/prokka_results/shovill"
 THREADS=32
@@ -1491,26 +1493,30 @@ PLOT_OUTPUT="plots"
 mkdir -p "$WORKDIR/gethomologues_results"
 cd "$WORKDIR/gethomologues_results"
 
+# Copy and rename FAA files
 for f in $PROKKA_DIR/*/*.faa; do
-    cp "$f" .
+    sample=$(basename "$(dirname "$f")")
+    cp "$f" "${sample}.faa"
 done
 
-makeblastdb -in *.faa -dbtype prot -parse_seqids -out all_genomes_db
+# Run GET_HOMOLOGUES with 90% identity and 75% coverage (MCL clustering)
+get_homologues.pl -d ./ -M -S 90 -C 75 -t $THREADS -n $MIN_CLUSTER_SIZE
 
-blastp -query *.faa -db all_genomes_db -outfmt 6 -evalue 1e-5 -num_threads $THREADS -out all_vs_all.blast
-
-get_homologues.pl -d ./ -c -t $THREADS -n $MIN_CLUSTER_SIZE
-
+# Build pan-genome matrix
 compare_clusters.pl -d ./ -o $PAN_OUTPUT
 
+# Categorize core, soft-core, shell, cloud genes
 parse_pangenome_matrix.pl -m ${PAN_OUTPUT}_cluster.tab -o summary
 
-plot_pancore_matrix.pl -m ${PAN_OUTPUT}_cluster.tab -o $PLOT_OUTPUT -p $(ls $PROKKA_DIR | wc -l) -t 1000 -r
+# Plot core/pangenome curves with Tettelin model
+plot_pancore_matrix.pl -m ${PAN_OUTPUT}_cluster.tab \
+    -o $PLOT_OUTPUT \
+    -p $(ls $PROKKA_DIR | wc -l) \
+    -t 1000 -r
 
-echo "Pan-genome analysis complete"
-echo "Core/Soft-core/Shell/Cloud genes: summary/"
-echo "Pan/Core genome plots: $PLOT_OUTPUT/"
-
+echo "✅ Pan-genome construction complete"
+echo "📊 Results: summary/ (core/soft-core/shell/cloud)"
+echo "📈 Plots: $PLOT_OUTPUT/"
 
 ``` 
 Save and exit
