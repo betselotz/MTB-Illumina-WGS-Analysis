@@ -1225,28 +1225,6 @@ for sample_dir in prokka_results/prokka_results_shovill/*; do
 done
 ``` 
 
-SPAdes summary → CSV
-``` bash
-#!/bin/bash
-set -euo pipefail
-
-mkdir -p csv_output
-output_file="csv_output/prokka_spades_summary.csv"
-echo "Sample,CDS,rRNA,tRNA,Genome_size,GC_content" > "$output_file"
-
-for sample_dir in prokka_results/prokka_results_spades/*; do
-    sample=$(basename "$sample_dir")
-    stats_file="$sample_dir/$sample.txt"
-    if [[ -f "$stats_file" ]]; then
-        cds=$(grep "CDS:" "$stats_file" | awk '{print $2}')
-        rrna=$(grep "rRNA:" "$stats_file" | awk '{print $2}')
-        trna=$(grep "tRNA:" "$stats_file" | awk '{print $2}')
-        genome=$(grep "Bases:" "$stats_file" | awk '{print $2}')
-        gc=$(grep "GC:" "$stats_file" | awk '{print $2}')
-        echo "$sample,$cds,$rrna,$trna,$genome,$gc" >> "$output_file"
-    fi
-done
-``` 
 Shovill function → CSV
 
 ``` bash
@@ -1483,7 +1461,6 @@ cluster_summary$type <- cut(cluster_summary$value,
 
 write.table(cluster_summary, file = file.path(results_dir, "cluster_summary.tsv"),
             sep = "\t", row.names = FALSE, quote = FALSE)
-
 ``` 
 ``` bash
 conda activate r_env
@@ -1517,6 +1494,17 @@ ggplot(cluster_summary, aes(x = type, fill = type)) +
   theme_minimal() +
   scale_fill_manual(values = c("Cloud"="#FF9999","Shell"="#FFCC66","Soft-core"="#66CC99","Core"="#3399FF"))
 dev.off()
+
+# -------------------------
+# Save Tettelin pan/core curve data as CSV
+# -------------------------
+plots_dir <- file.path(results_dir, "plots")
+curve_file <- list.files(plots_dir, pattern = "_pancore_curve.txt$", full.names = TRUE)[1]
+
+if(length(curve_file) > 0){
+  curve_data <- read.table(curve_file, header = TRUE, sep = "\t")
+  write.csv(curve_data, file=file.path(plots_dir, "pan_core_curve_data.csv"), row.names=FALSE)
+}
 ``` 
 Step 5: pan-genome openness/closeness numerically so you have both the plots and values for reporting
 
