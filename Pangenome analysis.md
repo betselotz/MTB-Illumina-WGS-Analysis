@@ -1451,13 +1451,120 @@ conda activate r_env
 Rscript run_pangenome_analysis.R
 ``` 
 
+``` bash
+nano run_summarize_clusters.R
+``` 
+
+Step 3 – Summarize clusters and assign types (summarize_clusters.R)
+``` bash
+library(reshape2)
+
+workdir <- getwd()
+results_dir <- file.path(workdir, "gethomologues_results")
+tab_file <- list.files(results_dir, pattern = "pan_genome_matrix.*\\.tab$", full.names = TRUE)
+
+if(length(tab_file) == 0){
+  stop("No pan-genome matrix .tab file found in gethomologues_results/")
+}
+
+pangenome <- read.table(tab_file[1], header = TRUE, sep = "\t", check.names = FALSE)
+pangenome_long <- melt(pangenome, id.vars = "Cluster")
+
+presence_absence <- pangenome_long
+presence_absence$value[presence_absence$value != "" & presence_absence$value != "0"] <- 1
+presence_absence$value[presence_absence$value == "" | presence_absence$value == "0"] <- 0
+presence_absence$value <- as.numeric(presence_absence$value)
+
+cluster_summary <- aggregate(value ~ Cluster, data = presence_absence, sum)
+num_genomes <- ncol(pangenome) - 1
+cluster_summary$type <- cut(cluster_summary$value,
+                            breaks = c(-1, 2, floor(0.95*num_genomes)-1, num_genomes-1, num_genomes),
+                            labels = c("Cloud", "Shell", "Soft-core", "Core"))
+
+write.table(cluster_summary, file = file.path(results_dir, "cluster_summary.tsv"),
+            sep = "\t", row.names = FALSE, quote = FALSE)
+
+``` 
+``` bash
+conda activate r_env
+Rscript run_summarize_clusters.R
+``` 
 
 
+Step 4 – Plot cluster distribution (plot_clusters.R)
+``` bash
+nano run_plot_clusters.R
+``` 
 
+``` bash
+library(ggplot2)
 
+workdir <- getwd()
+results_dir <- file.path(workdir, "gethomologues_results")
+cluster_file <- file.path(results_dir, "cluster_summary.tsv")
 
+if(!file.exists(cluster_file)){
+  stop("cluster_summary.tsv not found. Run summarize_clusters.R first.")
+}
 
+cluster_summary <- read.table(cluster_file, header = TRUE, sep = "\t", check.names = FALSE)
 
+pdf(file.path(results_dir, "pan_core_plot.pdf"), width = 8, height = 6)
+ggplot(cluster_summary, aes(x = type, fill = type)) +
+  geom_bar() +
+  geom_text(stat='count', aes(label=..count..), vjust=-0.5) +
+  labs(title = "Pan-Core Genome Plot", x = "Gene Type", y = "Number of Clusters") +
+  theme_minimal() +
+  scale_fill_manual(values = c("Cloud"="#FF9999","Shell"="#FFCC66","Soft-core"="#66CC99","Core"="#3399FF"))
+dev.off()
+``` 
+Step 5: pan-genome openness/closeness numerically so you have both the plots and values for reporting
+
+Using GET_HOMOLOGUES output
+
+plot_pancore_matrix.pl generates:
+
+Core gene decay curve (exponential decay)
+
+Pan-genome growth curve (exponential growth)
+
+These are usually saved in a PDF, but the script also outputs the underlying curve parameters in .txt files inside $PLOT_OUTPUT.
+
+You can extract the parameters (Tettelin alpha for core decay, gamma for pan-genome growth) with this approach:
+
+``` bash
+NUM_GENOMES=$(ls *.faa | wc -l)
+plot_pancore_matrix.pl -m ${PAN_OUTPUT}_cluster.tab \
+    -o $PLOT_OUTPUT \
+    -p $NUM_GENOMES \
+    -t 1000 -r
+
+# Extract Tettelin model parameters
+grep -i "alpha\|gamma" $PLOT_OUTPUT/*_pancore_curve.txt > $PLOT_OUTPUT/tettelin_parameters.txt
+echo "Tettelin parameters saved to $PLOT_OUTPUT/tettelin_parameters.txt"
+``` 
+Optional: R script to read and visualize curves
+
+If you want the curves numerically and plotted in R:
+
+``` 
+library(ggplot2)
+
+results_dir <- file.path(getwd(), "gethomologues_results", "plots")
+curve_file <- list.files(results_dir, pattern = "_pancore_curve.txt$", full.names = TRUE)[1]
+
+curve_data <- read.table(curve_file, header = TRUE, sep = "\t")
+# Usually columns: NumGenomes, Core, PanGenome, MeanCore, MeanPan
+
+pdf(file.path(results_dir, "pan_core_growth.pdf"), width = 8, height = 6)
+ggplot(curve_data, aes(x = NumGenomes)) +
+  geom_line(aes(y = Core, color="Core")) +
+  geom_line(aes(y = PanGenome, color="Pan-genome")) +
+  labs(title="Pan-genome and Core Genome Curves", x="Number of Genomes", y="Genes") +
+  scale_color_manual(values=c("Core"="blue","Pan-genome"="red")) +
+  theme_minimal()
+dev.off()
+``` 
 
 
 panoroo 
