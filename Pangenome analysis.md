@@ -548,8 +548,6 @@ for sample_dir in "$SPADES_DIR"/*/; do
         echo "" >> "$CSV_FILE"
     fi
 done
-
-
 ``` 
 ######   Step 2:Create the Shovill assembly-scan script
 ``` bash
@@ -589,8 +587,6 @@ for sample_dir in "$SHOVILL_DIR"/*/; do
         echo "" >> "$CSV_FILE"
     fi
 done
-
-
 ``` 
 ###### Step 3: Make scripts executable
 ``` bash
@@ -602,7 +598,6 @@ conda activate assembly_scan_env
 ./run_assembly_scan_spades.sh
 ./run_assembly_scan_shovill.sh
 ``` 
-
 
 #### 4. estimate genome completeness/contamination for all assemblies with CheckM
 ######   Step 1: Create the SPAdes CheckM script
@@ -697,45 +692,51 @@ nano run_mummer_comparison.sh
 ###### Step 2 — Paste this clean script
 ``` bash
 #!/bin/bash
-set -euo pipefail
 
-mkdir -p mummer_results
+SHOVILL_DIR="shovill_results"
+SPADES_DIR="spades_results"
+OUTDIR="mummer_results"
+mkdir -p "$OUTDIR"
+
+ERROR_LOG="$OUTDIR/errors.log"
+> "$ERROR_LOG"
 
 if ! command -v gnuplot &>/dev/null; then
     echo "⚠️ gnuplot not found. PNG plots will be skipped."
 fi
 
-for SHOVILL_DIR in shovill_results/*; do
-    SAMPLE_ID=$(basename "$SHOVILL_DIR")
-    SHOVILL=$(ls "$SHOVILL_DIR"/${SAMPLE_ID}_contigs.fa 2>/dev/null || true)
-    SPADES=$(ls spades_results/"$SAMPLE_ID"/contigs.fasta 2>/dev/null || true)
+for SHOVILL_SAMPLE in "$SHOVILL_DIR"/*; do
+    SAMPLE_ID=$(basename "$SHOVILL_SAMPLE")
+    SHOVILL="$SHOVILL_SAMPLE/${SAMPLE_ID}_contigs.fa"
+    SPADES="$SPADES_DIR/$SAMPLE_ID/contigs.fasta"
 
-    if [[ -z "$SHOVILL" || -z "$SPADES" ]]; then
-        echo "Skipping $SAMPLE_ID (missing Shovill or SPAdes assembly)"
+    if [[ ! -f "$SHOVILL" || ! -f "$SPADES" ]]; then
+        echo "Skipping $SAMPLE_ID (missing files)" | tee -a "$ERROR_LOG"
         continue
     fi
 
-    echo "🔍 Comparing $SAMPLE_ID (Shovill vs SPAdes)..."
-
-    SAMPLE_OUTDIR="mummer_results/$SAMPLE_ID"
+    echo "🔍 Comparing $SAMPLE_ID..."
+    SAMPLE_OUTDIR="$OUTDIR/$SAMPLE_ID"
     mkdir -p "$SAMPLE_OUTDIR"
-    OUT_PREFIX="$SAMPLE_OUTDIR/$SAMPLE_ID"
+    PREFIX="$SAMPLE_OUTDIR/$SAMPLE_ID"
 
-    nucmer --mincluster=500 --prefix="$OUT_PREFIX" "$SHOVILL" "$SPADES"
-    delta-filter -1 -l 1000 "$OUT_PREFIX.delta" > "$OUT_PREFIX.filtered.delta"
-    show-coords -rcl "$OUT_PREFIX.filtered.delta" > "$OUT_PREFIX.coords"
-    dnadiff -p "$OUT_PREFIX" "$SHOVILL" "$SPADES"
+    {
+        nucmer --mincluster=500 --prefix="$PREFIX" "$SHOVILL" "$SPADES" || { echo "⚠️ nucmer failed for $SAMPLE_ID" | tee -a "$ERROR_LOG"; continue; }
+        delta-filter -1 -l 1000 "$PREFIX.delta" > "$PREFIX.filtered.delta" || { echo "⚠️ delta-filter failed for $SAMPLE_ID" | tee -a "$ERROR_LOG"; continue; }
 
-    if command -v gnuplot &>/dev/null; then
-        mummerplot --png --large --layout --color \
-            -p "$OUT_PREFIX" \
-            "$OUT_PREFIX.filtered.delta"
+        if command -v gnuplot &>/dev/null; then
+            mummerplot --png --large --layout --color -p "$PREFIX" "$PREFIX.filtered.delta" || echo "⚠️ mummerplot failed for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+        fi
 
-        echo "✅ Plot generated for $SAMPLE_ID: $OUT_PREFIX.png"
-    else
-        echo "⚠️ Plot skipped for $SAMPLE_ID (gnuplot missing)"
-    fi
+        dnadiff -p "$PREFIX" "$SHOVILL" "$SPADES" || { echo "⚠️ dnadiff failed for $SAMPLE_ID" | tee -a "$ERROR_LOG"; continue; }
+        echo "✅ Completed $SAMPLE_ID"
+    } || {
+        echo "⚠️ Unexpected error for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+        continue
+    }
 done
+
+echo "📊 MUMmer processing done. Check $OUTDIR for results."
 
 ``` 
 
@@ -753,117 +754,69 @@ chmod +x run_mummer_comparison.sh
 conda activate mummer_env
 ./run_mummer_comparison.sh
 ``` 
-###### Step 6 — Dotplot Visualization
-
-MUMmer provides mummerplot to visualize genome assembly alignments. This shows synteny, rearrangements, inversions, and gaps between your Shovill vs SPAdes assemblies.
-Command for a single sample:
+Step 1: Open nano
 ``` bash
-mummerplot --png --large --layout --color \
-  -p mummer_results/SRR32861807/SRR32861807 \
-  mummer_results/SRR32861807/SRR32861807.filtered.delta
+nano generate_summary.sh
 ``` 
+Step 2: Paste the script
 
-`--layout` separates forward and reverse matches into two distinct panels, making inversions and rearrangements easier to spot.
-
-Still lightweight; no extra software needed beyond gnuplot.
-
-``` bash
-mummerplot --png --large --layout -p mummer_results/SRR32861807 mummer_results/SRR32861807.filtered.delta
-``` 
-Zoom in on regions
-
-If you’re interested in specific regions:
-``` bash
-mummerplot --png --large --xrange=100000-500000 --yrange=100000-500000 -p zoom_plot mummer_results/SRR32861807.filtered.delta
-``` 
-Use external visualization tools
-dnadiff + mummerplot
-
-Run dnadiff on your assemblies:
-``` bash
-dnadiff reference.fasta query.fasta -p dnadiff_results
-``` 
-
-Loop to generate dotplots for all samples
-
-If you want dotplots for all your samples automatically:
-``` bash
-for DELTA in mummer_results/*.filtered.delta; do
-    SAMPLE=$(basename "$DELTA" .filtered.delta)
-    echo "Generating dotplot for $SAMPLE..."
-    mummerplot --png --large -p mummer_results/"$SAMPLE" "$DELTA"
-done
-``` 
-
-
-comparison script
-###### Step 1 — Open a new script
-``` bash
-nano run_quast_comparison.sh
-``` 
-
-###### Step 2 — Paste this clean script
+Inside nano, paste the following:
 ``` bash
 #!/bin/bash
-set -euo pipefail
 
-mkdir -p mummer_results
-mkdir -p csv_output
+OUTDIR="mummer_results"
+SUMMARY="$OUTDIR/summary.tsv"
+ERROR_LOG="$OUTDIR/errors_summary.log"
 
-TMP_CSV="csv_output/mummer_alignment_comparison_unsorted.csv"
-FINAL_CSV="csv_output/mummer_alignment_comparison.csv"
+echo -e "Sample\tShovill_Length\tSPAdes_Length\tTotal_Aligned_Bases\tPercent_Aligned\tAvg_Identity\tTotal_SNPs\tLength_Difference\tPercent_Length_Diff" > "$SUMMARY"
+> "$ERROR_LOG"
 
-echo "Sample,Shovill_Length,SPAdes_Length,Total_Aligned_Bases,Avg_Identity,Num_Aligned_Blocks,Length_Difference,Percent_Sh_vs_SP,Percent_SP_vs_Sh,Percent_Length_Diff" > "$TMP_CSV"
+for REPORT in "$OUTDIR"/*/*.report; do
+    SAMPLE_ID=$(basename "$REPORT" .report)
 
-for SAMPLE_ID in $(ls shovill_results); do
-    SHOVILL="shovill_results/${SAMPLE_ID}/${SAMPLE_ID}_contigs.fa"
-    SPADES="spades_results/${SAMPLE_ID}/contigs.fasta"
-
-    if [[ ! -f "$SHOVILL" || ! -f "$SPADES" ]]; then
-        echo "Skipping $SAMPLE_ID (missing assembly)"
+    if [[ ! -f "$REPORT" ]]; then
+        echo "⚠️ Report missing for $SAMPLE_ID" | tee -a "$ERROR_LOG"
         continue
     fi
 
-    SAMPLE_OUT="mummer_results/${SAMPLE_ID}"
-    mkdir -p "$SAMPLE_OUT"
+    Shovill_Len=$(grep -i "^# RefBases" "$REPORT" | awk '{print $2}' | tr -d '(),%')
+    Spades_Len=$(grep -i "^# QryBases" "$REPORT" | awk '{print $2}' | tr -d '(),%')
 
-    nucmer --maxmatch --prefix="$SAMPLE_OUT/$SAMPLE_ID" "$SHOVILL" "$SPADES"
-    dnadiff -p "$SAMPLE_OUT/$SAMPLE_ID" "$SHOVILL" "$SPADES"
+    Aligned=$(grep -i "^# 1-to-1 AlignedBases" "$REPORT" | head -1 | awk '{print $2}' | tr -d '(),%')
+    Pct_Aligned=$(grep -i "^# 1-to-1 AlignedBases" "$REPORT" | head -1 | awk '{print $3}' | tr -d '(),%')
 
-    SHOVILL_LEN=$(awk '/^>/ {if(seq){total+=length(seq)}; seq=""} /^[ACGTN]+$/ {seq=seq $0} END{total+=length(seq); print total}' "$SHOVILL")
-    SPADES_LEN=$(awk '/^>/ {if(seq){total+=length(seq)}; seq=""} /^[ACGTN]+$/ {seq=seq $0} END{total+=length(seq); print total}' "$SPADES")
+    Identity=$(grep -i "^# AvgIdentity" "$REPORT" | awk '{print $2}' | tr -d '(),%')
+    SNPs=$(grep -i "^# TotalSNPs" "$REPORT" | awk '{print $2}' | tr -d '(),%')
 
-    TOTAL_ALIGNED=$(awk '/^AlignedBases/{gsub(",","",$2); print $2}' "$SAMPLE_OUT/$SAMPLE_ID.report")
-    AVG_IDENTITY=$(awk '/^AvgIdentity/{gsub("%","",$2); print $2}' "$SAMPLE_OUT/$SAMPLE_ID.report")
-    NUM_BLOCKS=$(awk '/^TotalRefMatches/{gsub(",","",$2); print $2}' "$SAMPLE_OUT/$SAMPLE_ID.report")
+    if [[ -z "$Shovill_Len" || -z "$Spades_Len" ]]; then
+        echo "⚠️ Missing lengths for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+        continue
+    fi
 
-    LENGTH_DIFF=$(( SPADES_LEN - SHOVILL_LEN ))
-    PERCENT_SH_vs_SP=$(awk -v aligned="$TOTAL_ALIGNED" -v len="$SHOVILL_LEN" 'BEGIN{if(len>0) printf "%.2f", (aligned/len)*100; else print 0}')
-    PERCENT_SP_vs_SH=$(awk -v aligned="$TOTAL_ALIGNED" -v len="$SPADES_LEN" 'BEGIN{if(len>0) printf "%.2f", (aligned/len)*100; else print 0}')
-    PERCENT_LENGTH_DIFF=$(awk -v diff="$LENGTH_DIFF" -v len="$SHOVILL_LEN" 'BEGIN{if(len>0) printf "%.2f", (diff/len)*100; else print 0}')
+    Length_Diff=$((Spades_Len - Shovill_Len))
+    Abs_Diff=${Length_Diff#-}
+    Percent_Diff=$(awk -v d=$Abs_Diff -v s=$Shovill_Len 'BEGIN{printf "%.2f", (d/s)*100}')
 
-    echo "${SAMPLE_ID},${SHOVILL_LEN},${SPADES_LEN},${TOTAL_ALIGNED},${AVG_IDENTITY},${NUM_BLOCKS},${LENGTH_DIFF},${PERCENT_SH_vs_SP},${PERCENT_SP_vs_SH},${PERCENT_LENGTH_DIFF}" >> "$TMP_CSV"
-
-    mummerplot --png --large -p "$SAMPLE_OUT/$SAMPLE_ID" "$SAMPLE_OUT/$SAMPLE_ID.delta"
-    rm -f "$SAMPLE_OUT/$SAMPLE_ID.gp"
+    echo -e "$SAMPLE_ID\t$Shovill_Len\t$Spades_Len\t$Aligned\t$Pct_Aligned\t$Identity\t$SNPs\t$Length_Diff\t$Percent_Diff" >> "$SUMMARY"
 done
 
-(head -n 1 "$TMP_CSV" && tail -n +2 "$TMP_CSV" | sort -t',' -k8,8nr) > "$FINAL_CSV"
-rm -f "$TMP_CSV"
-
+echo "📊 Summary generated: $SUMMARY"
+echo "Errors logged (if any): $ERROR_LOG"
 ``` 
-###### Step 3 — Save and exit
+Step 3: Save and exit nano
 
-Press CTRL + O → Enter → CTRL + X
-###### Step 4 — Make the script executable
+Press Ctrl + O → then Enter to save.
+
+Press Ctrl + X → to exit nano.
+Step 4: Make it executable
 ```bash
-chmod +x run_quast_comparison.sh
+chmod +x generate_summary.sh
 ```
-###### Step 5 — Run the script
+Step 5: Run the script
 ```bash
-conda activate quast_env
-./run_quast_comparison.sh
+./generate_summary.sh
 ```
+
 
 Backmapping
 Shovill
@@ -932,7 +885,6 @@ for asm_dir in ${ASSEMBLY_DIR}/SRR*; do
 
     echo -e "$sample\t$total\t$mapped\t$percent\t$avgcov" >> "$SUMMARY_FILE"
 done
-
 
 ```
 
@@ -1028,163 +980,6 @@ Run the script
 ``` bash
 conda activate backmap_env
 ./backmap_spades.sh
-``` 
-
-
-
-
-Contigutor
-
-``` bash
-nano run_shovill_contigutor.sh
-``` 
-``` bash
-#!/bin/bash
-set -euo pipefail
-
-INPUT_DIR="fastp_results_min_50"
-OUTDIR="spades_results"
-THREADS=16
-MEMORY=120
-MIN_CONTIG=500
-COV_CUTOFF=30
-CONTIGUTOR_DIR="CONTIGutor_results/spades_CONTIGutor_results"
-REF_GENOME="H37Rv.gbk"
-
-mkdir -p "$CONTIGUTOR_DIR"
-
-shopt -s nullglob
-for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
-    [[ -e "$R1" ]] || continue
-
-    R2="${R1/_1.trim.fastq.gz/_2.trim.fastq.gz}"
-    if [[ ! -f "$R2" ]]; then
-        echo ">> Skipping $(basename "$R1") (no matching R2 found)" >&2
-        continue
-    fi
-
-    sample=$(basename "$R1" _1.trim.fastq.gz)
-    sample_out="$OUTDIR/$sample"
-    mkdir -p "$sample_out"
-
-    echo "==> Running SPAdes (paired-end) on: $sample"
-    spades.py \
-        -1 "$R1" \
-        -2 "$R2" \
-        -o "$sample_out" \
-        -t "$THREADS" \
-        -m "$MEMORY" \
-        --only-assembler \
-        --cov-cutoff "$COV_CUTOFF" \
-        > "$sample_out/${sample}_spades.log" 2>&1
-
-    if [[ -f "$sample_out/contigs.fasta" ]]; then
-        awk -v minlen="$MIN_CONTIG" 'BEGIN{RS=">"; ORS=""} length($0)>minlen+1 {print ">"$0}' \
-            "$sample_out/contigs.fasta" > "$sample_out/${sample}_contigs.fasta"
-    fi
-
-    sample_contig="$sample_out/${sample}_contigs.fasta"
-    if [[ -f "$sample_contig" ]]; then
-        sample_cont_out="$CONTIGUTOR_DIR/$sample"
-        mkdir -p "$sample_cont_out"
-
-        echo "==> Running CONTIGutor on $sample"
-        perl CONTIGutor.pl \
-            -c "$sample_contig" \
-            -r "$REF_GENOME" \
-            -o "$sample_cont_out" \
-            > "$sample_cont_out/CONTIGutor.log" 2>&1
-    fi
-done
-
-echo ">> All SPAdes and CONTIGutor runs completed. Results are in $CONTIGUTOR_DIR"
-
-``` 
-``` bash
-chmod +x run_shovill_contigutor.sh
-```
-
-``` bash
-./run_shovill_contigutor.sh
-``` 
-``` bash
-nano run_spades_contigutor.sh
-``` 
-
-``` bash
-#!/bin/bash
-set -euo pipefail
-
-INPUT_DIR="fastp_results_min_50"
-OUTDIR="spades_results"
-THREADS=16
-MEMORY=120
-MIN_CONTIG=500
-COV_CUTOFF=30
-CONTIGUTOR_DIR="CONTIGutor_results/spades_CONTIGutor_results"
-REF_GENOME="H37Rv.gbk"
-
-mkdir -p "$CONTIGUTOR_DIR"
-
-shopt -s nullglob
-for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
-    [[ -e "$R1" ]] || continue
-
-    R2="${R1/_1.trim.fastq.gz/_2.trim.fastq.gz}"
-    if [[ ! -f "$R2" ]]; then
-        echo ">> Skipping $(basename "$R1") (no matching R2 found)" >&2
-        continue
-    fi
-
-    sample=$(basename "$R1" _1.trim.fastq.gz)
-    sample_out="$OUTDIR/$sample"
-
-    if [[ -f "$sample_out/${sample}_contigs.fasta" ]]; then
-        echo ">> Skipping $sample (already assembled)"
-    else
-        echo "==> Running SPAdes (paired-end) on: $sample"
-        mkdir -p "$sample_out"
-
-        spades.py \
-            -1 "$R1" \
-            -2 "$R2" \
-            -o "$sample_out" \
-            -t "$THREADS" \
-            -m "$MEMORY" \
-            --only-assembler \
-            --cov-cutoff "$COV_CUTOFF" \
-            > "$sample_out/${sample}_spades.log" 2>&1
-
-        if [[ -f "$sample_out/contigs.fasta" ]]; then
-            awk -v minlen="$MIN_CONTIG" 'BEGIN{RS=">"; ORS=""} length($0)>minlen+1 {print ">"$0}' \
-                "$sample_out/contigs.fasta" > "$sample_out/${sample}_contigs.fasta"
-        fi
-    fi
-
-    sample_contig="$sample_out/${sample}_contigs.fasta"
-    if [[ -f "$sample_contig" ]]; then
-        sample_cont_out="$CONTIGUTOR_DIR/$sample"
-        mkdir -p "$sample_cont_out"
-
-        if [[ -f "$sample_cont_out/CONTIGutor.log" ]]; then
-            echo ">> Skipping $sample (CONTIGutor already run)"
-            continue
-        fi
-
-        echo "==> Running CONTIGutor on $sample"
-        perl CONTIGutor.pl \
-            -c "$sample_contig" \
-            -r "$REF_GENOME" \
-            -o "$sample_cont_out" \
-            > "$sample_cont_out/CONTIGutor.log" 2>&1
-    fi
-done
-
-echo ">> All SPAdes and CONTIGutor runs completed. Results are in $CONTIGUTOR_DIR"
-``` 
-``` bash
-chmod +x run_spades_contigutor.sh
-./run_spades_contigutor.sh
 ``` 
 
 
