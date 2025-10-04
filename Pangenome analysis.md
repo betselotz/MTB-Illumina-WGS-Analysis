@@ -1023,6 +1023,7 @@ paste
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 shovill = pd.read_csv("backmapping_results/shovill/summary.tsv", sep="\t")
 spades = pd.read_csv("backmapping_results/spades/summary.tsv", sep="\t")
@@ -1036,7 +1037,10 @@ merged['Best_Avg_Coverage'] = np.where(
     merged['Average_Coverage_shovill'] >= merged['Average_Coverage_spades'], "Shovill", "SPAdes"
 )
 
-merged.to_csv("assembly_comparison_summary.tsv", sep="\t", index=False)
+merged.to_csv("backmapping_results/assembly_comparison_summary.tsv", sep="\t", index=False)
+
+output_dir = "backmapping_results"
+os.makedirs(output_dir, exist_ok=True)
 
 x = np.arange(len(merged))
 width = 0.35
@@ -1048,7 +1052,7 @@ plt.xticks(x, merged['Sample'], rotation=90)
 plt.ylabel('Percent Mapped Reads')
 plt.legend()
 plt.tight_layout()
-plt.savefig("percent_mapped_comparison.png", dpi=300)
+plt.savefig(os.path.join(output_dir, "percent_mapped_comparison.png"), dpi=300)
 plt.close()
 
 plt.figure(figsize=(10,6))
@@ -1058,8 +1062,9 @@ plt.xticks(x, merged['Sample'], rotation=90)
 plt.ylabel('Average Coverage')
 plt.legend()
 plt.tight_layout()
-plt.savefig("average_coverage_comparison.png", dpi=300)
+plt.savefig(os.path.join(output_dir, "average_coverage_comparison.png"), dpi=300)
 plt.close()
+
 ```
 Run the script
 ``` bash
