@@ -999,7 +999,75 @@ Run the script
 ``` bash
 conda activate backmap_env
 ./backmap_spades.sh
+```
+ready-to-run Python script that will:
+
+Load our summary.tsv files for Shovill and SPAdes.
+
+Compare Percent_Mapped and Average_Coverage per sample.
+
+Highlight which assembler performs better per sample.
+
+Generate a simple bar plot for visual comparison.
+
+Save the script
+
+In your terminal:
+``` bash
+nano compare_assemblers.py
 ``` 
+paste
+``` bash
+#!/usr/bin/env python3
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+shovill = pd.read_csv("backmapping_results/shovill/summary.tsv", sep="\t")
+spades = pd.read_csv("backmapping_results/spades/summary.tsv", sep="\t")
+
+merged = pd.merge(shovill, spades, on="Sample", suffixes=("_shovill", "_spades"))
+
+merged['Best_Percent_Mapped'] = np.where(
+    merged['Percent_Mapped_shovill'] >= merged['Percent_Mapped_spades'], "Shovill", "SPAdes"
+)
+merged['Best_Avg_Coverage'] = np.where(
+    merged['Average_Coverage_shovill'] >= merged['Average_Coverage_spades'], "Shovill", "SPAdes"
+)
+
+merged.to_csv("assembly_comparison_summary.tsv", sep="\t", index=False)
+
+x = np.arange(len(merged))
+width = 0.35
+
+plt.figure(figsize=(10,6))
+plt.bar(x - width/2, merged['Percent_Mapped_shovill'], width, label='Shovill')
+plt.bar(x + width/2, merged['Percent_Mapped_spades'], width, label='SPAdes')
+plt.xticks(x, merged['Sample'], rotation=90)
+plt.ylabel('Percent Mapped Reads')
+plt.legend()
+plt.tight_layout()
+plt.savefig("percent_mapped_comparison.png", dpi=300)
+plt.close()
+
+plt.figure(figsize=(10,6))
+plt.bar(x - width/2, merged['Average_Coverage_shovill'], width, label='Shovill')
+plt.bar(x + width/2, merged['Average_Coverage_spades'], width, label='SPAdes')
+plt.xticks(x, merged['Sample'], rotation=90)
+plt.ylabel('Average Coverage')
+plt.legend()
+plt.tight_layout()
+plt.savefig("average_coverage_comparison.png", dpi=300)
+plt.close()
+```
+Run the script
+``` bash
+python3 compare_assemblers.py
+``` 
+
+
+
 
 
 # 1️⃣4️⃣ Prokka
