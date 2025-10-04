@@ -730,14 +730,15 @@ for SHOVILL_SAMPLE in "$SHOVILL_DIR"/*; do
 
         dnadiff -p "$PREFIX" "$SHOVILL" "$SPADES" || { echo "⚠️ dnadiff failed for $SAMPLE_ID" | tee -a "$ERROR_LOG"; continue; }
 
-        # Extract SNPs
         SNP_FILE="$PREFIX.snps"
-        if [[ -f "$SNP_FILE" ]]; then
-            NUM_SNPS=$(($(wc -l < "$SNP_FILE") - 1))  # subtract header line
+        show-snps -ClrT "$PREFIX.filtered.delta" > "$SNP_FILE"
+
+        if [[ -s "$SNP_FILE" ]]; then
+            NUM_SNPS=$(($(wc -l < "$SNP_FILE") - 1))
             echo "🧬 $NUM_SNPS SNPs detected for $SAMPLE_ID"
         else
             NUM_SNPS=0
-            echo "⚠️ SNP file missing for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+            echo "⚠️ No SNPs detected for $SAMPLE_ID" | tee -a "$ERROR_LOG"
         fi
 
         echo "✅ Completed $SAMPLE_ID"
@@ -748,8 +749,6 @@ for SHOVILL_SAMPLE in "$SHOVILL_DIR"/*; do
 done
 
 echo "📊 MUMmer processing done. Check $OUTDIR for results."
-
-
 ``` 
 
 ###### Step 3 — Save and exit
@@ -798,7 +797,14 @@ for REPORT in "$OUTDIR"/*/*.report; do
     Percent_Aligned=$(grep 'AlignedBases' "$REPORT" | head -1 | awk '{print $2}' | sed 's/.*(\([0-9.]*\)%).*/\1/')
 
     Avg_Identity=$(grep -A1 'M-to-M' "$REPORT" | tail -1 | awk '{print $3}')
-    Total_SNPs="NA"
+
+    SNP_FILE="${REPORT%.report}.snps"
+    if [[ -f "$SNP_FILE" ]]; then
+        Total_SNPs=$(awk 'NR>3 && $2 != "." && $3 != "." {count++} END {print count}' "$SNP_FILE")
+    else
+        Total_SNPs="NA"
+        echo "⚠️ SNP file missing for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+    fi
 
     if [[ -z "$Shovill_Len" || -z "$Spades_Len" ]]; then
         echo "⚠️ Could not extract lengths for $SAMPLE_ID" | tee -a "$ERROR_LOG"
