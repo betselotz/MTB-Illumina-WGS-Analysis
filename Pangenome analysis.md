@@ -405,9 +405,9 @@ set -euo pipefail
 SPADES_DIR="spades_results"
 SHOVILL_DIR="shovill_results"
 QUAST_PARENT="quast_results"
-CSV_OUTDIR="csv_output"
+CSV_OUTDIR="$QUAST_PARENT"
 
-mkdir -p "$QUAST_PARENT" "$CSV_OUTDIR"
+mkdir -p "$QUAST_PARENT"
 
 SPADES_QUAST="$QUAST_PARENT/quast_results_spades"
 SHOVILL_QUAST="$QUAST_PARENT/quast_results_shovill"
@@ -492,10 +492,7 @@ echo "Sample,NumContigs_SPADES,NumContigs_SHOVILL,TotalLength_SPADES,TotalLength
 rm -f "$SPADES_CSV" "$SHOVILL_CSV" "$COMBINED_CSV.tmp"
 
 ``` 
-Delete any leftover temp files from previous runs:
-``` bash
-rm -f csv_output/spades_tmp.csv csv_output/shovill_tmp.csv csv_output/combined_raw.csv
-``` 
+
 ###### Step 3: Make scripts executable
 ``` bash
 chmod +x quast_compare_parallel.sh
@@ -505,6 +502,70 @@ chmod +x quast_compare_parallel.sh
 conda activate quast_env
 ./quast_compare_parallel.sh
 ``` 
+Open nano and create the script
+``` bash
+nano quast_compare.py
+``` 
+Paste the following clean Python code
+``` bash
+#!/usr/bin/env python3
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+
+input_csv = "quast_results/quast_summary_combined.csv"
+output_dir = "quast_results"
+os.makedirs(output_dir, exist_ok=True)
+
+df = pd.read_csv(input_csv)
+
+df['Best_N50'] = np.where(df['N50_SPADES'] >= df['N50_SHOVILL'], "SPAdes", "Shovill")
+df['Best_TotalLength'] = np.where(df['TotalLength_SPADES'] >= df['TotalLength_SHOVILL'], "SPAdes", "Shovill")
+df['Best_GC'] = np.where(df['GC_SPADES'] >= df['GC_SHOVILL'], "SPAdes", "Shovill")
+
+df.to_csv(os.path.join(output_dir, "quast_comparison_summary.csv"), index=False)
+
+samples = df['Sample']
+x = np.arange(len(samples))
+width = 0.35
+
+plt.figure(figsize=(12,6))
+plt.bar(x - width/2, df['N50_SPADES'], width, label='SPAdes')
+plt.bar(x + width/2, df['N50_SHOVILL'], width, label='Shovill')
+plt.xticks(x, samples, rotation=90)
+plt.ylabel('N50')
+plt.title('QUAST N50 Comparison')
+plt.legend()
+plt.tight_layout()
+plt.savefig(os.path.join(output_dir, "N50_comparison.png"), dpi=300)
+plt.close()
+
+plt.figure(figsize=(12,6))
+plt.bar(x - width/2, df['TotalLength_SPADES'], width, label='SPAdes')
+plt.bar(x + width/2, df['TotalLength_SHOVILL'], width, label='Shovill')
+plt.xticks(x, samples, rotation=90)
+plt.ylabel('Total Length')
+plt.title('QUAST Total Length Comparison')
+plt.legend()
+plt.tight_layout()
+plt.savefig(os.path.join(output_dir, "TotalLength_comparison.png"), dpi=300)
+plt.close()
+
+``` 
+Save and exit nano
+
+Press Ctrl + O → Enter to save.
+
+Press Ctrl + X to exit.
+Run the script
+``` bash
+python3 quast_compare.py
+``` 
+
+
+
 
 ### 3. Assembly summary with assembly-scan
 Collect the key statistics in a single CSV file
