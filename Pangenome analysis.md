@@ -729,6 +729,17 @@ for SHOVILL_SAMPLE in "$SHOVILL_DIR"/*; do
         fi
 
         dnadiff -p "$PREFIX" "$SHOVILL" "$SPADES" || { echo "⚠️ dnadiff failed for $SAMPLE_ID" | tee -a "$ERROR_LOG"; continue; }
+
+        # Extract SNPs
+        SNP_FILE="$PREFIX.snps"
+        if [[ -f "$SNP_FILE" ]]; then
+            NUM_SNPS=$(($(wc -l < "$SNP_FILE") - 1))  # subtract header line
+            echo "🧬 $NUM_SNPS SNPs detected for $SAMPLE_ID"
+        else
+            NUM_SNPS=0
+            echo "⚠️ SNP file missing for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+        fi
+
         echo "✅ Completed $SAMPLE_ID"
     } || {
         echo "⚠️ Unexpected error for $SAMPLE_ID" | tee -a "$ERROR_LOG"
@@ -737,6 +748,7 @@ for SHOVILL_SAMPLE in "$SHOVILL_DIR"/*; do
 done
 
 echo "📊 MUMmer processing done. Check $OUTDIR for results."
+
 
 ``` 
 
@@ -779,17 +791,17 @@ for REPORT in "$OUTDIR"/*/*.report; do
         continue
     fi
 
-    Shovill_Len=$(grep -i "^# RefBases" "$REPORT" | awk '{print $2}' | tr -d '(),%')
-    Spades_Len=$(grep -i "^# QryBases" "$REPORT" | awk '{print $2}' | tr -d '(),%')
+    Shovill_Len=$(grep 'TotalBases' "$REPORT" | head -1 | awk '{print $2}')
+    Spades_Len=$(grep 'TotalBases' "$REPORT" | head -1 | awk '{print $3}')
 
-    Aligned=$(grep -i "^# 1-to-1 AlignedBases" "$REPORT" | head -1 | awk '{print $2}' | tr -d '(),%')
-    Pct_Aligned=$(grep -i "^# 1-to-1 AlignedBases" "$REPORT" | head -1 | awk '{print $3}' | tr -d '(),%')
+    Total_Aligned_Bases=$(grep 'AlignedBases' "$REPORT" | head -1 | awk '{print $2}' | sed 's/([^)]*)//')
+    Percent_Aligned=$(grep 'AlignedBases' "$REPORT" | head -1 | awk '{print $2}' | sed 's/.*(\([0-9.]*\)%).*/\1/')
 
-    Identity=$(grep -i "^# AvgIdentity" "$REPORT" | awk '{print $2}' | tr -d '(),%')
-    SNPs=$(grep -i "^# TotalSNPs" "$REPORT" | awk '{print $2}' | tr -d '(),%')
+    Avg_Identity=$(grep -A1 'M-to-M' "$REPORT" | tail -1 | awk '{print $3}')
+    Total_SNPs="NA"
 
     if [[ -z "$Shovill_Len" || -z "$Spades_Len" ]]; then
-        echo "⚠️ Missing lengths for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+        echo "⚠️ Could not extract lengths for $SAMPLE_ID" | tee -a "$ERROR_LOG"
         continue
     fi
 
@@ -797,11 +809,12 @@ for REPORT in "$OUTDIR"/*/*.report; do
     Abs_Diff=${Length_Diff#-}
     Percent_Diff=$(awk -v d=$Abs_Diff -v s=$Shovill_Len 'BEGIN{printf "%.2f", (d/s)*100}')
 
-    echo -e "$SAMPLE_ID\t$Shovill_Len\t$Spades_Len\t$Aligned\t$Pct_Aligned\t$Identity\t$SNPs\t$Length_Diff\t$Percent_Diff" >> "$SUMMARY"
+    echo -e "$SAMPLE_ID\t$Shovill_Len\t$Spades_Len\t$Total_Aligned_Bases\t$Percent_Aligned\t$Avg_Identity\t$Total_SNPs\t$Length_Diff\t$Percent_Diff" >> "$SUMMARY"
 done
 
 echo "📊 Summary generated: $SUMMARY"
 echo "Errors logged (if any): $ERROR_LOG"
+
 ``` 
 Step 3: Save and exit nano
 
@@ -1027,7 +1040,64 @@ run_prokka() {
 
   echo "Processing $sample..."
 
-  outdir="$PROKKA_DIR/$sample"
+  outdir="$PROKKA_D#!/bin/bash
+
+SHOVILL_DIR="shovill_results"
+SPADES_DIR="spades_results"
+OUTDIR="mummer_results"
+mkdir -p "$OUTDIR"
+
+ERROR_LOG="$OUTDIR/errors.log"
+> "$ERROR_LOG"
+
+if ! command -v gnuplot &>/dev/null; then
+    echo "⚠️ gnuplot not found. PNG plots will be skipped."
+fi
+
+for SHOVILL_SAMPLE in "$SHOVILL_DIR"/*; do
+    SAMPLE_ID=$(basename "$SHOVILL_SAMPLE")
+    SHOVILL="$SHOVILL_SAMPLE/${SAMPLE_ID}_contigs.fa"
+    SPADES="$SPADES_DIR/$SAMPLE_ID/contigs.fasta"
+
+    if [[ ! -f "$SHOVILL" || ! -f "$SPADES" ]]; then
+        echo "Skipping $SAMPLE_ID (missing files)" | tee -a "$ERROR_LOG"
+        continue
+    fi
+
+    echo "🔍 Comparing $SAMPLE_ID..."
+    SAMPLE_OUTDIR="$OUTDIR/$SAMPLE_ID"
+    mkdir -p "$SAMPLE_OUTDIR"
+    PREFIX="$SAMPLE_OUTDIR/$SAMPLE_ID"
+
+    {
+        nucmer --mincluster=500 --prefix="$PREFIX" "$SHOVILL" "$SPADES" || { echo "⚠️ nucmer failed for $SAMPLE_ID" | tee -a "$ERROR_LOG"; continue; }
+        delta-filter -1 -l 1000 "$PREFIX.delta" > "$PREFIX.filtered.delta" || { echo "⚠️ delta-filter failed for $SAMPLE_ID" | tee -a "$ERROR_LOG"; continue; }
+
+        if command -v gnuplot &>/dev/null; then
+            mummerplot --png --large --layout --color -p "$PREFIX" "$PREFIX.filtered.delta" || echo "⚠️ mummerplot failed for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+        fi
+
+        dnadiff -p "$PREFIX" "$SHOVILL" "$SPADES" || { echo "⚠️ dnadiff failed for $SAMPLE_ID" | tee -a "$ERROR_LOG"; continue; }
+
+        # Extract SNPs
+        SNP_FILE="$PREFIX.snps"
+        if [[ -f "$SNP_FILE" ]]; then
+            NUM_SNPS=$(($(wc -l < "$SNP_FILE") - 1))  # subtract header line
+            echo "🧬 $NUM_SNPS SNPs detected for $SAMPLE_ID"
+        else
+            NUM_SNPS=0
+            echo "⚠️ SNP file missing for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+        fi
+
+        echo "✅ Completed $SAMPLE_ID"
+    } || {
+        echo "⚠️ Unexpected error for $SAMPLE_ID" | tee -a "$ERROR_LOG"
+        continue
+    }
+done
+
+echo "📊 MUMmer processing done. Check $OUTDIR for results."
+IR/$sample"
   mkdir -p "$outdir"
 
   prokka --outdir "$outdir" \
