@@ -23,35 +23,65 @@ nano run_shovill.sh
 #####  Step 2: Paste the following into `run_shovill.sh`
 ```bash
 #!/bin/bash
-set -euo pipefail
 
 INPUT_DIR="fastp_results_min_50"
 OUTDIR="shovill_results"
-
 GSIZE=4411532
+MIN_COVERAGE=30
+MIN_READS=10000
+SAMPLE_SEQ_LINES=1000
+REPORT="$OUTDIR/assembly_summary.tsv"
+
+mkdir -p "$OUTDIR"
+echo -e "Sample\tTotal_Reads\tAvg_Read_Length\tEstimated_Coverage\tStatus\tReason" > "$REPORT"
 
 shopt -s nullglob
 for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
   [[ -e "$R1" ]] || continue
-
   R2="${R1/_1.trim.fastq.gz/_2.trim.fastq.gz}"
-
-  if [[ ! -f "$R2" ]]; then
-    echo ">> Skipping $(basename "$R1") (no matching R2 found)" >&2
-    continue
-  fi
-
   sample=$(basename "$R1" _1.trim.fastq.gz)
   sample_out="$OUTDIR/$sample"
+  mkdir -p "$sample_out"
 
-  if [[ -f "$sample_out/${sample}_contigs.fa" ]]; then
-    echo ">> Skipping $sample (already assembled)"
+  # check if paired file exists
+  if [[ ! -f "$R2" ]]; then
+    echo -e "${sample}\tNA\tNA\tNA\tDropped\tMissing R2" >> "$REPORT"
     continue
   fi
 
-  echo "==> Running Shovill (paired-end) on: $sample"
-  mkdir -p "$sample_out"
+  # skip if already assembled
+  if [[ -f "$sample_out/${sample}_contigs.fa" ]]; then
+    echo -e "${sample}\tNA\tNA\tNA\tSkipped\tAlready assembled" >> "$REPORT"
+    continue
+  fi
 
+  # calculate total reads
+  total_lines=$(zcat "$R1" | wc -l)
+  total_reads=$(( total_lines / 4 ))
+  if [[ $total_reads -le 0 ]]; then
+    echo -e "${sample}\t0\t0\t0\tDropped\tNo reads" >> "$REPORT"
+    continue
+  fi
+
+  # calculate average read length from first SAMPLE_SEQ_LINES sequences
+  avg_len=$(zcat "$R1" | sed -n '2~4p' | head -n "$SAMPLE_SEQ_LINES" | awk '{total+=length($0); count++} END {if(count==0) print 0; else printf "%.0f", total/count}')
+  if [[ "$avg_len" -le 0 ]]; then
+    echo -e "${sample}\t${total_reads}\t0\t0\tDropped\tInvalid read length" >> "$REPORT"
+    continue
+  fi
+
+  # estimated coverage
+  estimated_coverage=$(awk -v r="$total_reads" -v l="$avg_len" -v g="$GSIZE" 'BEGIN{cov=(r*l*2)/g; printf "%.2f", cov}')
+  if [[ $total_reads -lt $MIN_READS ]]; then
+    echo -e "${sample}\t${total_reads}\t${avg_len}\t${estimated_coverage}\tDropped\tLow read count" >> "$REPORT"
+    continue
+  elif (( $(echo "$estimated_coverage < $MIN_COVERAGE" | bc -l) )); then
+    echo -e "${sample}\t${total_reads}\t${avg_len}\t${estimated_coverage}\tDropped\tLow coverage (<${MIN_COVERAGE}x)" >> "$REPORT"
+    continue
+  fi
+
+  # run SPAdes via Shovill
+  echo "==> Running Shovill (paired-end, SPAdes) on $sample (reads=${total_reads}, avg_len=${avg_len}, est_cov=${estimated_coverage}x)"
   shovill \
     --R1 "$R1" \
     --R2 "$R2" \
@@ -67,11 +97,23 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
     --tmpdir "${TMPDIR:-/tmp}" \
     --force
 
+  # check if assembly succeeded
+  if [[ ! -s "$sample_out/contigs.fa" && ! -s "$sample_out/${sample}_contigs.fa" ]]; then
+    echo -e "${sample}\t${total_reads}\t${avg_len}\t${estimated_coverage}\tFailed\tAssembly error" >> "$REPORT"
+    continue
+  fi
+
+  echo -e "${sample}\t${total_reads}\t${avg_len}\t${estimated_coverage}\tAssembled\tOK" >> "$REPORT"
+
+  # rename output files consistently
   for f in "$sample_out"/*; do
     base=$(basename "$f")
     mv "$f" "$sample_out/${sample}_$base"
   done
 done
+
+echo "All samples processed. See $REPORT"
+
 ```
 
 
@@ -80,13 +122,18 @@ done
 
 ```bash
 #!/bin/bash
-set -euo pipefail
 
 INPUT_DIR="fastp_results_min_50"
 OUTDIR="shovill_results"
 mkdir -p "$OUTDIR"
 
 GSIZE=4411532
+MIN_COVERAGE=30
+MIN_READS=10000
+SAMPLE_SEQ_LINES=1000
+REPORT="$OUTDIR/assembly_summary.tsv"
+
+echo -e "Sample\tTotal_Reads\tAvg_Read_Length\tEstimated_Coverage\tStatus\tReason" > "$REPORT"
 
 shopt -s nullglob
 for R1 in "$INPUT_DIR"/*.fastq.gz; do
@@ -95,32 +142,74 @@ for R1 in "$INPUT_DIR"/*.fastq.gz; do
   # Remove .fastq.gz and optional .trim suffix
   sample=$(basename "$R1" .fastq.gz)
   sample=${sample%.trim}
-
   sample_out="$OUTDIR/$sample"
+  mkdir -p "$sample_out"
 
+  # skip if already assembled
   if [[ -f "$sample_out/contigs.fa" ]]; then
     echo ">> Skipping $sample (already assembled)"
+    echo -e "${sample}\tNA\tNA\tNA\tSkipped\tAlready assembled" >> "$REPORT"
     continue
   fi
 
-  echo "==> Running Shovill (single-read workaround) on: $sample"
-  mkdir -p "$sample_out"
+  # count total reads
+  total_lines=$(zcat "$R1" | wc -l)
+  total_reads=$(( total_lines / 4 ))
+  if [[ $total_reads -le 0 ]]; then
+    echo -e "${sample}\t0\t0\t0\tDropped\tNo reads" >> "$REPORT"
+    continue
+  fi
 
+  # calculate average read length from first SAMPLE_SEQ_LINES sequences
+  avg_len=$(zcat "$R1" | sed -n '2~4p' | head -n "$SAMPLE_SEQ_LINES" | awk '{total+=length($0); count++} END {if(count==0) print 0; else printf "%.0f", total/count}')
+  if [[ "$avg_len" -le 0 ]]; then
+    echo -e "${sample}\t${total_reads}\t0\t0\tDropped\tInvalid read length" >> "$REPORT"
+    continue
+  fi
+
+  # estimate coverage
+  estimated_coverage=$(awk -v r="$total_reads" -v l="$avg_len" -v g="$GSIZE" 'BEGIN{cov=(r*l)/g; printf "%.2f", cov}')
+  if [[ $total_reads -lt $MIN_READS ]]; then
+    echo -e "${sample}\t${total_reads}\t${avg_len}\t${estimated_coverage}\tDropped\tLow read count" >> "$REPORT"
+    continue
+  elif (( $(echo "$estimated_coverage < $MIN_COVERAGE" | bc -l) )); then
+    echo -e "${sample}\t${total_reads}\t${avg_len}\t${estimated_coverage}\tDropped\tLow coverage (<${MIN_COVERAGE}x)" >> "$REPORT"
+    continue
+  fi
+
+  echo "==> Running Shovill (single-read workaround, SPAdes) on $sample (reads=${total_reads}, avg_len=${avg_len}, est_cov=${estimated_coverage}x)"
   shovill \
     --R1 "$R1" \
     --R2 "$R1" \
     --gsize "$GSIZE" \
     --outdir "$sample_out" \
-    --assembler spades  \
+    --assembler spades \
     --minlen 500 \
     --mincov 30 \
     --depth 100 \
-    --namefmt "%05d" \
+    --namefmt "${sample}_%05d" \
     --cpus 16 \
     --ram 120 \
     --tmpdir "${TMPDIR:-/tmp}" \
     --force
+
+  # check if assembly succeeded
+  if [[ ! -s "$sample_out/contigs.fa" && ! -s "$sample_out/${sample}_contigs.fa" ]]; then
+    echo -e "${sample}\t${total_reads}\t${avg_len}\t${estimated_coverage}\tFailed\tAssembly error" >> "$REPORT"
+    continue
+  fi
+
+  echo -e "${sample}\t${total_reads}\t${avg_len}\t${estimated_coverage}\tAssembled\tOK" >> "$REPORT"
+
+  # rename output files consistently
+  for f in "$sample_out"/*; do
+    base=$(basename "$f")
+    mv "$f" "$sample_out/${sample}_$base"
+  done
 done
+
+echo "All samples processed. See $REPORT"
+
 ```
 
 ##### Step 3: Save and exit nano
