@@ -322,3 +322,122 @@ When evaluating *Mycobacterium tuberculosis* assemblies, keep these quality thre
 ### 1.run QUAST on all Shovill assemblies
 Collect the key statistics in a single CSV file
 running QUAST on all SPAdes assemblies and collecting key statistics into a single report.tsv. 
+
+##### Step 1: Create or edit the script
+``` bash
+nano run_quast_shovill.sh
+``` 
+#####  Step 2: Paste the following into `run_quast_shovill.sh`
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+SHOVILL_DIR="shovill_results"
+QUAST_PARENT="quast_results"
+QUAST_DIR="$QUAST_PARENT/quast_results_shovill"
+CSV_OUTDIR="csv_output"
+
+mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
+
+CSV_FILE="$CSV_OUTDIR/quast_summary_shovill.csv"
+echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CSV_FILE"
+
+for sample_out in "$SHOVILL_DIR"/*; do
+  [[ -d "$sample_out" ]] || continue
+  sample=$(basename "$sample_out")
+  
+  contigs_file=("$sample_out"/*_contigs.fa)
+  [[ -f "${contigs_file[0]}" ]] || continue
+  contigs="${contigs_file[0]}"
+
+  outdir="$QUAST_DIR/$sample"
+  mkdir -p "$outdir"
+
+  quast "$contigs" -o "$outdir" > /dev/null 2>&1
+
+  stats_file="$outdir/report.tsv"
+  if [[ -f "$stats_file" ]]; then
+    num_contigs=$(awk -F'\t' '$1=="# contigs (>= 0 bp)"{print $2}' "$stats_file")
+    total_len=$(awk -F'\t' '$1=="Total length (>= 0 bp)"{print $2}' "$stats_file")
+    min_len=$(awk -F'\t' '$1=="Shortest contig"{print $2}' "$stats_file")
+    max_len=$(awk -F'\t' '$1=="Largest contig"{print $2}' "$stats_file")
+    avg_len=$(awk -F'\t' '$1=="Average contig length"{print $2}' "$stats_file")
+    n50=$(awk -F'\t' '$1=="N50"{print $2}' "$stats_file")
+    n75=$(awk -F'\t' '$1=="N75"{print $2}' "$stats_file")
+    gc=$(awk -F'\t' '$1=="GC (%)"{print $2}' "$stats_file")
+
+    echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
+  fi
+done
+```
+
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+###### Step 4: Make the script executable
+``` bash
+chmod +x run_quast_shovill.sh
+```
+###### Step 5: Activate environment and run
+``` bash
+conda activate quast_env
+./run_quast_shovill.sh
+```
+
+##### Step 1: Create or edit the script
+``` bash
+nano run_assembly_scan_shovill.sh
+``` 
+#####  Step 2: Paste the following into `run_assembly_scan_shovill.sh`
+
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+SHOVILL_DIR="shovill_results"
+CSV_OUTDIR="csv_output"
+mkdir -p "$CSV_OUTDIR"
+CSV_FILE="$CSV_OUTDIR/spades_assembly_scan.csv"
+
+echo "Sample,total_contig,total_contig_length,max_contig_length,mean_contig_length,median_contig_length,min_contig_length,n50_contig_length,l50_contig_count,contig_percent_a,contig_percent_c,contig_percent_g,contig_percent_t,contigs_greater_1k,contigs_greater_10k,contigs_greater_100k" > "$CSV_FILE"
+
+for sample_dir in "$SHOVILL_DIR"/*/; do
+    sample=$(basename "$sample_dir")
+    contig_file="${sample_dir}${sample}_contigs.fa"
+
+    if [[ -f "$contig_file" ]]; then
+        tmp=$(mktemp)
+        assembly-scan "$contig_file" --transpose | tail -n +2 > "$tmp"
+
+        declare -A data
+        while IFS=$'\t' read -r contig metric value; do
+            data["$metric"]="$value"
+        done < "$tmp"
+
+        rm "$tmp"
+
+        printf "%s" "$sample" >> "$CSV_FILE"
+        for col in total_contig total_contig_length max_contig_length mean_contig_length median_contig_length min_contig_length n50_contig_length l50_contig_count contig_percent_a contig_percent_c contig_percent_g contig_percent_t contigs_greater_1k contigs_greater_10k contigs_greater_100k; do
+            printf ",%s" "${data[$col]:-0}" >> "$CSV_FILE"
+        done
+        echo "" >> "$CSV_FILE"
+    fi
+done
+``` 
+
+
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+###### Step 4: Make the script executable
+``` bash
+chmod +x run_assembly_scan_shovill.sh
+```
+###### Step 5: Activate environment and run
+``` bash
+conda activate assembly_scan_env
+./run_assembly_scan_shovill.sh
+```
+
