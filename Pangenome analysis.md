@@ -118,6 +118,63 @@ set -euo pipefail
 
 INPUT_DIR="fastp_results_min_50"
 OUTDIR="shovill_results"
+
+GSIZE=4411532
+
+shopt -s nullglob
+for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
+  [[ -e "$R1" ]] || continue
+
+  R2="${R1/_1.trim.fastq.gz/_2.trim.fastq.gz}"
+
+  if [[ ! -f "$R2" ]]; then
+    echo ">> Skipping $(basename "$R1") (no matching R2 found)" >&2
+    continue
+  fi
+
+  sample=$(basename "$R1" _1.trim.fastq.gz)
+  sample_out="$OUTDIR/$sample"
+
+  if [[ -f "$sample_out/${sample}_contigs.fa" ]]; then
+    echo ">> Skipping $sample (already assembled)"
+    continue
+  fi
+
+  echo "==> Running Shovill (paired-end) on: $sample"
+  mkdir -p "$sample_out"
+
+  shovill \
+    --R1 "$R1" \
+    --R2 "$R2" \
+    --gsize "$GSIZE" \
+    --outdir "$sample_out" \
+    --assembler spades \
+    --minlen 500 \
+    --mincov 30 \
+    --depth 100 \
+    --namefmt "${sample}_%05d" \
+    --cpus 16 \
+    --ram 120 \
+    --tmpdir "${TMPDIR:-/tmp}" \
+    --force
+
+  for f in "$sample_out"/*; do
+    base=$(basename "$f")
+    mv "$f" "$sample_out/${sample}_$base"
+  done
+done
+```
+
+
+
+
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+INPUT_DIR="fastp_results_min_50"
+OUTDIR="shovill_results"
 mkdir -p "$OUTDIR"
 
 GSIZE=4411532
@@ -145,7 +202,7 @@ for R1 in "$INPUT_DIR"/*.fastq.gz; do
     --R2 "$R1" \
     --gsize "$GSIZE" \
     --outdir "$sample_out" \
-    --assembler skesa \
+    --assembler spades  \
     --minlen 500 \
     --mincov 30 \
     --depth 100 \
