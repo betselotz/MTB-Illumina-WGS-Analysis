@@ -544,8 +544,8 @@ nano run_prokka_shovill.sh
 #!/bin/bash
 set -euo pipefail
 
-SPADES_DIR="spades_results"
-PROKKA_DIR="prokka_results/spades"
+SPADES_DIR="shovill_results"
+PROKKA_DIR="prokka_results/"
 
 mkdir -p "$PROKKA_DIR"
 
