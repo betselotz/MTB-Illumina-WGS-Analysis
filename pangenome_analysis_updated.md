@@ -544,13 +544,13 @@ nano run_prokka_shovill.sh
 #!/bin/bash
 set -euo pipefail
 
-SPADES_DIR="shovill_results"
-PROKKA_DIR="prokka_results/"
+SHOVILL_DIR="shovill_results"
+PROKKA_DIR="prokka_results/shovill"
 
 mkdir -p "$PROKKA_DIR"
 
 if ! command -v prokka &>/dev/null; then
-  echo "Prokka not found"
+  echo "Error: Prokka not found in PATH."
   exit 1
 fi
 
@@ -558,11 +558,11 @@ run_prokka() {
   sample_out="$1"
   sample=$(basename "$sample_out")
 
-  contigs=("$sample_out"/*_contigs.fasta)
+  contigs=("$sample_out"/*contigs*.fa*)
   contigs="${contigs[0]:-}"
   [[ -z "$contigs" ]] && return
 
-  echo "Processing $sample..."
+  echo "Annotating $sample..."
 
   outdir="$PROKKA_DIR/$sample"
   mkdir -p "$outdir"
@@ -575,13 +575,17 @@ run_prokka() {
          --cpus 4 \
          --evalue 1e-9 \
          --coverage 90 \
-         --force "$contigs"
+         --centre TBLab \
+         --compliant \
+         --force --quiet \
+         "$contigs"
 }
 
 export -f run_prokka
 export PROKKA_DIR
 
-find "$SPADES_DIR" -maxdepth 1 -mindepth 1 -type d | parallel -j 8 run_prokka {}
+find "$SHOVILL_DIR" -maxdepth 1 -mindepth 1 -type d | parallel -j "$(nproc)" run_prokka {}
+
 ```
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
