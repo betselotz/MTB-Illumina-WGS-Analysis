@@ -518,3 +518,127 @@ chmod +x run_checkm_spades.sh run_checkm_shovill.sh
 conda activate checkm_env
 ./run_checkm_shovill.sh
 ``` 
+
+
+# 1️⃣4️⃣ Prokka
+Prokka is a rapid **prokaryotic genome annotation tool** that predicts genes, coding sequences (CDS), rRNAs, tRNAs, and other genomic features from assembled contigs or genomes.  
+
+Key points for TB genomes:
+
+- Annotates **Mycobacterium tuberculosis** genomes with correct taxonomy using `--genus` and `--species`.  
+- Produces multiple output files, including **GFF3**, **FASTA of proteins**, and **GenBank format**, which are useful for downstream analysis.  
+- Supports **multi-threading** (`--cpus`) to speed up processing of multiple genomes.  
+- Works seamlessly with **Shovill-assembled contigs** and   **spades-assembled contigs**
+- Output files are organized per sample directory with a consistent naming prefix for easy pipeline integration.  
+
+> ⚠ Note: Prokka relies on the quality of the assembly; fragmented or low-coverage assemblies may result in incomplete annotations.
+
+Prokka for Shovill assemblies
+##### Step 1: Create or edit the script
+```bash
+nano run_prokka_shovill.sh
+```
+##### Step 2: Paste the following into the script
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+SPADES_DIR="spades_results"
+PROKKA_DIR="prokka_results/spades"
+
+mkdir -p "$PROKKA_DIR"
+
+if ! command -v prokka &>/dev/null; then
+  echo "Prokka not found"
+  exit 1
+fi
+
+run_prokka() {
+  sample_out="$1"
+  sample=$(basename "$sample_out")
+
+  contigs=("$sample_out"/*_contigs.fasta)
+  contigs="${contigs[0]:-}"
+  [[ -z "$contigs" ]] && return
+
+  echo "Processing $sample..."
+
+  outdir="$PROKKA_DIR/$sample"
+  mkdir -p "$outdir"
+
+  prokka --outdir "$outdir" \
+         --prefix "$sample" \
+         --kingdom Bacteria \
+         --genus Mycobacterium \
+         --species tuberculosis \
+         --cpus 4 \
+         --evalue 1e-9 \
+         --coverage 90 \
+         --force "$contigs"
+}
+
+export -f run_prokka
+export PROKKA_DIR
+
+find "$SPADES_DIR" -maxdepth 1 -mindepth 1 -type d | parallel -j 8 run_prokka {}
+```
+##### Step 3: Save and exit nano
+Press Ctrl + O → Enter (to write the file)
+Press Ctrl + X → Exit nano
+
+###### Step 4: Make the script executable
+``` bash
+chmod +x run_prokka_shovill.sh
+```
+###### Step 5: Activate environment and run
+``` bash
+conda activate prokka_env
+./run_prokka_shovill.sh
+```
+
+Shovill summary → CSV
+
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+mkdir -p csv_output
+output_file="csv_output/prokka_shovill_summary.csv"
+echo "Sample,CDS,rRNA,tRNA,Genome_size,GC_content" > "$output_file"
+
+for sample_dir in prokka_results/prokka_results_shovill/*; do
+    sample=$(basename "$sample_dir")
+    stats_file="$sample_dir/$sample.txt"
+    if [[ -f "$stats_fimerplot visualile" ]]; then
+        cds=$(grep "CDS:" "$stats_file" | awk '{print $2}')
+        rrna=$(grep "rRNA:" "$stats_file" | awk '{print $2}')
+        trna=$(grep "tRNA:" "$stats_file" | awk '{print $2}')
+        genome=$(grep "Bases:" "$stats_file" | awk '{print $2}')
+        gc=$(grep "GC:" "$stats_file" | awk '{print $2}')
+        echo "$sample,$cds,$rrna,$trna,$genome,$gc" >> "$output_file"
+    fi
+done
+``` 
+
+Shovill function → CSV
+
+``` bash
+#!/bin/bash
+
+BASE_DIR="./prokka_results/shovill"
+
+for SAMPLE_DIR in "$BASE_DIR"/*/; do
+    TSV_FILE=$(find "$SAMPLE_DIR" -maxdepth 1 -type f -name "*.tsv" | head -n 1)
+    [ -z "$TSV_FILE" ] && continue
+    BASENAME=$(basename "$TSV_FILE" .tsv)
+    OUTPUT_FILE="$SAMPLE_DIR/${BASENAME}_product_stats.csv"
+    TOTAL=$(tail -n +2 "$TSV_FILE" | wc -l)
+    [ "$TOTAL" -eq 0 ] && continue
+    echo "Product,Count,Percentage" > "$OUTPUT_FILE"
+    tail -n +2 "$TSV_FILE" | cut -f7 | sed '/^$/d' | sort | uniq -c | sort -nr | \
+    awk -v total="$TOTAL" '{count=$1; $1=""; sub(/^ /,""); perc=(count/total)*100; printf "\"%s\",%d,%.2f%%\n",$0,count,perc}' >> "$OUTPUT_FILE"
+    echo "✅ Saved product stats for $(basename "$SAMPLE_DIR") to $OUTPUT_FILE"
+done
+``` 
+
