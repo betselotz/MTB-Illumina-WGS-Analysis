@@ -457,8 +457,6 @@ for sample_dir in "$SHOVILL_DIR"/*/; do
 done
 
 ``` 
-
-
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
 Press Ctrl + X → Exit nano
@@ -473,3 +471,50 @@ conda activate assembly_scan_env
 ./run_assembly_scan_shovill.sh
 ```
 
+
+
+#### 4. estimate genome completeness/contamination for all assemblies with CheckM
+######   Step 1: Create the Shovill CheckM script
+``` bash
+nano run_checkm_shovill.sh
+``` 
+######   Step 2: Paste this into the file:
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+SHOVILL_DIR="shovill_results"
+CHECKM_PARENT="checkm_results"
+CHECKM_DIR="$CHECKM_PARENT/checkm_results_shovill"
+CSV_OUTDIR="csv_output"
+
+mkdir -p "$CHECKM_DIR" "$CSV_OUTDIR"
+INPUT_DIR="$CHECKM_DIR/input"
+mkdir -p "$INPUT_DIR"
+
+# Copy all contigs to a single input folder
+for sample_out in "$SHOVILL_DIR"/*; do
+  [[ -d "$sample_out" ]] || continue
+  sample=$(basename "$sample_out")
+  contigs_file=("$sample_out"/*_contigs.fa)
+  [[ -f "${contigs_file[0]}" ]] || continue
+  cp "${contigs_file[0]}" "$INPUT_DIR/${sample}.fasta"
+done
+
+# Run CheckM lineage workflow
+checkm lineage_wf -x fasta "$INPUT_DIR" "$CHECKM_DIR" -t 8
+
+# Generate CSV summary
+CSV_FILE="$CSV_OUTDIR/checkm_summary_shovill.csv"
+checkm qa "$CHECKM_DIR/lineage.ms" "$CHECKM_DIR" -o 2 -t 8 > "$CSV_FILE"
+
+``` 
+###### Step 3: Make scripts executable
+``` bash
+chmod +x run_checkm_spades.sh run_checkm_shovill.sh
+``` 
+###### Step 4: Run the scripts
+``` bash
+conda activate checkm_env
+./run_checkm_shovill.sh
+``` 
