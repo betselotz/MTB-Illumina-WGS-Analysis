@@ -333,72 +333,73 @@ set -euo pipefail
 SHOVILL_DIR="shovill_results"
 QUAST_PARENT="quast_results"
 QUAST_DIR="$QUAST_PARENT/quast_results_shovill"
-CSV_OUTDIR="$QUAST_PARENT"
+CSV_OUTDIR="quast_results"
 
 mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
 
 CSV_FILE="$CSV_OUTDIR/quast_summary_shovill.csv"
 echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CSV_FILE"
 
-compute_metrics() {
-    local contig_file="$1"
-    lengths=$(awk '/^>/{if(seq) print length(seq); seq=""} !/^>/{seq=seq $0} END{if(seq) print length(seq)}' "$contig_file")
-    num_contigs=$(echo "$lengths" | wc -l)
-    total_len=$(echo "$lengths" | awk '{s+=$1} END{print s}')
-    min_len=$(echo "$lengths" | sort -n | head -1)
-    max_len=$(echo "$lengths" | sort -nr | head -1)
-    avg_len=$(awk -v n="$num_contigs" '{s+=$1} END{print s/n}' <<< "$lengths")
-    lengths_desc=$(echo "$lengths" | sort -nr)
-    n50=$(awk -v total="$total_len" 'BEGIN{c=0} {c+=$1; if(c>=total/2){print $1; exit}}' <<< "$lengths_desc")
-    n75=$(awk -v total="$total_len" 'BEGIN{c=0} {c+=$1; if(c>=total*0.75){print $1; exit}}' <<< "$lengths_desc")
-    gc=$(awk '/^>/{next} {g+=gsub(/[Gg]/,"")+gsub(/[Cc]/,""); n+=length($0)} END{if(n>0) print g/n*100}' "$contig_file")
-    echo "$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc"
-}
-
 for sample_out in "$SHOVILL_DIR"/*; do
-    [[ -d "$sample_out" ]] || continue
-    sample=$(basename "$sample_out")
-    
-    contigs_file=("$sample_out"/*contigs*.fa*)
-    [[ -f "${contigs_file[0]}" ]] || continue
-    contigs="${contigs_file[0]}"
+  [[ -d "$sample_out" ]] || continue
+  sample=$(basename "$sample_out")
 
-    outdir="$QUAST_DIR/$sample"
-    mkdir -p "$outdir"
+  contigs_file=("$sample_out"/*_contigs.fa)
+  [[ -f "${contigs_file[0]}" ]] || continue
+  contigs="${contigs_file[0]}"
 
-    (
-        quast "$contigs" -o "$outdir" --min-contig 0 > /dev/null 2>&1
+  outdir="$QUAST_DIR/$sample"
+  mkdir -p "$outdir"
 
-        stats_file="$outdir/report.tsv"
-        if [[ -f "$stats_file" ]]; then
-            num_contigs=$(awk -F'\t' '$1 ~ /contigs \(>= 0 bp\)/ {print $2}' "$stats_file")
-            total_len=$(awk -F'\t' '$1 ~ /Total length/ {print $2}' "$stats_file")
-            min_len=$(awk -F'\t' '$1 ~ /Shortest contig/ {print $2}' "$stats_file")
-            max_len=$(awk -F'\t' '$1 ~ /Largest contig/ {print $2}' "$stats_file")
-            avg_len=$(awk -F'\t' '$1 ~ /Average contig length/ {print $2}' "$stats_file")
-            n50=$(awk -F'\t' '$1=="N50" {print $2}' "$stats_file")
-            n75=$(awk -F'\t' '$1=="N75" {print $2}' "$stats_file")
-            gc=$(awk -F'\t' '$1 ~ /GC/ {print $2}' "$stats_file")
+  quast "$contigs" -o "$outdir" > /dev/null 2>&1
+  stats_file="$outdir/report.tsv"
 
-            # Fallback to compute_metrics if any value is missing or NA
-            if [[ -z "$num_contigs" || -z "$total_len" || -z "$min_len" || -z "$max_len" || -z "$avg_len" || -z "$n50" || -z "$n75" || -z "$gc" ]]; then
-                metrics=$(compute_metrics "$contigs")
-                num_contigs=$(echo "$metrics" | cut -d, -f1)
-                total_len=$(echo "$metrics" | cut -d, -f2)
-                min_len=$(echo "$metrics" | cut -d, -f3)
-                max_len=$(echo "$metrics" | cut -d, -f4)
-                avg_len=$(echo "$metrics" | cut -d, -f5)
-                n50=$(echo "$metrics" | cut -d, -f6)
-                n75=$(echo "$metrics" | cut -d, -f7)
-                gc=$(echo "$metrics" | cut -d, -f8)
-            fi
+  # Extract metrics if available
+  if [[ -f "$stats_file" ]]; then
+    num_contigs=$(awk -F'\t' '$1 ~ /# contigs/ {print $2; exit}' "$stats_file")
+    total_len=$(awk -F'\t' '$1 ~ /Total length/ {print $2; exit}' "$stats_file")
+    min_len=$(awk -F'\t' '$1 ~ /(Shortest|Smallest) contig/ {print $2; exit}' "$stats_file")
+    max_len=$(awk -F'\t' '$1 ~ /(Largest|Longest) contig/ {print $2; exit}' "$stats_file")
+    avg_len=$(awk -F'\t' '$1 ~ /(Average|Mean) contig length/ {print $2; exit}' "$stats_file")
+    n50=$(awk -F'\t' '$1 ~ /^N50/ {print $2; exit}' "$stats_file")
+    n75=$(awk -F'\t' '$1 ~ /^N75/ {print $2; exit}' "$stats_file")
+    gc=$(awk -F'\t' '$1 ~ /GC/ {print $2; exit}' "$stats_file")
+  fi
 
-            echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
-        fi
-    ) &
+  # Compute missing values from FASTA
+  if [[ -z "${min_len:-}" || -z "${avg_len:-}" || -z "${n75:-}" ]]; then
+    readarray -t lengths < <(awk '/^>/{if (seqlen){print seqlen}; seqlen=0; next} {seqlen+=length($0)} END{print seqlen}' "$contigs")
+    if (( ${#lengths[@]} > 0 )); then
+      IFS=$'\n' sorted=($(sort -nr <<<"${lengths[*]}"))
+      unset IFS
+      total_len_calc=$(awk '{sum+=$1} END{print sum}' <<<"${sorted[*]}")
+      num_contigs_calc=${#sorted[@]}
+      min_len_calc=$(awk 'END{print $1}' <<<"${sorted[*]}")
+      max_len_calc=$(awk 'NR==1{print $1}' <<<"${sorted[*]}")
+      avg_len_calc=$(awk -v t="$total_len_calc" -v n="$num_contigs_calc" 'BEGIN{if(n>0) print t/n; else print "NA"}')
+      cum=0; n50_calc=NA; n75_calc=NA
+      n50_target=$((total_len_calc / 2))
+      n75_target=$((total_len_calc * 3 / 4))
+      for len in "${sorted[@]}"; do
+        cum=$((cum + len))
+        if [[ "$n50_calc" == "NA" && $cum -ge $n50_target ]]; then n50_calc=$len; fi
+        if [[ "$n75_calc" == "NA" && $cum -ge $n75_target ]]; then n75_calc=$len; fi
+      done
+      gc_calc=$(awk '/^>/{next}{seq=toupper($0); for(i=1;i<=length(seq);i++){b=substr(seq,i,1); if(b=="G"||b=="C")gc++}; total+=length(seq)} END{if(total>0) print (gc/total)*100; else print "NA"}' "$contigs")
+
+      num_contigs=${num_contigs:-$num_contigs_calc}
+      total_len=${total_len:-$total_len_calc}
+      min_len=${min_len:-$min_len_calc}
+      max_len=${max_len:-$max_len_calc}
+      avg_len=${avg_len:-$avg_len_calc}
+      n50=${n50:-$n50_calc}
+      n75=${n75:-$n75_calc}
+      gc=${gc:-$gc_calc}
+    fi
+  fi
+
+  echo "$sample,${num_contigs:-NA},${total_len:-NA},${min_len:-NA},${max_len:-NA},${avg_len:-NA},${n50:-NA},${n75:-NA},${gc:-NA}" >> "$CSV_FILE"
 done
-wait
-
 ```
 
 ##### Step 3: Save and exit nano
