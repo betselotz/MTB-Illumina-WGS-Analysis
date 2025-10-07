@@ -668,7 +668,7 @@ THREADS=8
 mkdir -p "$OUTDIR"/{bams,depths,logs}
 
 SUMMARY_FILE="$OUTDIR/summary.tsv"
-echo -e "Sample\tTotal_Reads\tMapped_Reads\tPercent_Mapped\tAverage_Coverage\tMin_Depth\tMax_Depth\tMean_Mapping_Quality" > "$SUMMARY_FILE"
+echo -e "Sample\tTotal_Reads\tMapped_Reads\tPercent_Mapped\tAverage_Coverage\tMedian_Depth\tMin_Depth\tMax_Depth\tBreadth_of_Coverage\tMean_Mapping_Quality\tProperly_Paired\tDuplicate_Reads\tAverage_Insert_Size" > "$SUMMARY_FILE"
 
 for asm_dir in ${ASSEMBLY_DIR}/SRR*; do
     sample=$(basename "$asm_dir")
@@ -715,12 +715,21 @@ for asm_dir in ${ASSEMBLY_DIR}/SRR*; do
     mincov=$(awk 'NR==1{min=$3} $3<min{min=$3} END{if(NR>0) print min; else print 0}' "$depth_file")
     maxcov=$(awk 'NR==1{max=$3} $3>max{max=$3} END{if(NR>0) print max; else print 0}' "$depth_file")
 
+    mediancov=$(awk '{print $3}' "$depth_file" | sort -n | awk '{a[NR]=$1} END{if(NR%2==1) print a[(NR+1)/2]; else print (a[NR/2]+a[NR/2+1])/2}')
+    breadth=$(awk '{if($3>0) covered++} END{if(NR>0) printf "%.2f", (covered/NR)*100; else print 0}' "$depth_file")
+
     meanmapq=$(samtools view "$bam" | awk '{sum+=$5; count++} END{if(count>0) printf "%.2f", sum/count; else print 0}')
 
-    echo -e "$sample\t$total\t$mapped\t$percent\t$avgcov\t$mincov\t$maxcov\t$meanmapq" >> "$SUMMARY_FILE"
+    # Parse samtools flagstat for paired and duplicate percentages
+    stats=$(samtools flagstat "$bam")
+    properly_paired=$(echo "$stats" | awk '/properly paired/{print $1/$3*100}' | awk '{printf "%.2f", $1}')
+    duplicate_reads=$(echo "$stats" | awk '/duplicates/{print $1/$3*100}' | awk '{printf "%.2f", $1}')
+
+    # Average insert size from samtools stats
+    insert_size=$(samtools stats "$bam" | awk -F'\t' '/insert size average:/ {print $3; exit}')
+
+    echo -e "$sample\t$total\t$mapped\t$percent\t$avgcov\t$mediancov\t$mincov\t$maxcov\t$breadth\t$meanmapq\t$properly_paired\t$duplicate_reads\t$insert_size" >> "$SUMMARY_FILE"
 done
-
-
 ```
 
 Save and exit nano
