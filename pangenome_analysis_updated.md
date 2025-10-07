@@ -483,30 +483,40 @@ nano run_checkm_shovill.sh
 #!/bin/bash
 set -euo pipefail
 
+# Directories
 SHOVILL_DIR="shovill_results"
 CHECKM_PARENT="checkm_results"
 CHECKM_DIR="$CHECKM_PARENT/checkm_results_shovill"
-CSV_OUTDIR="csv_output"
-
-mkdir -p "$CHECKM_DIR" "$CSV_OUTDIR"
 INPUT_DIR="$CHECKM_DIR/input"
-mkdir -p "$INPUT_DIR"
 
-# Copy all contigs to a single input folder
+mkdir -p "$CHECKM_DIR" "$INPUT_DIR"
+
+# Clear previous input files if any
+rm -f "$INPUT_DIR"/*.fasta
+
+# Copy contigs files into input directory
 for sample_out in "$SHOVILL_DIR"/*; do
-  [[ -d "$sample_out" ]] || continue
-  sample=$(basename "$sample_out")
-  contigs_file=("$sample_out"/*_contigs.fa)
-  [[ -f "${contigs_file[0]}" ]] || continue
-  cp "${contigs_file[0]}" "$INPUT_DIR/${sample}.fasta"
+    [[ -d "$sample_out" ]] || continue
+    sample=$(basename "$sample_out")
+    
+    contigs_files=("$sample_out"/*_contigs.fa)
+    if [[ ${#contigs_files[@]} -eq 0 ]]; then
+        echo "Warning: No contigs file found for sample $sample"
+        continue
+    fi
+
+    # Concatenate multiple contigs into a single file if needed
+    cat "${contigs_files[@]}" > "$INPUT_DIR/${sample}.fasta"
 done
 
 # Run CheckM lineage workflow
 checkm lineage_wf -x fasta "$INPUT_DIR" "$CHECKM_DIR" -t 8
 
-# Generate CSV summary
-CSV_FILE="$CSV_OUTDIR/checkm_summary_shovill.csv"
+# Generate CSV summary in CHECKM_DIR
+CSV_FILE="$CHECKM_DIR/checkm_summary_shovill.csv"
 checkm qa "$CHECKM_DIR/lineage.ms" "$CHECKM_DIR" -o 2 -t 8 > "$CSV_FILE"
+
+echo "CheckM summary saved to $CSV_FILE"
 
 ``` 
 ###### Step 3: Make scripts executable
@@ -532,36 +542,53 @@ Copy this into nano:
 ```bash
 #!/bin/bash
 set -euo pipefail
+shopt -s nullglob
 
+# --------------------------
+# Config
+# --------------------------
 ASSEMBLY_DIR="shovill_results"
 READS_DIR="fastp_results_min_50"
 OUTDIR="backmap_results"
 THREADS=8
-MIN_MAPPED_PERCENT=1        # Minimum percent mapped reads to consider sample valid
-MAX_AVG_COVERAGE=1000       # Threshold to warn about extremely high coverage
+MIN_MAPPED_PERCENT=1       # Minimum percent mapped reads to consider sample valid
+MAX_AVG_COVERAGE=1000      # Warn if coverage exceeds this
+MIN_AVG_COVERAGE=1         # Optional: warn if coverage too low
 
 mkdir -p "$OUTDIR"/{bams,depths,logs}
 
 SUMMARY_FILE="$OUTDIR/shovill_assembly_summary.tsv"
 echo -e "Sample\tTotal_Reads\tMapped_Reads\tPercent_Mapped\tAvg_Coverage\tMedian_Depth\tMin_Depth\tMax_Depth\tMean_Mapping_Quality\tPercent_Proper_Pairs\tCoverage_Breadth\tWarnings" > "$SUMMARY_FILE"
 
-for asm_dir in "${ASSEMBLY_DIR}"/SRR*; do
+# --------------------------
+# Find assembly directories (any folder in shovill_results)
+# --------------------------
+asm_dirs=( "$ASSEMBLY_DIR"/* )
+if [[ ${#asm_dirs[@]} -eq 0 ]]; then
+    echo "No assembly directories found in $ASSEMBLY_DIR. Exiting."
+    exit 1
+fi
+
+# --------------------------
+# Loop over samples
+# --------------------------
+for asm_dir in "${asm_dirs[@]}"; do
     sample=$(basename "$asm_dir")
     asm=$(ls "$asm_dir"/*contigs*.fa* 2>/dev/null | head -n1 || true)
-
     warnings=""
 
+    # Check assembly exists
     if [[ -z "$asm" || ! -f "$asm" ]]; then
-        echo "[$sample] No assembly FASTA found." | tee -a "$OUTDIR/logs/$sample.log"
+        echo "[$sample] No assembly FASTA found." | tee "$OUTDIR/logs/$sample.log"
         continue
     fi
 
-    # Flexible read file matching
+    # Match paired-end reads
     r1=$(ls "$READS_DIR/${sample}"*_R1*.fastq.gz "$READS_DIR/${sample}"*_1*.fastq.gz 2>/dev/null | head -n1 || true)
     r2=$(ls "$READS_DIR/${sample}"*_R2*.fastq.gz "$READS_DIR/${sample}"*_2*.fastq.gz 2>/dev/null | head -n1 || true)
 
     if [[ -z "$r1" || -z "$r2" ]]; then
-        echo "[$sample] Missing read files." | tee -a "$OUTDIR/logs/$sample.log"
+        echo "[$sample] Missing read files." | tee "$OUTDIR/logs/$sample.log"
         continue
     fi
 
@@ -572,14 +599,24 @@ for asm_dir in "${ASSEMBLY_DIR}"/SRR*; do
         bwa index "$asm" >> "$OUTDIR/logs/$sample.log" 2>&1
     fi
 
-    # Map reads and create BAM
+    # Map reads
     bwa mem -t "$THREADS" "$asm" "$r1" "$r2" \
         | samtools view -bS - \
         | samtools sort -@ "$THREADS" -o "$OUTDIR/bams/${sample}.bam"
 
     samtools index "$OUTDIR/bams/${sample}.bam"
 
-    # Compute coverage depth
+    # Total mapped reads
+    mapped=$(samtools view -c -F 4 "$OUTDIR/bams/${sample}.bam")
+
+    # Skip if no reads mapped
+    if [[ "$mapped" -eq 0 ]]; then
+        warnings="No reads mapped"
+        echo -e "$sample\tNA\t0\t0\tNA\tNA\tNA\tNA\tNA\tNA\tNA\t$warnings" >> "$SUMMARY_FILE"
+        continue
+    fi
+
+    # Compute depth
     depth_file="$OUTDIR/depths/${sample}.depth"
     samtools depth -a "$OUTDIR/bams/${sample}.bam" > "$depth_file"
 
@@ -588,23 +625,18 @@ for asm_dir in "${ASSEMBLY_DIR}"/SRR*; do
     total_r2=$(zcat "$r2" | wc -l)
     total=$(( (total_r1 + total_r2)/4 ))
 
-    # Mapped reads
-    mapped=$(samtools view -c -F 4 "$OUTDIR/bams/${sample}.bam")
     percent_mapped=$(awk -v m=$mapped -v t=$total 'BEGIN{if(t>0) printf "%.2f", (m/t)*100; else print 0}')
 
-    # Check if mapping is too low
     if (( $(echo "$percent_mapped < $MIN_MAPPED_PERCENT" | bc -l) )); then
         warnings="Low mapping (<${MIN_MAPPED_PERCENT}%)"
         echo "[$sample] Warning: $warnings" | tee -a "$OUTDIR/logs/$sample.log"
-        echo -e "$sample\t$total\t$mapped\t$percent_mapped\tNA\tNA\tNA\tNA\tNA\tNA\tNA\t$warnings" >> "$SUMMARY_FILE"
-        continue
     fi
 
     # Proper pairs
     proper_pairs=$(samtools view -c -f 2 "$OUTDIR/bams/${sample}.bam")
     percent_proper=$(awk -v p=$proper_pairs -v t=$total 'BEGIN{if(t>0) printf "%.2f", (p/t)*100; else print 0}')
 
-    # Depth statistics
+    # Depth stats
     avgcov=$(awk '{sum+=$3} END{if(NR>0) print sum/NR; else print 0}' "$depth_file")
     mediancov=$(awk '{print $3}' "$depth_file" | sort -n | awk '{a[NR]=$1} END{if(NR==0) print 0; else if(NR%2==1) print a[(NR+1)/2]; else print (a[NR/2]+a[NR/2+1])/2}')
     mindepth=$(awk 'NR==1 || $3<min{min=$3} END{print min+0}' "$depth_file")
@@ -613,24 +645,30 @@ for asm_dir in "${ASSEMBLY_DIR}"/SRR*; do
     # Average mapping quality
     mean_qual=$(samtools view "$OUTDIR/bams/${sample}.bam" | awk '{sum+=$5; n++} END{if(n>0) print sum/n; else print 0}')
 
-    # Coverage breadth (% of assembly positions with depth >=1)
+    # Coverage breadth
     total_positions=$(wc -l < "$depth_file")
     covered_positions=$(awk '$3>=1{count++} END{print count+0}' "$depth_file")
     breadth=$(awk -v cov=$covered_positions -v tot=$total_positions 'BEGIN{if(tot>0) printf "%.2f", (cov/tot)*100; else print 0}')
 
-    # Check for extremely high coverage
+    # High coverage warning
     if (( $(echo "$avgcov > $MAX_AVG_COVERAGE" | bc -l) )); then
-        warnings="${warnings} High coverage (> ${MAX_AVG_COVERAGE}×)"
+        [[ -n "$warnings" ]] && warnings="${warnings}; "
+        warnings="${warnings}High coverage (> ${MAX_AVG_COVERAGE}×)"
         echo "[$sample] Warning: High coverage (> ${MAX_AVG_COVERAGE}×)" | tee -a "$OUTDIR/logs/$sample.log"
     fi
 
-    # Write to summary
+    # Low coverage warning (optional)
+    if (( $(echo "$avgcov < $MIN_AVG_COVERAGE" | bc -l) )); then
+        [[ -n "$warnings" ]] && warnings="${warnings}; "
+        warnings="${warnings}Low coverage (< ${MIN_AVG_COVERAGE}×)"
+    fi
+
+    # Write summary
     echo -e "$sample\t$total\t$mapped\t$percent_mapped\t$avgcov\t$mediancov\t$mindepth\t$maxdepth\t$mean_qual\t$percent_proper\t$breadth\t$warnings" >> "$SUMMARY_FILE"
 
 done
 
 echo "✅ Assembly quality summary saved to: $SUMMARY_FILE"
-
 ```
 
 Save and exit nano
