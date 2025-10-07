@@ -668,7 +668,7 @@ THREADS=8
 mkdir -p "$OUTDIR"/{bams,depths,logs}
 
 SUMMARY_FILE="$OUTDIR/summary.tsv"
-echo -e "Sample\tTotal_Reads\tMapped_Reads\tPercent_Mapped\tAverage_Coverage" > "$SUMMARY_FILE"
+echo -e "Sample\tTotal_Reads\tMapped_Reads\tPercent_Mapped\tAverage_Coverage\tMin_Depth\tMax_Depth\tMean_Mapping_Quality" > "$SUMMARY_FILE"
 
 for asm_dir in ${ASSEMBLY_DIR}/SRR*; do
     sample=$(basename "$asm_dir")
@@ -693,26 +693,33 @@ for asm_dir in ${ASSEMBLY_DIR}/SRR*; do
         bwa index "$asm"
     fi
 
+    bam="$OUTDIR/bams/${sample}.bam"
+
     bwa mem -t "$THREADS" "$asm" "$r1" "$r2" \
       | samtools view -bS - \
-      | samtools sort -@ "$THREADS" -o "$OUTDIR/bams/${sample}.bam"
+      | samtools sort -@ "$THREADS" -o "$bam"
 
-    samtools index "$OUTDIR/bams/${sample}.bam"
+    samtools index "$bam"
 
-    samtools depth -a "$OUTDIR/bams/${sample}.bam" > "$OUTDIR/depths/${sample}.depth"
+    depth_file="$OUTDIR/depths/${sample}.depth"
+    samtools depth -a "$bam" > "$depth_file"
 
     total_r1=$(zcat "$r1" | wc -l)
     total_r2=$(zcat "$r2" | wc -l)
     total=$(( (total_r1 + total_r2)/4 ))
 
-    mapped=$(samtools view -c -F 4 "$OUTDIR/bams/${sample}.bam")
-
+    mapped=$(samtools view -c -F 4 "$bam")
     percent=$(awk -v m=$mapped -v t=$total 'BEGIN{printf "%.2f", (m/t)*100}')
 
-    avgcov=$(awk '{sum+=$3} END{if(NR>0) print sum/NR; else print 0}' "$OUTDIR/depths/${sample}.depth")
+    avgcov=$(awk '{sum+=$3} END{if(NR>0) print sum/NR; else print 0}' "$depth_file")
+    mincov=$(awk 'NR==1{min=$3} $3<min{min=$3} END{if(NR>0) print min; else print 0}' "$depth_file")
+    maxcov=$(awk 'NR==1{max=$3} $3>max{max=$3} END{if(NR>0) print max; else print 0}' "$depth_file")
 
-    echo -e "$sample\t$total\t$mapped\t$percent\t$avgcov" >> "$SUMMARY_FILE"
+    meanmapq=$(samtools view "$bam" | awk '{sum+=$5; count++} END{if(count>0) printf "%.2f", sum/count; else print 0}')
+
+    echo -e "$sample\t$total\t$mapped\t$percent\t$avgcov\t$mincov\t$maxcov\t$meanmapq" >> "$SUMMARY_FILE"
 done
+
 
 ```
 
