@@ -646,3 +646,88 @@ for SAMPLE_DIR in "$BASE_DIR"/*/; do
 done
 ``` 
 
+Backmapping
+Shovill
+
+Open a new file in nano
+```bash
+nano backmap_shovill.sh
+```
+Paste the script
+
+Copy this into nano:
+```bash
+#!/bin/bash
+set -euo pipefail
+
+ASSEMBLY_DIR="shovill_results"
+READS_DIR="raw_data"
+OUTDIR="backmapping_results/shovill"
+THREADS=8
+
+mkdir -p "$OUTDIR"/{bams,depths,logs}
+
+SUMMARY_FILE="$OUTDIR/summary.tsv"
+echo -e "Sample\tTotal_Reads\tMapped_Reads\tPercent_Mapped\tAverage_Coverage" > "$SUMMARY_FILE"
+
+for asm_dir in ${ASSEMBLY_DIR}/SRR*; do
+    sample=$(basename "$asm_dir")
+    asm=$(ls "$asm_dir"/*contigs*.fa* 2>/dev/null | head -n1)
+
+    if [[ ! -f "$asm" ]]; then
+        echo "Assembly not found for $sample" | tee -a "$OUTDIR/logs/$sample.log"
+        continue
+    fi
+
+    r1="$READS_DIR/${sample}_1.fastq.gz"
+    r2="$READS_DIR/${sample}_2.fastq.gz"
+
+    if [[ ! -f "$r1" || ! -f "$r2" ]]; then
+        echo "Reads not found for $sample" | tee -a "$OUTDIR/logs/$sample.log"
+        continue
+    fi
+
+    echo "[$sample] Mapping reads..." | tee "$OUTDIR/logs/$sample.log"
+
+    if [[ ! -f "${asm}.bwt" ]]; then
+        bwa index "$asm"
+    fi
+
+    bwa mem -t "$THREADS" "$asm" "$r1" "$r2" \
+      | samtools view -bS - \
+      | samtools sort -@ "$THREADS" -o "$OUTDIR/bams/${sample}.bam"
+
+    samtools index "$OUTDIR/bams/${sample}.bam"
+
+    samtools depth -a "$OUTDIR/bams/${sample}.bam" > "$OUTDIR/depths/${sample}.depth"
+
+    total_r1=$(zcat "$r1" | wc -l)
+    total_r2=$(zcat "$r2" | wc -l)
+    total=$(( (total_r1 + total_r2)/4 ))
+
+    mapped=$(samtools view -c -F 4 "$OUTDIR/bams/${sample}.bam")
+
+    percent=$(awk -v m=$mapped -v t=$total 'BEGIN{printf "%.2f", (m/t)*100}')
+
+    avgcov=$(awk '{sum+=$3} END{if(NR>0) print sum/NR; else print 0}' "$OUTDIR/depths/${sample}.depth")
+
+    echo -e "$sample\t$total\t$mapped\t$percent\t$avgcov" >> "$SUMMARY_FILE"
+done
+
+```
+
+Save and exit nano
+
+Press Ctrl + O → Enter to save
+
+Press Ctrl + X → exit
+
+Make the script executable
+``` bash
+chmod +x backmap_shovill.sh
+``` 
+Run the script
+``` bash
+conda activate backmap_env
+./backmap_shovill.sh
+``` 
