@@ -209,7 +209,6 @@ done
 echo "All samples processed. See $REPORT"
 
 ```
-
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
 Press Ctrl + X → Exit nano
@@ -334,6 +333,7 @@ SHOVILL_DIR="shovill_results"
 QUAST_PARENT="quast_results"
 QUAST_DIR="$QUAST_PARENT/quast_results_shovill"
 CSV_OUTDIR="quast_results"
+LOG_FILE="$QUAST_DIR/quast_log.txt"
 
 mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
 
@@ -341,67 +341,67 @@ CSV_FILE="$CSV_OUTDIR/quast_summary_shovill.csv"
 echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CSV_FILE"
 
 for sample_out in "$SHOVILL_DIR"/*; do
-  [[ -d "$sample_out" ]] || continue
-  sample=$(basename "$sample_out")
+    [[ -d "$sample_out" ]] || continue
+    sample=$(basename "$sample_out")
 
-  contigs_file=("$sample_out"/*_contigs.fa)
-  [[ -f "${contigs_file[0]}" ]] || continue
-  contigs="${contigs_file[0]}"
+    # Reset variables per sample
+    unset num_contigs total_len min_len max_len avg_len n50 n75 gc lengths
 
-  outdir="$QUAST_DIR/$sample"
-  mkdir -p "$outdir"
+    contigs_file=("$sample_out"/*_contigs.fa)
+    [[ -f "${contigs_file[0]}" ]] || continue
+    contigs="${contigs_file[0]}"
 
-  quast "$contigs" -o "$outdir" > /dev/null 2>&1
-  stats_file="$outdir/report.tsv"
+    outdir="$QUAST_DIR/$sample"
+    mkdir -p "$outdir"
 
-  # Extract metrics if available
-  if [[ -f "$stats_file" ]]; then
-    num_contigs=$(awk -F'\t' '$1 ~ /# contigs/ {print $2; exit}' "$stats_file")
-    total_len=$(awk -F'\t' '$1 ~ /Total length/ {print $2; exit}' "$stats_file")
-    min_len=$(awk -F'\t' '$1 ~ /(Shortest|Smallest) contig/ {print $2; exit}' "$stats_file")
-    max_len=$(awk -F'\t' '$1 ~ /(Largest|Longest) contig/ {print $2; exit}' "$stats_file")
-    avg_len=$(awk -F'\t' '$1 ~ /(Average|Mean) contig length/ {print $2; exit}' "$stats_file")
-    n50=$(awk -F'\t' '$1 ~ /^N50/ {print $2; exit}' "$stats_file")
-    n75=$(awk -F'\t' '$1 ~ /^N75/ {print $2; exit}' "$stats_file")
-    gc=$(awk -F'\t' '$1 ~ /GC/ {print $2; exit}' "$stats_file")
-  fi
-
-  # Compute missing values from FASTA
-  if [[ -z "${min_len:-}" || -z "${avg_len:-}" || -z "${n75:-}" ]]; then
-    readarray -t lengths < <(awk '/^>/{if (seqlen){print seqlen}; seqlen=0; next} {seqlen+=length($0)} END{print seqlen}' "$contigs")
-    if (( ${#lengths[@]} > 0 )); then
-      IFS=$'\n' sorted=($(sort -nr <<<"${lengths[*]}"))
-      unset IFS
-      total_len_calc=$(awk '{sum+=$1} END{print sum}' <<<"${sorted[*]}")
-      num_contigs_calc=${#sorted[@]}
-      min_len_calc=$(awk 'END{print $1}' <<<"${sorted[*]}")
-      max_len_calc=$(awk 'NR==1{print $1}' <<<"${sorted[*]}")
-      avg_len_calc=$(awk -v t="$total_len_calc" -v n="$num_contigs_calc" 'BEGIN{if(n>0) print t/n; else print "NA"}')
-      cum=0; n50_calc=NA; n75_calc=NA
-      n50_target=$((total_len_calc / 2))
-      n75_target=$((total_len_calc * 3 / 4))
-      for len in "${sorted[@]}"; do
-        cum=$((cum + len))
-        if [[ "$n50_calc" == "NA" && $cum -ge $n50_target ]]; then n50_calc=$len; fi
-        if [[ "$n75_calc" == "NA" && $cum -ge $n75_target ]]; then n75_calc=$len; fi
-      done
-      gc_calc=$(awk '/^>/{next}{seq=toupper($0); for(i=1;i<=length(seq);i++){b=substr(seq,i,1); if(b=="G"||b=="C")gc++}; total+=length(seq)} END{if(total>0) print (gc/total)*100; else print "NA"}' "$contigs")
-
-      num_contigs=${num_contigs:-$num_contigs_calc}
-      total_len=${total_len:-$total_len_calc}
-      min_len=${min_len:-$min_len_calc}
-      max_len=${max_len:-$max_len_calc}
-      avg_len=${avg_len:-$avg_len_calc}
-      n50=${n50:-$n50_calc}
-      n75=${n75:-$n75_calc}
-      gc=${gc:-$gc_calc}
+    # Run QUAST, log errors
+    if ! quast "$contigs" -o "$outdir" > "$LOG_FILE" 2>&1; then
+        echo "QUAST failed for $sample, see $LOG_FILE" >&2
     fi
-  fi
 
-  echo "$sample,${num_contigs:-NA},${total_len:-NA},${min_len:-NA},${max_len:-NA},${avg_len:-NA},${n50:-NA},${n75:-NA},${gc:-NA}" >> "$CSV_FILE"
+    # Extract lengths robustly from headers using len=
+    readarray -t lengths < <(grep "^>" "$contigs" | sed -E 's/.*len=([0-9]+).*/\1/')
+
+    if (( ${#lengths[@]} > 0 )); then
+        # Basic stats
+        num_contigs=${#lengths[@]}
+        total_len=$(awk '{sum+=$1} END{print sum}' <<<"${lengths[*]}")
+        min_len=$(printf "%s\n" "${lengths[@]}" | sort -n | head -n1)
+        max_len=$(printf "%s\n" "${lengths[@]}" | sort -nr | head -n1)
+        avg_len=$(awk -v t="$total_len" -v n="$num_contigs" 'BEGIN{if(n>0) print t/n; else print "NA"}')
+
+        # Sort lengths descending for N50/N75
+        IFS=$'\n' sorted=($(sort -nr <<<"${lengths[*]}"))
+        unset IFS
+        cum=0
+        n50="NA"
+        n75="NA"
+        n50_target=$((total_len / 2))
+        n75_target=$((total_len * 3 / 4))
+        for l in "${sorted[@]}"; do
+            cum=$((cum + l))
+            [[ "$n50" == "NA" && $cum -ge $n50_target ]] && n50=$l
+            [[ "$n75" == "NA" && $cum -ge $n75_target ]] && n75=$l
+        done
+    else
+        # Fallback if lengths extraction failed
+        num_contigs=0
+        total_len=0
+        min_len=NA
+        max_len=NA
+        avg_len=NA
+        n50=NA
+        n75=NA
+    fi
+
+    # GC% calculation from sequences
+    gc=$(awk 'BEGIN{gc=0; total=0} /^[^>]/ {seq=toupper($0); for(i=1;i<=length(seq);i++){b=substr(seq,i,1); if(b=="G"||b=="C")gc++}; total+=length(seq)} END{if(total>0) print (gc/total)*100; else print "NA"}' "$contigs")
+
+    # Write to CSV
+    echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
+
 done
 ```
-
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
 Press Ctrl + X → Exit nano
