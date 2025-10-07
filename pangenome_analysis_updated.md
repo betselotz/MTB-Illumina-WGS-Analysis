@@ -519,6 +519,136 @@ conda activate checkm_env
 ./run_checkm_shovill.sh
 ``` 
 
+Backmapping
+Shovill
+
+Open a new file in nano
+```bash
+nano backmap_shovill.sh
+```
+Paste the script
+
+Copy this into nano:
+```bash
+#!/bin/bash
+set -euo pipefail
+
+ASSEMBLY_DIR="shovill_results"
+READS_DIR="fastp_results_min_50"
+OUTDIR="backmap_results"
+THREADS=8
+MIN_MAPPED_PERCENT=1        # Minimum percent mapped reads to consider sample valid
+MAX_AVG_COVERAGE=1000       # Threshold to warn about extremely high coverage
+
+mkdir -p "$OUTDIR"/{bams,depths,logs}
+
+SUMMARY_FILE="$OUTDIR/shovill_assembly_summary.tsv"
+echo -e "Sample\tTotal_Reads\tMapped_Reads\tPercent_Mapped\tAvg_Coverage\tMedian_Depth\tMin_Depth\tMax_Depth\tMean_Mapping_Quality\tPercent_Proper_Pairs\tCoverage_Breadth\tWarnings" > "$SUMMARY_FILE"
+
+for asm_dir in "${ASSEMBLY_DIR}"/SRR*; do
+    sample=$(basename "$asm_dir")
+    asm=$(ls "$asm_dir"/*contigs*.fa* 2>/dev/null | head -n1 || true)
+
+    warnings=""
+
+    if [[ -z "$asm" || ! -f "$asm" ]]; then
+        echo "[$sample] No assembly FASTA found." | tee -a "$OUTDIR/logs/$sample.log"
+        continue
+    fi
+
+    # Flexible read file matching
+    r1=$(ls "$READS_DIR/${sample}"*_R1*.fastq.gz "$READS_DIR/${sample}"*_1*.fastq.gz 2>/dev/null | head -n1 || true)
+    r2=$(ls "$READS_DIR/${sample}"*_R2*.fastq.gz "$READS_DIR/${sample}"*_2*.fastq.gz 2>/dev/null | head -n1 || true)
+
+    if [[ -z "$r1" || -z "$r2" ]]; then
+        echo "[$sample] Missing read files." | tee -a "$OUTDIR/logs/$sample.log"
+        continue
+    fi
+
+    echo "[$sample] Mapping reads..." | tee "$OUTDIR/logs/$sample.log"
+
+    # Build BWA index if missing
+    if [[ ! -f "${asm}.bwt" ]]; then
+        bwa index "$asm" >> "$OUTDIR/logs/$sample.log" 2>&1
+    fi
+
+    # Map reads and create BAM
+    bwa mem -t "$THREADS" "$asm" "$r1" "$r2" \
+        | samtools view -bS - \
+        | samtools sort -@ "$THREADS" -o "$OUTDIR/bams/${sample}.bam"
+
+    samtools index "$OUTDIR/bams/${sample}.bam"
+
+    # Compute coverage depth
+    depth_file="$OUTDIR/depths/${sample}.depth"
+    samtools depth -a "$OUTDIR/bams/${sample}.bam" > "$depth_file"
+
+    # Total reads
+    total_r1=$(zcat "$r1" | wc -l)
+    total_r2=$(zcat "$r2" | wc -l)
+    total=$(( (total_r1 + total_r2)/4 ))
+
+    # Mapped reads
+    mapped=$(samtools view -c -F 4 "$OUTDIR/bams/${sample}.bam")
+    percent_mapped=$(awk -v m=$mapped -v t=$total 'BEGIN{if(t>0) printf "%.2f", (m/t)*100; else print 0}')
+
+    # Check if mapping is too low
+    if (( $(echo "$percent_mapped < $MIN_MAPPED_PERCENT" | bc -l) )); then
+        warnings="Low mapping (<${MIN_MAPPED_PERCENT}%)"
+        echo "[$sample] Warning: $warnings" | tee -a "$OUTDIR/logs/$sample.log"
+        echo -e "$sample\t$total\t$mapped\t$percent_mapped\tNA\tNA\tNA\tNA\tNA\tNA\tNA\t$warnings" >> "$SUMMARY_FILE"
+        continue
+    fi
+
+    # Proper pairs
+    proper_pairs=$(samtools view -c -f 2 "$OUTDIR/bams/${sample}.bam")
+    percent_proper=$(awk -v p=$proper_pairs -v t=$total 'BEGIN{if(t>0) printf "%.2f", (p/t)*100; else print 0}')
+
+    # Depth statistics
+    avgcov=$(awk '{sum+=$3} END{if(NR>0) print sum/NR; else print 0}' "$depth_file")
+    mediancov=$(awk '{print $3}' "$depth_file" | sort -n | awk '{a[NR]=$1} END{if(NR==0) print 0; else if(NR%2==1) print a[(NR+1)/2]; else print (a[NR/2]+a[NR/2+1])/2}')
+    mindepth=$(awk 'NR==1 || $3<min{min=$3} END{print min+0}' "$depth_file")
+    maxdepth=$(awk 'NR==1 || $3>max{max=$3} END{print max+0}' "$depth_file")
+
+    # Average mapping quality
+    mean_qual=$(samtools view "$OUTDIR/bams/${sample}.bam" | awk '{sum+=$5; n++} END{if(n>0) print sum/n; else print 0}')
+
+    # Coverage breadth (% of assembly positions with depth >=1)
+    total_positions=$(wc -l < "$depth_file")
+    covered_positions=$(awk '$3>=1{count++} END{print count+0}' "$depth_file")
+    breadth=$(awk -v cov=$covered_positions -v tot=$total_positions 'BEGIN{if(tot>0) printf "%.2f", (cov/tot)*100; else print 0}')
+
+    # Check for extremely high coverage
+    if (( $(echo "$avgcov > $MAX_AVG_COVERAGE" | bc -l) )); then
+        warnings="${warnings} High coverage (> ${MAX_AVG_COVERAGE}×)"
+        echo "[$sample] Warning: High coverage (> ${MAX_AVG_COVERAGE}×)" | tee -a "$OUTDIR/logs/$sample.log"
+    fi
+
+    # Write to summary
+    echo -e "$sample\t$total\t$mapped\t$percent_mapped\t$avgcov\t$mediancov\t$mindepth\t$maxdepth\t$mean_qual\t$percent_proper\t$breadth\t$warnings" >> "$SUMMARY_FILE"
+
+done
+
+echo "✅ Assembly quality summary saved to: $SUMMARY_FILE"
+
+```
+
+Save and exit nano
+
+Press Ctrl + O → Enter to save
+
+Press Ctrl + X → exit
+
+Make the script executable
+``` bash
+chmod +x backmap_shovill.sh
+``` 
+Run the script
+``` bash
+conda activate backmap_env
+./backmap_shovill.sh
+``` 
+
 
 # 1️⃣4️⃣ Prokka
 Prokka is a rapid **prokaryotic genome annotation tool** that predicts genes, coding sequences (CDS), rRNAs, tRNAs, and other genomic features from assembled contigs or genomes.  
@@ -646,104 +776,3 @@ for SAMPLE_DIR in "$BASE_DIR"/*/; do
 done
 ``` 
 
-Backmapping
-Shovill
-
-Open a new file in nano
-```bash
-nano backmap_shovill.sh
-```
-Paste the script
-
-Copy this into nano:
-```bash
-#!/bin/bash
-set -euo pipefail
-
-ASSEMBLY_DIR="shovill_results"
-READS_DIR="raw_data"
-OUTDIR="backmapping_results/shovill"
-THREADS=8
-
-mkdir -p "$OUTDIR"/{bams,depths,logs}
-
-SUMMARY_FILE="$OUTDIR/summary.tsv"
-echo -e "Sample\tTotal_Reads\tMapped_Reads\tPercent_Mapped\tAverage_Coverage\tMedian_Depth\tMin_Depth\tMax_Depth\tBreadth_of_Coverage\tMean_Mapping_Quality\tProperly_Paired\tDuplicate_Reads\tAverage_Insert_Size" > "$SUMMARY_FILE"
-
-for asm_dir in ${ASSEMBLY_DIR}/SRR*; do
-    sample=$(basename "$asm_dir")
-    asm=$(ls "$asm_dir"/*contigs*.fa* 2>/dev/null | head -n1)
-
-    if [[ ! -f "$asm" ]]; then
-        echo "Assembly not found for $sample" | tee -a "$OUTDIR/logs/$sample.log"
-        continue
-    fi
-
-    r1="$READS_DIR/${sample}_1.fastq.gz"
-    r2="$READS_DIR/${sample}_2.fastq.gz"
-
-    if [[ ! -f "$r1" || ! -f "$r2" ]]; then
-        echo "Reads not found for $sample" | tee -a "$OUTDIR/logs/$sample.log"
-        continue
-    fi
-
-    echo "[$sample] Mapping reads..." | tee "$OUTDIR/logs/$sample.log"
-
-    if [[ ! -f "${asm}.bwt" ]]; then
-        bwa index "$asm"
-    fi
-
-    bam="$OUTDIR/bams/${sample}.bam"
-
-    bwa mem -t "$THREADS" "$asm" "$r1" "$r2" \
-      | samtools view -bS - \
-      | samtools sort -@ "$THREADS" -o "$bam"
-
-    samtools index "$bam"
-
-    depth_file="$OUTDIR/depths/${sample}.depth"
-    samtools depth -a "$bam" > "$depth_file"
-
-    total_r1=$(zcat "$r1" | wc -l)
-    total_r2=$(zcat "$r2" | wc -l)
-    total=$(( (total_r1 + total_r2)/4 ))
-
-    mapped=$(samtools view -c -F 4 "$bam")
-    percent=$(awk -v m=$mapped -v t=$total 'BEGIN{printf "%.2f", (m/t)*100}')
-
-    avgcov=$(awk '{sum+=$3} END{if(NR>0) print sum/NR; else print 0}' "$depth_file")
-    mincov=$(awk 'NR==1{min=$3} $3<min{min=$3} END{if(NR>0) print min; else print 0}' "$depth_file")
-    maxcov=$(awk 'NR==1{max=$3} $3>max{max=$3} END{if(NR>0) print max; else print 0}' "$depth_file")
-
-    mediancov=$(awk '{print $3}' "$depth_file" | sort -n | awk '{a[NR]=$1} END{if(NR%2==1) print a[(NR+1)/2]; else print (a[NR/2]+a[NR/2+1])/2}')
-    breadth=$(awk '{if($3>0) covered++} END{if(NR>0) printf "%.2f", (covered/NR)*100; else print 0}' "$depth_file")
-
-    meanmapq=$(samtools view "$bam" | awk '{sum+=$5; count++} END{if(count>0) printf "%.2f", sum/count; else print 0}')
-
-    # Parse samtools flagstat for paired and duplicate percentages
-    stats=$(samtools flagstat "$bam")
-    properly_paired=$(echo "$stats" | awk '/properly paired/{print $1/$3*100}' | awk '{printf "%.2f", $1}')
-    duplicate_reads=$(echo "$stats" | awk '/duplicates/{print $1/$3*100}' | awk '{printf "%.2f", $1}')
-
-    # Average insert size from samtools stats
-    insert_size=$(samtools stats "$bam" | awk -F'\t' '/insert size average:/ {print $3; exit}')
-
-    echo -e "$sample\t$total\t$mapped\t$percent\t$avgcov\t$mediancov\t$mincov\t$maxcov\t$breadth\t$meanmapq\t$properly_paired\t$duplicate_reads\t$insert_size" >> "$SUMMARY_FILE"
-done
-```
-
-Save and exit nano
-
-Press Ctrl + O → Enter to save
-
-Press Ctrl + X → exit
-
-Make the script executable
-``` bash
-chmod +x backmap_shovill.sh
-``` 
-Run the script
-``` bash
-conda activate backmap_env
-./backmap_shovill.sh
-``` 
