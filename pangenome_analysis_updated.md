@@ -551,17 +551,17 @@ ASSEMBLY_DIR="shovill_results"
 READS_DIR="fastp_results_min_50"
 OUTDIR="backmap_results"
 THREADS=8
-MIN_MAPPED_PERCENT=1       # Minimum percent mapped reads to consider sample valid
-MAX_AVG_COVERAGE=1000      # Warn if coverage exceeds this
-MIN_AVG_COVERAGE=1         # Optional: warn if coverage too low
+MIN_MAPPED_PERCENT=1        # Minimum percent mapped reads to consider sample valid
+MAX_AVG_COVERAGE=1000       # Warn if coverage exceeds this
+MIN_AVG_COVERAGE=1          # Warn if coverage too low
 
 mkdir -p "$OUTDIR"/{bams,depths,logs}
 
 SUMMARY_FILE="$OUTDIR/shovill_assembly_summary.tsv"
-echo -e "Sample\tTotal_Reads\tMapped_Reads\tPercent_Mapped\tAvg_Coverage\tMedian_Depth\tMin_Depth\tMax_Depth\tMean_Mapping_Quality\tPercent_Proper_Pairs\tCoverage_Breadth\tWarnings" > "$SUMMARY_FILE"
+echo -e "Sample\tTotal_Reads\tMapped_Reads\tUnmapped_Reads\tPercent_Mapped\tAvg_Coverage\tMedian_Depth\tMin_Depth\tMax_Depth\tMean_Mapping_Quality\tPercent_Proper_Pairs\tCoverage_Breadth\tWarnings" > "$SUMMARY_FILE"
 
 # --------------------------
-# Find assembly directories (any folder in shovill_results)
+# Find assembly directories
 # --------------------------
 asm_dirs=( "$ASSEMBLY_DIR"/* )
 if [[ ${#asm_dirs[@]} -eq 0 ]]; then
@@ -577,7 +577,6 @@ for asm_dir in "${asm_dirs[@]}"; do
     asm=$(ls "$asm_dir"/*contigs*.fa* 2>/dev/null | head -n1 || true)
     warnings=""
 
-    # Check assembly exists
     if [[ -z "$asm" || ! -f "$asm" ]]; then
         echo "[$sample] No assembly FASTA found." | tee "$OUTDIR/logs/$sample.log"
         continue
@@ -592,7 +591,7 @@ for asm_dir in "${asm_dirs[@]}"; do
         continue
     fi
 
-    echo "[$sample] Mapping reads..." | tee "$OUTDIR/logs/$sample.log"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$sample] Mapping reads..." | tee "$OUTDIR/logs/$sample.log"
 
     # Build BWA index if missing
     if [[ ! -f "${asm}.bwt" ]]; then
@@ -609,24 +608,27 @@ for asm_dir in "${asm_dirs[@]}"; do
     # Total mapped reads
     mapped=$(samtools view -c -F 4 "$OUTDIR/bams/${sample}.bam")
 
-    # Skip if no reads mapped
     if [[ "$mapped" -eq 0 ]]; then
         warnings="No reads mapped"
-        echo -e "$sample\tNA\t0\t0\tNA\tNA\tNA\tNA\tNA\tNA\tNA\t$warnings" >> "$SUMMARY_FILE"
+        echo -e "$sample\tNA\t0\tNA\t0\tNA\tNA\tNA\tNA\tNA\tNA\tNA\t$warnings" >> "$SUMMARY_FILE"
         continue
     fi
 
-    # Compute depth
-    depth_file="$OUTDIR/depths/${sample}.depth"
-    samtools depth -a "$OUTDIR/bams/${sample}.bam" > "$depth_file"
+    # Compute total reads (faster method: from fastp JSON if available, else fallback to zcat)
+    total_json=$(find "$READS_DIR" -maxdepth 1 -type f -name "${sample}*fastp.json" | head -n1 || true)
+    if [[ -f "$total_json" ]]; then
+        total=$(grep -m1 '"total_reads"' "$total_json" | grep -o '[0-9]\+' | head -n1)
+    else
+        total_r1=$(zcat "$r1" | wc -l)
+        total_r2=$(zcat "$r2" | wc -l)
+        total=$(( (total_r1 + total_r2) / 4 ))
+    fi
 
-    # Total reads
-    total_r1=$(zcat "$r1" | wc -l)
-    total_r2=$(zcat "$r2" | wc -l)
-    total=$(( (total_r1 + total_r2)/4 ))
+    # Calculate unmapped reads
+    unmapped=$(( total - mapped ))
 
+    # Percent mapped
     percent_mapped=$(awk -v m=$mapped -v t=$total 'BEGIN{if(t>0) printf "%.2f", (m/t)*100; else print 0}')
-
     if (( $(echo "$percent_mapped < $MIN_MAPPED_PERCENT" | bc -l) )); then
         warnings="Low mapping (<${MIN_MAPPED_PERCENT}%)"
         echo "[$sample] Warning: $warnings" | tee -a "$OUTDIR/logs/$sample.log"
@@ -636,39 +638,57 @@ for asm_dir in "${asm_dirs[@]}"; do
     proper_pairs=$(samtools view -c -f 2 "$OUTDIR/bams/${sample}.bam")
     percent_proper=$(awk -v p=$proper_pairs -v t=$total 'BEGIN{if(t>0) printf "%.2f", (p/t)*100; else print 0}')
 
-    # Depth stats
+    # Compute depth
+    depth_file="$OUTDIR/depths/${sample}.depth"
+    samtools depth -a "$OUTDIR/bams/${sample}.bam" > "$depth_file"
+
+    # Sanity check: empty depth file
+    if [[ ! -s "$depth_file" ]]; then
+        warnings="${warnings}; Empty depth file"
+        echo -e "$sample\t$total\t$mapped\t$unmapped\t$percent_mapped\tNA\tNA\tNA\tNA\tNA\t$percent_proper\tNA\t$warnings" >> "$SUMMARY_FILE"
+        continue
+    fi
+
+    # Depth statistics
     avgcov=$(awk '{sum+=$3} END{if(NR>0) print sum/NR; else print 0}' "$depth_file")
     mediancov=$(awk '{print $3}' "$depth_file" | sort -n | awk '{a[NR]=$1} END{if(NR==0) print 0; else if(NR%2==1) print a[(NR+1)/2]; else print (a[NR/2]+a[NR/2+1])/2}')
     mindepth=$(awk 'NR==1 || $3<min{min=$3} END{print min+0}' "$depth_file")
     maxdepth=$(awk 'NR==1 || $3>max{max=$3} END{print max+0}' "$depth_file")
 
-    # Average mapping quality
-    mean_qual=$(samtools view "$OUTDIR/bams/${sample}.bam" | awk '{sum+=$5; n++} END{if(n>0) print sum/n; else print 0}')
+    # Mean mapping quality (faster via samtools stats)
+    mean_qual=$(samtools stats "$OUTDIR/bams/${sample}.bam" | awk -F'\t' '/^SN/ && /average quality/ {print $4}')
 
     # Coverage breadth
     total_positions=$(wc -l < "$depth_file")
     covered_positions=$(awk '$3>=1{count++} END{print count+0}' "$depth_file")
     breadth=$(awk -v cov=$covered_positions -v tot=$total_positions 'BEGIN{if(tot>0) printf "%.2f", (cov/tot)*100; else print 0}')
 
-    # High coverage warning
+    # Coverage warnings
     if (( $(echo "$avgcov > $MAX_AVG_COVERAGE" | bc -l) )); then
         [[ -n "$warnings" ]] && warnings="${warnings}; "
         warnings="${warnings}High coverage (> ${MAX_AVG_COVERAGE}×)"
         echo "[$sample] Warning: High coverage (> ${MAX_AVG_COVERAGE}×)" | tee -a "$OUTDIR/logs/$sample.log"
     fi
 
-    # Low coverage warning (optional)
     if (( $(echo "$avgcov < $MIN_AVG_COVERAGE" | bc -l) )); then
         [[ -n "$warnings" ]] && warnings="${warnings}; "
         warnings="${warnings}Low coverage (< ${MIN_AVG_COVERAGE}×)"
     fi
 
-    # Write summary
-    echo -e "$sample\t$total\t$mapped\t$percent_mapped\t$avgcov\t$mediancov\t$mindepth\t$maxdepth\t$mean_qual\t$percent_proper\t$breadth\t$warnings" >> "$SUMMARY_FILE"
+    # Write to summary
+    echo -e "$sample\t$total\t$mapped\t$unmapped\t$percent_mapped\t$avgcov\t$mediancov\t$mindepth\t$maxdepth\t$mean_qual\t$percent_proper\t$breadth\t$warnings" >> "$SUMMARY_FILE"
 
 done
 
 echo "✅ Assembly quality summary saved to: $SUMMARY_FILE"
+
+# --------------------------
+# Create optional CSV for plotting
+# --------------------------
+CSV_FILE="${SUMMARY_FILE%.tsv}.csv"
+awk -F'\t' 'BEGIN{OFS=","} {print}' "$SUMMARY_FILE" > "$CSV_FILE"
+echo "📈 CSV version created at: $CSV_FILE"
+
 ```
 
 Save and exit nano
