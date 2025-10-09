@@ -23,6 +23,11 @@ nano run_shovill.sh
 #####  Step 2: Paste the following into `run_shovill.sh`
 ```bash
 #!/bin/bash
+# =========================================================
+#  Automated Shovill Pipeline with Quality Checks & Parallelization (HPC-safe)
+# =========================================================
+# Requirements: shovill, bc, awk, zcat, kraken2 (optional), GNU parallel
+# =========================================================
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -84,9 +89,10 @@ run_sample() {
   if [[ ! -f "$R2" ]]; then
     status="Dropped"
     reason="Missing R2"
-    flock -x 200 >>"$REPORT" 2>/dev/null <<EOF
-$sample\tNA\tNA\tNA\t0\t0\t0\t0\t$status\t$reason
-EOF
+    {
+      flock -x 200
+      printf "%s\tNA\tNA\tNA\t0\t0\t0\t0\t%s\t%s\n" "$sample" "$status" "$reason" >> "$REPORT"
+    } 200>"$REPORT_LOCK"
     echo "[WARN] [$sample] Missing R2, skipped."
     return
   fi
@@ -99,9 +105,10 @@ EOF
   if [[ $total_reads -le 0 ]]; then
     status="Dropped"
     reason="No reads"
-    flock -x 200 >>"$REPORT" 2>/dev/null <<EOF
-$sample\t0\t0\t0\t0\t0\t0\t0\t$status\t$reason
-EOF
+    {
+      flock -x 200
+      printf "%s\t0\t0\t0\t0\t0\t0\t0\t%s\t%s\n" "$sample" "$status" "$reason" >> "$REPORT"
+    } 200>"$REPORT_LOCK"
     echo "[WARN] [$sample] No reads detected."
     return
   fi
@@ -111,9 +118,10 @@ EOF
   if [[ "$avg_len" -le 0 ]]; then
     status="Dropped"
     reason="Invalid read length"
-    flock -x 200 >>"$REPORT" 2>/dev/null <<EOF
-$sample\t$total_reads\t0\t0\t0\t0\t0\t0\t$status\t$reason
-EOF
+    {
+      flock -x 200
+      printf "%s\t%s\t0\t0\t0\t0\t0\t0\t%s\t%s\n" "$sample" "$total_reads" "$status" "$reason" >> "$REPORT"
+    } 200>"$REPORT_LOCK"
     echo "[WARN] [$sample] Invalid read length."
     return
   fi
@@ -133,9 +141,10 @@ EOF
 
   if [[ "$reason" != "OK" ]]; then
     status="Skipped"
-    flock -x 200 >>"$REPORT" 2>/dev/null <<EOF
-$sample\t$total_reads\t$avg_len\t$estimated_coverage\t0\t0\t0\t0\t$status\t$reason
-EOF
+    {
+      flock -x 200
+      printf "%s\t%s\t%s\t%s\t0\t0\t0\t0\t%s\t%s\n" "$sample" "$total_reads" "$avg_len" "$estimated_coverage" "$status" "$reason" >> "$REPORT"
+    } 200>"$REPORT_LOCK"
     echo "[WARN] [$sample] Skipping due to $reason."
     rm -rf "$sample_out"
     return
@@ -175,27 +184,47 @@ EOF
   runtime=$(( (end_time - start_time) / 60 ))
 
   # -------------------------
-  # Post-assembly validation
+  # Post-assembly validation with correct N50
   # -------------------------
   contigs_file="$sample_out/contigs.fa"
   if [[ -s "$contigs_file" ]]; then
-    total_len=$(awk '/^>/{if(seq){print length(seq)}; seq=""} !/^>/{seq=seq $0} END{if(seq) print length(seq)}' "$contigs_file" | awk '{sum+=$1} END{print sum}')
-    n_contigs=$(grep -c '^>' "$contigs_file")
-    n50=$(awk '/^>/{if (len) {lens[len_i++]=len}; len=0; next} {len+=length($0)} END{if (len) lens[len_i++]=len; asort(lens); sum=0; total=0; for(i in lens) total+=lens[i]; cutoff=total/2; sum=0; for(i in lens){sum+=lens[i]; if(sum>=cutoff){print lens[i]; break}}}' "$contigs_file")
+    # Get contig lengths
+    readarray -t contig_lengths < <(awk '/^>/{if(seq){print length(seq)}; seq=""} !/^>/{seq=seq $0} END{if(seq) print length(seq)}' "$contigs_file")
+    total_len=0
+    for len in "${contig_lengths[@]}"; do
+        total_len=$((total_len + len))
+    done
+    n_contigs=${#contig_lengths[@]}
 
-    if [[ -z "$total_len" || "$total_len" -lt 1000000 ]]; then
-      status="Failed"
-      reason="Very small assembly (${total_len:-0} bp)"
-      echo "[ERROR] [$sample] Assembly too small: ${total_len:-0} bp"
+    # Sort descending
+    IFS=$'\n' sorted=($(sort -nr <<<"${contig_lengths[*]}"))
+    cutoff=$((total_len / 2))
+    sum=0
+    n50=0
+    for len in "${sorted[@]}"; do
+        sum=$((sum + len))
+        if (( sum >= cutoff )); then
+            n50=$len
+            break
+        fi
+    done
+
+    if [[ "$total_len" -lt 1000000 ]]; then
+        status="Failed"
+        reason="Very small assembly (${total_len} bp)"
+        echo "[ERROR] [$sample] Assembly too small: ${total_len} bp"
     else
-      status="Assembled"
-      reason="OK"
-      echo "[INFO] [$sample] Assembly successful: ${total_len} bp, ${n_contigs} contigs, N50=${n50}, runtime=${runtime} min"
+        status="Assembled"
+        reason="OK"
+        echo "[INFO] [$sample] Assembly successful: ${total_len} bp, ${n_contigs} contigs, N50=${n50}, runtime=${runtime} min"
     fi
   else
     status="Failed"
     reason="Assembly error (no contigs.fa)"
     echo "[ERROR] [$sample] No contigs.fa found."
+    total_len=0
+    n_contigs=0
+    n50=0
   fi
 
   # -------------------------
