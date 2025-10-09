@@ -32,10 +32,10 @@ GSIZE=4411532
 MIN_COVERAGE=30
 MIN_READS=10000
 SAMPLE_SEQ_LINES=1000
-CPUS=${CPUS:-16}
-RAM=64
+CPUS=${CPUS:-8}          # per-job CPU usage
+RAM=8                    # per-job RAM (GB)
+PARALLEL_JOBS=8          # 8 jobs × 8 GB = 64 GB total
 KRAKEN_DB="/path/to/kraken_db"
-PARALLEL_JOBS=4
 REPORT="$OUTDIR/assembly_summary.tsv"
 REPORT_LOCK="$OUTDIR/report.lock"
 
@@ -52,11 +52,10 @@ run_sample() {
 
   total_lines=$(zcat "$R1" | wc -l)
   total_reads=$(( total_lines / 4 ))
-  avg_len=$(zcat "$R1" | sed -n '2~4p' | head -n "$SAMPLE_SEQ_LINES" | awk '{total+=length($0); count++} END {if(count==0) print 0; else printf "%.0f", total/count}')
-  estimated_coverage=$(awk -v r="$total_reads" -v l="$avg_len" -v g="$GSIZE" 'BEGIN{cov=(r*l*2)/g; printf "%.2f", cov}')
+  avg_len=$(zcat "$R1" | sed -n '2~4p' | head -n "$SAMPLE_SEQ_LINES" | awk '{s+=length($0)} END{if(NR)printf "%.0f",s/NR;else print 0}')
+  estimated_coverage=$(awk -v r="$total_reads" -v l="$avg_len" -v g="$GSIZE" 'BEGIN{printf "%.2f", (r*l*2)/g}')
 
-  status="Ready"
-  reason="OK"
+  status="Ready"; reason="OK"
   if [[ ! -f "$R2" ]]; then status="Dropped"; reason="Missing R2"; fi
   if [[ $total_reads -lt 1 ]]; then status="Dropped"; reason="No reads"; fi
   if [[ $total_reads -lt $MIN_READS ]]; then status="Skipped"; reason="Low read count (<$MIN_READS)"; fi
@@ -72,28 +71,30 @@ run_sample() {
   echo "[INFO] [$sample] Running Shovill..."
   start_time=$(date +%s)
   shovill --R1 "$R1" --R2 "$R2" --gsize "$GSIZE" --outdir "$sample_out" \
-          --assembler spades --minlen 200 --mincov 5 --depth 200 --trim yes \
-          --namefmt "${sample}_%05d" --cpus "$CPUS" --ram "$RAM" --tmpdir "${TMPDIR:-/tmp}" --force \
+          --assembler spades --minlen 200 --mincov 5 --depth 150 --trim yes \
+          --cpus "$CPUS" --ram "$RAM" --tmpdir "${TMPDIR:-/tmp}" --force \
           > "$sample_out/shovill.log" 2>&1 || true
   runtime=$(( ( $(date +%s) - start_time ) / 60 ))
 
-  total_len=0; n_contigs=0; n50=0
   contigs_file="$sample_out/contigs.fa"
+  total_len=0; n_contigs=0; n50=0
   if [[ -s "$contigs_file" ]]; then
-      readarray -t contig_lengths < <(awk '/^>/{if(seq){print length(seq)}; seq=""} !/^>/{seq=seq $0} END{if(seq) print length(seq)}' "$contigs_file")
+      mapfile -t contig_lengths < <(awk '/^>/{if(seq){print length(seq)}; seq=""} !/^>/{seq=seq $0} END{if(seq) print length(seq)}' "$contigs_file" | sort -nr)
       n_contigs=${#contig_lengths[@]}
-      for len in "${contig_lengths[@]}"; do total_len=$((total_len + len)); done
-      IFS=$'\n' sorted=($(sort -nr <<<"${contig_lengths[*]}"))
-      cutoff=$((total_len / 2)); sum=0
-      for len in "${sorted[@]}"; do sum=$((sum + len)); if (( sum >= cutoff )); then n50=$len; break; fi; done
+      for len in "${contig_lengths[@]}"; do ((total_len+=len)); done
+      half=$(( total_len / 2 )); sum=0
+      for len in "${contig_lengths[@]}"; do ((sum+=len)); if (( sum >= half )); then n50=$len; break; fi; done
       if [[ "$total_len" -lt 1000000 ]]; then status="Failed"; reason="Very small assembly (${total_len} bp)"; else status="Assembled"; reason="OK"; fi
   else
       status="Failed"; reason="Assembly error (no contigs.fa)"
   fi
 
-  if [[ -n "$KRAKEN_DB" && -s "$sample_out/kraken_report.txt" ]]; then
-      top_species=$(awk -F'\t' 'NR==1{gsub(/^[ \t]+|[ \t]+$/, "", $6); print $6}' "$sample_out/kraken_report.txt")
-      if [[ "$top_species" != *"Mycobacterium tuberculosis"* ]]; then status="Flagged"; reason="Possible contamination ($top_species)"; fi
+  if [[ -n "$KRAKEN_DB" && -s "$contigs_file" ]]; then
+      kraken2 --db "$KRAKEN_DB" --threads 4 --quick --report "$sample_out/kraken_report.txt" "$contigs_file" > "$sample_out/kraken_output.txt" 2>/dev/null || true
+      if [[ -s "$sample_out/kraken_report.txt" ]]; then
+          top_species=$(awk -F'\t' 'NR==1{gsub(/^[ \t]+|[ \t]+$/, "", $6); print $6}' "$sample_out/kraken_report.txt")
+          if [[ "$top_species" != *"Mycobacterium tuberculosis"* ]]; then status="Flagged"; reason="Possible contamination ($top_species)"; fi
+      fi
   fi
 
   { flock -x 200; printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
@@ -105,13 +106,11 @@ run_sample() {
 export -f run_sample
 export INPUT_DIR OUTDIR GSIZE MIN_COVERAGE MIN_READS SAMPLE_SEQ_LINES CPUS RAM KRAKEN_DB REPORT REPORT_LOCK
 
-echo "[INFO] Starting parallel Shovill processing..."
+echo "[INFO] Starting parallel Shovill (max 64 GB total)..."
 find "$INPUT_DIR" -name "*_1.trim.fastq.gz" | sort | \
-  parallel -j "$PARALLEL_JOBS" \
-    run_sample {} "$INPUT_DIR" "$OUTDIR" "$GSIZE" "$MIN_COVERAGE" "$MIN_READS" "$SAMPLE_SEQ_LINES" "$CPUS" "$RAM" "$KRAKEN_DB" "$REPORT" "$REPORT_LOCK"
+  parallel -j "$PARALLEL_JOBS" run_sample {}
 
 echo "[INFO] All samples processed. Final report: $REPORT"
-
 
 ```
 Single end  read
