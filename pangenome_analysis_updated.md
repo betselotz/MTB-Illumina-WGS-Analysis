@@ -24,12 +24,17 @@ nano run_shovill.sh
 ```bash
 #!/bin/bash
 
+# ==========================
+#   CONFIGURATION
+# ==========================
 INPUT_DIR="fastp_results_min_50"
 OUTDIR="shovill_results"
 GSIZE=4411532
 MIN_COVERAGE=30
 MIN_READS=10000
 SAMPLE_SEQ_LINES=1000
+CPUS=${CPUS:-16}        # configurable via environment variable
+RAM=64                  # reduced from 120 GB
 REPORT="$OUTDIR/assembly_summary.tsv"
 
 mkdir -p "$OUTDIR"
@@ -43,45 +48,59 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
   sample_out="$OUTDIR/$sample"
   mkdir -p "$sample_out"
 
-  # check if paired file exists
+  status="Pending"
+  reason=""
+
+  # -------------------------
+  # Check paired file
+  # -------------------------
   if [[ ! -f "$R2" ]]; then
-    echo -e "${sample}\tNA\tNA\tNA\tDropped\tMissing R2" >> "$REPORT"
+    status="Dropped"
+    reason="Missing R2"
+    printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$sample" "NA" "NA" "NA" "$status" "$reason" >> "$REPORT"
     continue
   fi
 
-  # skip if already assembled
-  if [[ -f "$sample_out/${sample}_contigs.fa" ]]; then
-    echo -e "${sample}\tNA\tNA\tNA\tSkipped\tAlready assembled" >> "$REPORT"
-    continue
-  fi
-
-  # calculate total reads
+  # -------------------------
+  # Calculate basic stats
+  # -------------------------
   total_lines=$(zcat "$R1" | wc -l)
   total_reads=$(( total_lines / 4 ))
   if [[ $total_reads -le 0 ]]; then
-    echo -e "${sample}\t0\t0\t0\tDropped\tNo reads" >> "$REPORT"
+    status="Dropped"
+    reason="No reads"
+    printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$sample" "0" "0" "0" "$status" "$reason" >> "$REPORT"
     continue
   fi
 
-  # calculate average read length from first SAMPLE_SEQ_LINES sequences
-  avg_len=$(zcat "$R1" | sed -n '2~4p' | head -n "$SAMPLE_SEQ_LINES" | awk '{total+=length($0); count++} END {if(count==0) print 0; else printf "%.0f", total/count}')
+  avg_len=$(zcat "$R1" | sed -n '2~4p' | head -n "$SAMPLE_SEQ_LINES" | \
+            awk '{total+=length($0); count++} END {if(count==0) print 0; else printf "%.0f", total/count}')
   if [[ "$avg_len" -le 0 ]]; then
-    echo -e "${sample}\t${total_reads}\t0\t0\tDropped\tInvalid read length" >> "$REPORT"
+    status="Dropped"
+    reason="Invalid read length"
+    printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$sample" "$total_reads" "0" "0" "$status" "$reason" >> "$REPORT"
     continue
   fi
 
-  # estimated coverage
   estimated_coverage=$(awk -v r="$total_reads" -v l="$avg_len" -v g="$GSIZE" 'BEGIN{cov=(r*l*2)/g; printf "%.2f", cov}')
+
+  # -------------------------
+  # Low-read / low-coverage flags
+  # -------------------------
+  status="Ready"
+  reason="OK"
+
   if [[ $total_reads -lt $MIN_READS ]]; then
-    echo -e "${sample}\t${total_reads}\t${avg_len}\t${estimated_coverage}\tDropped\tLow read count" >> "$REPORT"
-    continue
+    reason="Low read count (<$MIN_READS)"
   elif (( $(echo "$estimated_coverage < $MIN_COVERAGE" | bc -l) )); then
-    echo -e "${sample}\t${total_reads}\t${avg_len}\t${estimated_coverage}\tDropped\tLow coverage (<${MIN_COVERAGE}x)" >> "$REPORT"
-    continue
+    reason="Low coverage (<${MIN_COVERAGE}x)"
   fi
 
-  # run SPAdes via Shovill
-  echo "==> Running Shovill (paired-end, SPAdes) on $sample (reads=${total_reads}, avg_len=${avg_len}, est_cov=${estimated_coverage}x)"
+  echo "==> Running Shovill on $sample (reads=${total_reads}, avg_len=${avg_len}, est_cov=${estimated_coverage}x)"
+
+  # -------------------------
+  # Run Shovill
+  # -------------------------
   shovill \
     --R1 "$R1" \
     --R2 "$R2" \
@@ -92,27 +111,47 @@ for R1 in "$INPUT_DIR"/*_1.trim.fastq.gz; do
     --mincov 30 \
     --depth 100 \
     --namefmt "${sample}_%05d" \
-    --cpus 16 \
-    --ram 120 \
+    --cpus "$CPUS" \
+    --ram "$RAM" \
     --tmpdir "${TMPDIR:-/tmp}" \
     --force
 
-  # check if assembly succeeded
-  if [[ ! -s "$sample_out/contigs.fa" && ! -s "$sample_out/${sample}_contigs.fa" ]]; then
-    echo -e "${sample}\t${total_reads}\t${avg_len}\t${estimated_coverage}\tFailed\tAssembly error" >> "$REPORT"
-    continue
+  # -------------------------
+  # Check assembly output
+  # -------------------------
+  contigs_file="$sample_out/contigs.fa"
+
+  if [[ ! -s "$contigs_file" ]]; then
+    status="Failed"
+    reason="Assembly error (no contigs.fa)"
+  else
+    # Check total assembly size
+    total_len=$(awk '/^>/{if(seq){print length(seq)}; seq=""} !/^>/{seq=seq $0} END{if(seq) print length(seq)}' "$contigs_file" | awk '{sum+=$1} END{print sum}')
+    if [[ -z "$total_len" || "$total_len" -lt 50000 ]]; then
+      status="Failed"
+      reason="Very small assembly (${total_len:-0} bp)"
+    else
+      status="Assembled"
+      # Keep previous reason (OK or low coverage)
+    fi
   fi
 
-  echo -e "${sample}\t${total_reads}\t${avg_len}\t${estimated_coverage}\tAssembled\tOK" >> "$REPORT"
+  # -------------------------
+  # Report
+  # -------------------------
+  {
+    printf "%s\t%s\t%s\t%s\t%s\t%s\n" \
+      "$sample" \
+      "$total_reads" \
+      "$avg_len" \
+      "$estimated_coverage" \
+      "$status" \
+      "$reason"
+  } >> "$REPORT"
 
-  # rename output files consistently
-  for f in "$sample_out"/*; do
-    base=$(basename "$f")
-    mv "$f" "$sample_out/${sample}_$base"
-  done
 done
 
-echo "All samples processed. See $REPORT"
+echo "✅ All samples processed. See report: $REPORT"
 
 ```
 Single end  read
