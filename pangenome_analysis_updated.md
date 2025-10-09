@@ -23,11 +23,9 @@ nano run_shovill.sh
 #####  Step 2: Paste the following into `run_shovill.sh`
 ```bash
 #!/bin/bash
-# =========================================================
-#  Automated Shovill Pipeline with Quality Checks & Parallelization
-# =========================================================
-# Requirements: shovill, bc, awk, zcat, kraken2 (optional), GNU parallel
-# =========================================================
+
+set -euo pipefail
+IFS=$'\n\t'
 
 # -------------------------
 # Configuration
@@ -41,11 +39,12 @@ SAMPLE_SEQ_LINES=1000
 CPUS=${CPUS:-16}         # configurable via environment variable
 RAM=64                   # GB for Shovill
 KRAKEN_DB="/path/to/kraken_db"   # set to "" to disable Kraken2
-PARALLEL_JOBS=4          # how many samples to process in parallel
+PARALLEL_JOBS=4          # number of samples to process in parallel
 REPORT="$OUTDIR/assembly_summary.tsv"
+REPORT_LOCK="$OUTDIR/report.lock"
 
 mkdir -p "$OUTDIR"
-printf "Sample\tTotal_Reads\tAvg_Read_Length\tEstimated_Coverage\tAssembly_Size(bp)\tStatus\tReason\n" > "$REPORT"
+printf "Sample\tTotal_Reads\tAvg_Read_Length\tEstimated_Coverage\tAssembly_Size(bp)\tNum_Contigs\tN50\tRuntime_min\tStatus\tReason\n" > "$REPORT"
 
 # -------------------------
 # Function to process one sample
@@ -62,17 +61,22 @@ run_sample() {
   RAM="$9"
   KRAKEN_DB="${10}"
   REPORT="${11}"
+  REPORT_LOCK="${12}"
 
   R2="${R1/_1.trim.fastq.gz/_2.trim.fastq.gz}"
   sample=$(basename "$R1" _1.trim.fastq.gz)
   sample_out="$OUTDIR/$sample"
 
-  printf "\n📘 [%s] Starting processing...\n" "$sample"
+  echo "[INFO] [$sample] Starting processing..."
   rm -rf "$sample_out"
   mkdir -p "$sample_out"
 
   status="Pending"
   reason=""
+  runtime=0
+  total_len=0
+  n_contigs=0
+  n50=0
 
   # -------------------------
   # Check paired file
@@ -80,8 +84,10 @@ run_sample() {
   if [[ ! -f "$R2" ]]; then
     status="Dropped"
     reason="Missing R2"
-    printf "%s\tNA\tNA\tNA\t0\t%s\t%s\n" "$sample" "$status" "$reason" >> "$REPORT"
-    printf "⚠️  [%s] Missing R2, skipped.\n" "$sample"
+    flock -x 200 >>"$REPORT" 2>/dev/null <<EOF
+$sample\tNA\tNA\tNA\t0\t0\t0\t0\t$status\t$reason
+EOF
+    echo "[WARN] [$sample] Missing R2, skipped."
     return
   fi
 
@@ -93,8 +99,10 @@ run_sample() {
   if [[ $total_reads -le 0 ]]; then
     status="Dropped"
     reason="No reads"
-    printf "%s\t0\t0\t0\t0\t%s\t%s\n" "$sample" "$status" "$reason" >> "$REPORT"
-    printf "⚠️  [%s] No reads detected.\n" "$sample"
+    flock -x 200 >>"$REPORT" 2>/dev/null <<EOF
+$sample\t0\t0\t0\t0\t0\t0\t0\t$status\t$reason
+EOF
+    echo "[WARN] [$sample] No reads detected."
     return
   fi
 
@@ -103,15 +111,17 @@ run_sample() {
   if [[ "$avg_len" -le 0 ]]; then
     status="Dropped"
     reason="Invalid read length"
-    printf "%s\t%s\t0\t0\t0\t%s\t%s\n" "$sample" "$total_reads" "$status" "$reason" >> "$REPORT"
-    printf "⚠️  [%s] Invalid read length.\n" "$sample"
+    flock -x 200 >>"$REPORT" 2>/dev/null <<EOF
+$sample\t$total_reads\t0\t0\t0\t0\t0\t0\t$status\t$reason
+EOF
+    echo "[WARN] [$sample] Invalid read length."
     return
   fi
 
   estimated_coverage=$(awk -v r="$total_reads" -v l="$avg_len" -v g="$GSIZE" 'BEGIN{cov=(r*l*2)/g; printf "%.2f", cov}')
 
   # -------------------------
-  # Low-read / low-coverage flags
+  # Low-read / low-coverage check
   # -------------------------
   status="Ready"
   reason="OK"
@@ -123,28 +133,29 @@ run_sample() {
 
   if [[ "$reason" != "OK" ]]; then
     status="Skipped"
-    printf "%s\t%s\t%s\t%s\t0\t%s\t%s\n" "$sample" "$total_reads" "$avg_len" "$estimated_coverage" "$status" "$reason" >> "$REPORT"
-    printf "⚠️  [%s] Skipping due to %s.\n" "$sample" "$reason"
+    flock -x 200 >>"$REPORT" 2>/dev/null <<EOF
+$sample\t$total_reads\t$avg_len\t$estimated_coverage\t0\t0\t0\t0\t$status\t$reason
+EOF
+    echo "[WARN] [$sample] Skipping due to $reason."
     rm -rf "$sample_out"
     return
   fi
 
-  printf "🚀 [%s] Running Shovill (reads=%s, len=%s, cov=%sx)\n" "$sample" "$total_reads" "$avg_len" "$estimated_coverage"
+  echo "[INFO] [$sample] Running Shovill (reads=$total_reads, len=$avg_len, cov=${estimated_coverage}x)"
 
   # -------------------------
   # Optional Kraken2 check
   # -------------------------
   if [[ -n "$KRAKEN_DB" && -d "$KRAKEN_DB" ]]; then
-    printf "🔬 [%s] Running Kraken2 for contamination check...\n" "$sample"
+    echo "[INFO] [$sample] Running Kraken2 contamination check..."
     kraken2 --db "$KRAKEN_DB" --threads "$CPUS" --report "$sample_out/kraken_report.txt" \
-            --paired "$R1" "$R2" > "$sample_out/kraken_output.txt"
+            --paired "$R1" "$R2" > "$sample_out/kraken_output.txt" 2>/dev/null || true
   fi
 
   # -------------------------
-  # Run Shovill (relaxed parameters)
+  # Run Shovill
   # -------------------------
   start_time=$(date +%s)
-
   shovill \
     --R1 "$R1" \
     --R2 "$R2" \
@@ -159,54 +170,70 @@ run_sample() {
     --cpus "$CPUS" \
     --ram "$RAM" \
     --tmpdir "${TMPDIR:-/tmp}" \
-    --force > "$sample_out/shovill.log" 2>&1
-
+    --force > "$sample_out/shovill.log" 2>&1 || true
   end_time=$(date +%s)
   runtime=$(( (end_time - start_time) / 60 ))
 
   # -------------------------
-  # Check assembly output
+  # Post-assembly validation
   # -------------------------
   contigs_file="$sample_out/contigs.fa"
-  total_len=0
-
   if [[ -s "$contigs_file" ]]; then
     total_len=$(awk '/^>/{if(seq){print length(seq)}; seq=""} !/^>/{seq=seq $0} END{if(seq) print length(seq)}' "$contigs_file" | awk '{sum+=$1} END{print sum}')
+    n_contigs=$(grep -c '^>' "$contigs_file")
+    n50=$(awk '/^>/{if (len) {lens[len_i++]=len}; len=0; next} {len+=length($0)} END{if (len) lens[len_i++]=len; asort(lens); sum=0; total=0; for(i in lens) total+=lens[i]; cutoff=total/2; sum=0; for(i in lens){sum+=lens[i]; if(sum>=cutoff){print lens[i]; break}}}' "$contigs_file")
+
     if [[ -z "$total_len" || "$total_len" -lt 1000000 ]]; then
       status="Failed"
       reason="Very small assembly (${total_len:-0} bp)"
-      printf "❌ [%s] Assembly too small: %s bp\n" "$sample" "$total_len"
+      echo "[ERROR] [$sample] Assembly too small: ${total_len:-0} bp"
     else
       status="Assembled"
       reason="OK"
-      printf "✅ [%s] Assembly successful: %s bp (runtime %d min)\n" "$sample" "$total_len" "$runtime"
+      echo "[INFO] [$sample] Assembly successful: ${total_len} bp, ${n_contigs} contigs, N50=${n50}, runtime=${runtime} min"
     fi
   else
     status="Failed"
     reason="Assembly error (no contigs.fa)"
-    printf "❌ [%s] No contigs.fa found.\n" "$sample"
+    echo "[ERROR] [$sample] No contigs.fa found."
   fi
 
   # -------------------------
-  # Append to report
+  # Check for contamination (Kraken2 dominant species)
   # -------------------------
-  printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-    "$sample" "$total_reads" "$avg_len" "$estimated_coverage" "${total_len:-0}" "$status" "$reason" >> "$REPORT"
+  if [[ -s "$sample_out/kraken_report.txt" ]]; then
+    top_species=$(awk -F'\t' 'NR==1{gsub(/^[ \t]+|[ \t]+$/, "", $6); print $6}' "$sample_out/kraken_report.txt")
+    if [[ "$top_species" != *"Mycobacterium tuberculosis"* ]]; then
+      status="Flagged"
+      reason="Possible contamination ($top_species)"
+      echo "[WARN] [$sample] Contamination detected: $top_species"
+    fi
+  fi
+
+  # -------------------------
+  # Write to report safely
+  # -------------------------
+  {
+    flock -x 200
+    printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+      "$sample" "$total_reads" "$avg_len" "$estimated_coverage" "${total_len:-0}" \
+      "${n_contigs:-0}" "${n50:-0}" "$runtime" "$status" "$reason" >> "$REPORT"
+  } 200>"$REPORT_LOCK"
 }
 
 export -f run_sample
-export INPUT_DIR OUTDIR GSIZE MIN_COVERAGE MIN_READS SAMPLE_SEQ_LINES CPUS RAM KRAKEN_DB REPORT
+export INPUT_DIR OUTDIR GSIZE MIN_COVERAGE MIN_READS SAMPLE_SEQ_LINES CPUS RAM KRAKEN_DB REPORT REPORT_LOCK
 
 # -------------------------
 # Run all samples in parallel
 # -------------------------
-printf "\n🧩 Starting parallel Shovill processing using %d jobs and %d CPUs per job...\n" "$PARALLEL_JOBS" "$CPUS"
+echo "[INFO] Starting parallel Shovill processing using $PARALLEL_JOBS jobs and $CPUS CPUs per job..."
 
 find "$INPUT_DIR" -name "*_1.trim.fastq.gz" | sort | \
   parallel -j "$PARALLEL_JOBS" \
-    run_sample {} "$INPUT_DIR" "$OUTDIR" "$GSIZE" "$MIN_COVERAGE" "$MIN_READS" "$SAMPLE_SEQ_LINES" "$CPUS" "$RAM" "$KRAKEN_DB" "$REPORT"
+    run_sample {} "$INPUT_DIR" "$OUTDIR" "$GSIZE" "$MIN_COVERAGE" "$MIN_READS" "$SAMPLE_SEQ_LINES" "$CPUS" "$RAM" "$KRAKEN_DB" "$REPORT" "$REPORT_LOCK"
 
-printf "\n✅ All samples processed. Final report: %s\n" "$REPORT"
+echo "[INFO] All samples processed. Final report: $REPORT"
 
 ```
 Single end  read
