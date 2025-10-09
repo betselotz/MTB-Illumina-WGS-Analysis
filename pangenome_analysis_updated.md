@@ -416,62 +416,6 @@ conda activate quast_env
 ./run_quast_shovill.sh
 ```
 
-##### Step 1: Create or edit the script
-``` bash
-nano run_assembly_scan_shovill.sh
-``` 
-#####  Step 2: Paste the following into `run_assembly_scan_shovill.sh`
-
-``` bash
-#!/bin/bash
-set -euo pipefail
-
-SHOVILL_DIR="shovill_results"
-CSV_OUTDIR="quast_results"
-mkdir -p "$CSV_OUTDIR"
-CSV_FILE="$CSV_OUTDIR/shovill_assembly_scan.csv"
-
-echo "Sample,total_contig,total_contig_length,max_contig_length,mean_contig_length,median_contig_length,min_contig_length,n50_contig_length,l50_contig_count,contig_percent_a,contig_percent_c,contig_percent_g,contig_percent_t,contigs_greater_1k,contigs_greater_10k,contigs_greater_100k" > "$CSV_FILE"
-
-for sample_dir in "$SHOVILL_DIR"/*/; do
-    sample=$(basename "$sample_dir")
-    contig_file="${sample_dir}${sample}_contigs.fa"
-
-    if [[ -f "$contig_file" ]]; then
-        tmp=$(mktemp)
-        assembly-scan "$contig_file" --transpose | tail -n +2 > "$tmp"
-
-        declare -A data
-        while IFS=$'\t' read -r contig metric value; do
-            data["$metric"]="$value"
-        done < "$tmp"
-
-        rm "$tmp"
-
-        printf "%s" "$sample" >> "$CSV_FILE"
-        for col in total_contig total_contig_length max_contig_length mean_contig_length median_contig_length min_contig_length n50_contig_length l50_contig_count contig_percent_a contig_percent_c contig_percent_g contig_percent_t contigs_greater_1k contigs_greater_10k contigs_greater_100k; do
-            printf ",%s" "${data[$col]:-0}" >> "$CSV_FILE"
-        done
-        echo "" >> "$CSV_FILE"
-    fi
-done
-
-``` 
-##### Step 3: Save and exit nano
-Press Ctrl + O → Enter (to write the file)
-Press Ctrl + X → Exit nano
-
-###### Step 4: Make the script executable
-``` bash
-chmod +x run_assembly_scan_shovill.sh
-```
-###### Step 5: Activate environment and run
-``` bash
-conda activate assembly_scan_env
-./run_assembly_scan_shovill.sh
-```
-
-
 
 #### 4. estimate genome completeness/contamination for all assemblies with CheckM
 ######   Step 1: Create the Shovill CheckM script
@@ -483,40 +427,89 @@ nano run_checkm_shovill.sh
 #!/bin/bash
 set -euo pipefail
 
+# Enable nullglob so globs that don't match anything expand to nothing
+shopt -s nullglob
+
 # Directories
 SHOVILL_DIR="shovill_results"
 CHECKM_PARENT="checkm_results"
 CHECKM_DIR="$CHECKM_PARENT/checkm_results_shovill"
 INPUT_DIR="$CHECKM_DIR/input"
+LOG_FILE="$CHECKM_DIR/skipped_samples.log"
 
+# Create directories
 mkdir -p "$CHECKM_DIR" "$INPUT_DIR"
 
-# Clear previous input files if any
-rm -f "$INPUT_DIR"/*.fasta
+# Clear previous input files and logs
+rm -f "$INPUT_DIR"/*.fasta "$LOG_FILE"
 
-# Copy contigs files into input directory
+# Check if CheckM is installed
+if ! command -v checkm &> /dev/null; then
+    echo "Error: CheckM is not installed or not in PATH."
+    exit 1
+fi
+
+echo "Preparing contigs files for CheckM..."
 for sample_out in "$SHOVILL_DIR"/*; do
     [[ -d "$sample_out" ]] || continue
     sample=$(basename "$sample_out")
     
+    # Collect contigs files
     contigs_files=("$sample_out"/*_contigs.fa)
+    
+    # Skip if no contigs found
     if [[ ${#contigs_files[@]} -eq 0 ]]; then
         echo "Warning: No contigs file found for sample $sample"
+        echo "$sample : No contigs file found" >> "$LOG_FILE"
         continue
     fi
 
-    # Concatenate multiple contigs into a single file if needed
+    # Skip if contigs are empty
+    total_size=0
+    for f in "${contigs_files[@]}"; do
+        if [[ ! -s "$f" ]]; then
+            echo "Warning: Contigs file $f is empty"
+        else
+            (( total_size += $(stat -c%s "$f") ))
+        fi
+    done
+
+    if [[ $total_size -eq 0 ]]; then
+        echo "Warning: All contigs files for sample $sample are empty"
+        echo "$sample : All contigs empty" >> "$LOG_FILE"
+        continue
+    fi
+
+    # Concatenate contigs into a single file for CheckM
     cat "${contigs_files[@]}" > "$INPUT_DIR/${sample}.fasta"
 done
 
-# Run CheckM lineage workflow
+# Check if there is any input for CheckM
+if [[ $(ls "$INPUT_DIR"/*.fasta 2>/dev/null | wc -l) -eq 0 ]]; then
+    echo "No valid contigs found. Exiting."
+    exit 0
+fi
+
+echo "Running CheckM lineage workflow..."
 checkm lineage_wf -x fasta "$INPUT_DIR" "$CHECKM_DIR" -t 8
 
-# Generate CSV summary in CHECKM_DIR
+# Verify lineage.ms exists
+if [[ ! -f "$CHECKM_DIR/lineage.ms" ]]; then
+    echo "Error: lineage.ms file not found after CheckM run."
+    exit 1
+fi
+
+# Generate CSV summary
 CSV_FILE="$CHECKM_DIR/checkm_summary_shovill.csv"
 checkm qa "$CHECKM_DIR/lineage.ms" "$CHECKM_DIR" -o 2 -t 8 > "$CSV_FILE"
 
 echo "CheckM summary saved to $CSV_FILE"
+
+# Summary of skipped samples
+if [[ -f "$LOG_FILE" ]]; then
+    echo "Skipped samples logged in $LOG_FILE"
+fi
+
 
 ``` 
 ###### Step 3: Make scripts executable
