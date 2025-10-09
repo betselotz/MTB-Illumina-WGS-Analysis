@@ -544,130 +544,125 @@ Copy this into nano:
 set -euo pipefail
 shopt -s nullglob
 
-# --------------------------
-# Config
-# --------------------------
+# -----------------------------
+# CONFIG
+# -----------------------------
 ASSEMBLY_DIR="shovill_results"
-READS_DIR="fastp_results_min_50"
-OUTDIR="backmap_results"
+READ_DIR="fastp_results_min_50"
+OUTDIR="backmap_stats"
 THREADS=8
 MAX_AVG_COVERAGE=1000
 MIN_AVG_COVERAGE=1
 
 mkdir -p "$OUTDIR"/{bams,depths,logs}
 
-SUMMARY_FILE="$OUTDIR/shovill_assembly_summary.tsv"
-echo -e "Sample\tTotal_Reads\tMapped_Reads\tPercent_Mapped\tAvg_Coverage\tMedian_Depth\tMin_Depth\tMax_Depth\tMean_Mapping_Quality\tPercent_Proper_Pairs\tCoverage_Breadth\tWarnings" > "$SUMMARY_FILE"
+SUMMARY="$OUTDIR/backmap_summary.tsv"
+echo -e "Sample\tTotal_Reads\tMapped_Reads\tPercent_Mapped\tAvg_Coverage\tMedian_Depth\tMin_Depth\tMax_Depth\tMean_Mapping_Quality\tPercent_Proper_Pairs\tWarnings" > "$SUMMARY"
 
-# --------------------------
-# Process each assembly
-# --------------------------
-for asm_dir in "$ASSEMBLY_DIR"/*; do
-    [[ -d "$asm_dir" ]] || continue
-    sample=$(basename "$asm_dir")
-    asm=$(ls "$asm_dir"/*contigs*.fa* 2>/dev/null | head -n1 || true)
+echo "🔍 Searching for FASTQ files in: $READ_DIR"
+
+# -----------------------------
+# MAIN LOOP
+# -----------------------------
+for R1 in "$READ_DIR"/*_1.trim.fastq.gz; do
+    [[ -e "$R1" ]] || { echo "⚠️ No R1 FASTQs found."; break; }
+
+    sample=$(basename "$R1" | sed 's/_1\.trim\.fastq\.gz//')
+    R2="$READ_DIR/${sample}_2.trim.fastq.gz"
+    [[ -f "$R2" ]] || { echo "⚠️ Missing R2 for $sample"; continue; }
+
+    asm=$(ls "$ASSEMBLY_DIR/${sample}"/*contigs*.fa* 2>/dev/null | head -n1 || true)
+    [[ -f "$asm" ]] || { echo "⚠️ No assembly for $sample"; continue; }
+
+    log="$OUTDIR/logs/${sample}.log"
+    bam="$OUTDIR/bams/${sample}.bam"
+    depth="$OUTDIR/depths/${sample}.depth"
     warnings=""
 
-    # Skip if no assembly
-    if [[ -z "$asm" || ! -f "$asm" ]]; then
-        echo "[$sample] No assembly FASTA found." | tee "$OUTDIR/logs/$sample.log"
-        continue
-    fi
+    echo "🧬 Processing $sample..." | tee "$log"
 
-    # Find paired reads
-    r1=$(ls "$READS_DIR/${sample}"*_R1*.fastq.gz "$READS_DIR/${sample}"*_1*.fastq.gz 2>/dev/null | head -n1 || true)
-    r2=$(ls "$READS_DIR/${sample}"*_R2*.fastq.gz "$READS_DIR/${sample}"*_2*.fastq.gz 2>/dev/null | head -n1 || true)
-    if [[ -z "$r1" || -z "$r2" ]]; then
-        echo "[$sample] Missing read files." | tee "$OUTDIR/logs/$sample.log"
-        continue
-    fi
+    # Build BWA index if not found
+    [[ ! -f "${asm}.bwt" ]] && bwa index "$asm" >>"$log" 2>&1
 
-    echo "[$sample] Mapping reads..." | tee "$OUTDIR/logs/$sample.log"
-
-    # Build BWA index if needed
-    if [[ ! -f "${asm}.bwt" ]]; then
-        bwa index "$asm" >> "$OUTDIR/logs/$sample.log" 2>&1
-    fi
-
-    bam="$OUTDIR/bams/${sample}.bam"
-    bwa mem -t "$THREADS" "$asm" "$r1" "$r2" \
+    # Align reads
+    bwa mem -t "$THREADS" "$asm" "$R1" "$R2" 2>>"$log" \
         | samtools view -bS - \
         | samtools sort -@ "$THREADS" -o "$bam"
     samtools index "$bam"
 
+    # Total reads
+    total_r1=$(zcat "$R1" | echo $(( $(wc -l) / 4 )) )
+    total_r2=$(zcat "$R2" | echo $(( $(wc -l) / 4 )) )
+    total=$(( (total_r1 + total_r2) / 2 ))
+
+    # Mapped reads
     mapped=$(samtools view -c -F 4 "$bam")
-    total_r1=$(( $(zcat "$r1" | wc -l) / 4 ))
-    total_r2=$(( $(zcat "$r2" | wc -l) / 4 ))
-    total=$(( total_r1 + total_r2 ))
-
-    if [[ "$mapped" -eq 0 ]]; then
-        warnings="No reads mapped"
-        echo -e "$sample\t$total\t0\t0\tNA\tNA\tNA\tNA\tNA\tNA\tNA\t$warnings" >> "$SUMMARY_FILE"
-        continue
-    fi
-
     percent_mapped=$(awk -v m=$mapped -v t=$total 'BEGIN{if(t>0) printf "%.2f", (m/t)*100; else print 0}')
 
-    # --------------------------
-    # 🚦 Mapping interpretation scale
-    # --------------------------
-    if (( $(echo "$percent_mapped < 1" | bc -l) )); then
-        warnings="Critical: <1% mapped — almost certainly wrong reference or severe contamination"
-    elif (( $(echo "$percent_mapped < 10" | bc -l) )); then
-        warnings="Very Poor: <10% mapped — likely wrong reference or severe contamination"
-    elif (( $(echo "$percent_mapped < 50" | bc -l) )); then
-        warnings="Poor: <50% mapped — wrong reference or poor sequencing"
-    elif (( $(echo "$percent_mapped < 80" | bc -l) )); then
-        warnings="Moderate/Suspicious: 50–80% mapped — possible contamination or mixed sample"
-    elif (( $(echo "$percent_mapped < 95" | bc -l) )); then
-        warnings="Good: 80–95% mapped — likely same species, slight divergence"
-    else
-        warnings="Excellent: >95% mapped — expected for same strain"
-    fi
+    # Mean mapping quality
+    mean_mapq=$(samtools view "$bam" | awk '{sum+=$5; n++} END{if(n>0) printf "%.4f", sum/n; else print 0}')
 
-    # --------------------------
-    # Depth and quality metrics
-    # --------------------------
-    depth_file="$OUTDIR/depths/${sample}.depth"
-    samtools depth -a "$bam" > "$depth_file"
-
-    if [[ ! -s "$depth_file" ]]; then
-        warnings="${warnings}; Empty depth file"
-        echo -e "$sample\t$total\t$mapped\t$percent_mapped\tNA\tNA\tNA\tNA\tNA\tNA\tNA\t$warnings" >> "$SUMMARY_FILE"
-        continue
-    fi
-
-    avgcov=$(awk '{sum+=$3} END{if(NR>0) print sum/NR; else print 0}' "$depth_file")
-    mediancov=$(awk '{print $3}' "$depth_file" | sort -n | awk '{a[NR]=$1} END{if(NR==0) print 0; else if(NR%2==1) print a[(NR+1)/2]; else print (a[NR/2]+a[NR/2+1])/2}')
-    mindepth=$(awk 'NR==1 || $3<min{min=$3} END{print min+0}' "$depth_file")
-    maxdepth=$(awk 'NR==1 || $3>max{max=$3} END{print max+0}' "$depth_file")
-
-    mean_qual=$(samtools view "$bam" | awk '{sum+=$5; n++} END{if(n>0) printf "%.4f", sum/n; else print 0}')
-
+    # Proper pairs
     proper_pairs=$(samtools view -c -f 2 "$bam")
     percent_proper=$(awk -v p=$proper_pairs -v t=$total 'BEGIN{if(t>0) printf "%.2f", (p/t)*100; else print 0}')
 
-    total_positions=$(wc -l < "$depth_file")
-    covered_positions=$(awk '$3>=1{c++} END{print c+0}' "$depth_file")
-    breadth=$(awk -v cov=$covered_positions -v tot=$total_positions 'BEGIN{if(tot>0) printf "%.2f", (cov/tot)*100; else print 0}')
+    # Depths
+    samtools depth -a "$bam" > "$depth"
+    total_positions=$(wc -l < "$depth" || echo 0)
+    if [[ "$total_positions" -eq 0 ]]; then
+        echo -e "$sample\t$total\t$mapped\t$percent_mapped\tNA\tNA\tNA\tNA\t$mean_mapq\t$percent_proper\tNo depth data" >>"$SUMMARY"
+        continue
+    fi
 
-    # ⚠️ Coverage warnings
+    avgcov=$(awk '{sum+=$3} END{if(NR>0) printf "%.3f", sum/NR; else print 0}' "$depth")
+
+    # Median depth (POSIX-compatible)
+    mediancov=$(awk '{
+        a[NR]=$3
+    } END {
+        if(NR==0){print 0}
+        else{
+            n=NR
+            # Simple bubble sort
+            for(i=1;i<=n;i++){for(j=i+1;j<=n;j++){if(a[i]>a[j]){t=a[i];a[i]=a[j];a[j]=t}}}
+            if(n%2==1) print a[int((n+1)/2)]
+            else print (a[n/2]+a[n/2+1])/2
+        }
+    }' "$depth")
+
+    mindepth=$(awk 'NR==1{min=$3} $3<min{min=$3} END{print min+0}' "$depth")
+    maxdepth=$(awk 'NR==1{max=$3} $3>max{max=$3} END{print max+0}' "$depth")
+
+    # -----------------------------
+    # Mapping interpretation
+    # -----------------------------
+    if (( $(echo "$percent_mapped > 95" | bc -l) )); then
+        warnings="Excellent: >95% mapped — expected if same strain."
+    elif (( $(echo "$percent_mapped >= 80" | bc -l) )); then
+        warnings="Good: 80–95% mapped — same species, slight divergence."
+    elif (( $(echo "$percent_mapped >= 50" | bc -l) )); then
+        warnings="Moderate/Suspicious: 50–80% mapped — possible contamination or mismatch."
+    elif (( $(echo "$percent_mapped >= 10" | bc -l) )); then
+        warnings="Poor: 10–50% mapped — likely reference mismatch."
+    elif (( $(echo "$percent_mapped >= 1" | bc -l) )); then
+        warnings="Very Poor: <10% mapped — likely wrong reference or severe contamination."
+    else
+        warnings="Critical: <1% mapped — almost certainly wrong reference or contamination."
+    fi
+
+    # Coverage warnings
     if (( $(echo "$avgcov > $MAX_AVG_COVERAGE" | bc -l) )); then
         warnings="${warnings}; High coverage (> ${MAX_AVG_COVERAGE}×)"
-    fi
-    if (( $(echo "$avgcov < $MIN_AVG_COVERAGE" | bc -l) )); then
+    elif (( $(echo "$avgcov < $MIN_AVG_COVERAGE" | bc -l) )); then
         warnings="${warnings}; Low coverage (< ${MIN_AVG_COVERAGE}×)"
     fi
 
-    # --------------------------
-    # Write to summary
-    # --------------------------
-    echo -e "$sample\t$total\t$mapped\t$percent_mapped\t$avgcov\t$mediancov\t$mindepth\t$maxdepth\t$mean_qual\t$percent_proper\t$breadth\t$warnings" >> "$SUMMARY_FILE"
+    # Output
+    echo -e "$sample\t$total\t$mapped\t$percent_mapped\t$avgcov\t$mediancov\t$mindepth\t$maxdepth\t$mean_mapq\t$percent_proper\t$warnings" >> "$SUMMARY"
+
 done
 
-echo "✅ Assembly quality summary saved to: $SUMMARY_FILE"
-
-
+echo "✅ Backmapping summary completed: $SUMMARY"
 ```
 
 Save and exit nano
