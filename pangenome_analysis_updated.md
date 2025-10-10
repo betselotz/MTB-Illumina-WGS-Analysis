@@ -82,7 +82,13 @@ run_sample() {
           > "$sample_out/shovill.log" 2>&1 || true
   runtime=$(( ( $(date +%s) - start_time ) / 60 ))
 
-  contigs_file="$sample_out/contigs.fa"
+  # --- Rename contigs file to include sample name ---
+  if [[ -f "$sample_out/contigs.fa" ]]; then
+      mv "$sample_out/contigs.fa" "$sample_out/${sample}_contigs.fa"
+  fi
+  contigs_file="$sample_out/${sample}_contigs.fa"
+  # --------------------------------------------------
+
   total_len=0; n_contigs=0; n50=0
   if [[ -s "$contigs_file" ]]; then
       mapfile -t contig_lengths < <(awk '/^>/{if(seq){print length(seq)}; seq=""} !/^>/{seq=seq $0} END{if(seq) print length(seq)}' "$contigs_file" | sort -nr)
