@@ -39,6 +39,12 @@ KRAKEN_DB="/path/to/kraken_db"
 REPORT="$OUTDIR/assembly_summary.tsv"
 REPORT_LOCK="$OUTDIR/report.lock"
 
+# Safety check: if kraken2 isn't found, disable contamination check
+if ! command -v kraken2 &>/dev/null; then
+  echo "[WARN] Kraken2 not found in environment — skipping contamination checks."
+  KRAKEN_DB=""
+fi
+
 mkdir -p "$OUTDIR"
 printf "Sample\tTotal_Reads\tAvg_Read_Length\tEstimated_Coverage\tAssembly_Size(bp)\tNum_Contigs\tN50\tRuntime_min\tStatus\tReason\n" > "$REPORT"
 
@@ -89,13 +95,27 @@ run_sample() {
       status="Failed"; reason="Assembly error (no contigs.fa)"
   fi
 
+  # ---- Fixed and safe Kraken2 command ----
   if [[ -n "$KRAKEN_DB" && -s "$contigs_file" ]]; then
-      kraken2 --db "$KRAKEN_DB" --threads 4 --quick --report "$sample_out/kraken_report.txt" "$contigs_file" > "$sample_out/kraken_output.txt" 2>/dev/null || true
+      echo "[INFO] [$sample] Running Kraken2 contamination check..."
+      kraken2 --db "$KRAKEN_DB" \
+              --threads 4 \
+              --use-names \
+              --report "$sample_out/kraken_report.txt" \
+              --output "$sample_out/kraken_output.txt" \
+              "$contigs_file" > "$sample_out/kraken.log" 2>&1 || true
+
       if [[ -s "$sample_out/kraken_report.txt" ]]; then
-          top_species=$(awk -F'\t' 'NR==1{gsub(/^[ \t]+|[ \t]+$/, "", $6); print $6}' "$sample_out/kraken_report.txt")
-          if [[ "$top_species" != *"Mycobacterium tuberculosis"* ]]; then status="Flagged"; reason="Possible contamination ($top_species)"; fi
+          top_species=$(awk -F'\t' 'NR==1{gsub(/^[ \t]+|[ \t]+$/, "", $6); print $6}' "$sample_out/kraken_report.txt" | head -n1)
+          if [[ "$top_species" != *"Mycobacterium tuberculosis"* ]]; then
+              status="Flagged"
+              reason="Possible contamination ($top_species)"
+          fi
+      else
+          echo "[WARN] [$sample] Kraken report empty or no classification results."
       fi
   fi
+  # ----------------------------------------
 
   { flock -x 200; printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
       "$sample" "$total_reads" "$avg_len" "$estimated_coverage" "${total_len:-0}" "${n_contigs:-0}" "${n50:-0}" "$runtime" "$status" "$reason" >> "$REPORT"; } 200>"$REPORT_LOCK"
