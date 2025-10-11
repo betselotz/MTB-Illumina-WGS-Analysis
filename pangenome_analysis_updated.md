@@ -732,112 +732,113 @@ nano run_prokka_shovill.sh
 ```bash
 #!/bin/bash
 set -euo pipefail
+IFS=$'\n\t'
 
 # === CONFIGURATION ===
 SHOVILL_DIR="shovill_results"
 PROKKA_DIR="prokka_results/shovill"
 LOG="$PROKKA_DIR/prokka_summary.log"
 SUMMARY_TSV="$PROKKA_DIR/prokka_annotation_summary.tsv"
-GBK_COLLECT="$PROKKA_DIR/gbk_collection"
-FAA_COLLECT="$PROKKA_DIR/faa_collection"
+CPUS=${CPUS:-4}
 
-mkdir -p "$PROKKA_DIR" "$GBK_COLLECT" "$FAA_COLLECT"
+mkdir -p "$PROKKA_DIR"
 : > "$LOG"
 
 # === CHECK DEPENDENCIES ===
-if ! command -v prokka &>/dev/null; then
-  echo "Error: Prokka not found in PATH."
-  exit 1
-fi
+for cmd in prokka parallel; do
+  command -v "$cmd" &>/dev/null || { echo "Error: $cmd not found in PATH"; exit 1; }
+done
 
 # === FUNCTION ===
 run_prokka() {
-  sample_out="$1"
-  sample=$(basename "$sample_out")
+    sample_out="$1"
+    sample=$(basename "$sample_out")
 
-  contigs=("$sample_out"/*contigs*.fa*)
-  contigs="${contigs[0]:-}"
-  [[ -z "$contigs" ]] && { echo "[WARN] No contigs for $sample" | tee -a "$LOG"; return; }
+    # === BULLETPROOF CONTIG DETECTION ===
+    contig_candidates=(
+        "$sample_out"/*contigs*.fa
+        "$sample_out"/*contigs*.fasta
+        "$sample_out"/*scaffolds*.fa
+        "$sample_out"/*scaffolds*.fasta
+    )
 
-  outdir="$PROKKA_DIR/$sample"
-  [[ -d "$outdir" && -s "$outdir/$sample.gff" ]] && {
-    echo "[INFO] Skipping $sample (already annotated)" | tee -a "$LOG"
-    return
-  }
+    contigs=""
+    for f in "${contig_candidates[@]}"; do
+        [[ -s "$f" ]] && { contigs="$f"; break; }
+    done
 
-  echo "[INFO] Annotating $sample..." | tee -a "$LOG"
+    [[ -z "$contigs" ]] && { 
+        echo "[WARN] No contigs found for $sample" | tee -a "$LOG"
+        return
+    }
 
-  if prokka --outdir "$outdir" \
-            --prefix "$sample" \
-            --locustag "$sample" \
-            --kingdom Bacteria \
-            --genus Mycobacterium \
-            --species tuberculosis \
-            --strain "$sample" \
-            --cpus 4 \
-            --evalue 1e-9 \
-            --centre TBLab \
-            --compliant \
-            --addgenes \
-            --force \
-            --quiet \
-            "$contigs"; then
-    echo "[OK] $sample annotated successfully" | tee -a "$LOG"
-  else
-    echo "[ERROR] Prokka failed for $sample" | tee -a "$LOG"
-  fi
+    outdir="$PROKKA_DIR/$sample"
+
+    # Skip if already annotated
+    [[ -d "$outdir" && -s "$outdir/${sample}.tsv" ]] && {
+        echo "[INFO] Skipping $sample (already annotated)" | tee -a "$LOG"
+        return
+    }
+
+    echo "[INFO] Annotating $sample with $contigs..." | tee -a "$LOG"
+
+    if prokka --outdir "$outdir" \
+              --prefix "$sample" \
+              --locustag "$sample" \
+              --kingdom Bacteria \
+              --genus Mycobacterium \
+              --species tuberculosis \
+              --strain "$sample" \
+              --cpus "$CPUS" \
+              --evalue 1e-9 \
+              --centre TBLab \
+              --compliant \
+              --addgenes \
+              --force \
+              "$contigs"; then
+        echo "[OK] $sample annotated successfully" | tee -a "$LOG"
+    else
+        echo "[ERROR] Prokka failed for $sample" | tee -a "$LOG"
+        return
+    fi
 }
 
 export -f run_prokka
-export PROKKA_DIR LOG
+export PROKKA_DIR LOG CPUS
 
 # === RUN ANNOTATIONS IN PARALLEL ===
 echo "[INFO] Starting Prokka annotation on Shovill results..."
 find "$SHOVILL_DIR" -maxdepth 1 -mindepth 1 -type d | parallel -j "$(nproc)" run_prokka {}
 
-# === SUMMARY TABLE ===
+# === GENERATE SUMMARY TSV ===
 echo "[INFO] Generating annotation summary..."
 echo -e "Sample\tGenes\tCDS\trRNA\ttRNA\ttmRNA\tContigs\tBases" > "$SUMMARY_TSV"
 
 for folder in "$PROKKA_DIR"/*; do
-  [[ -d "$folder" ]] || continue
-  sample=$(basename "$folder")
-  stats_file="$folder/${sample}.txt"
-  [[ -s "$stats_file" ]] || { echo "[WARN] Missing stats file for $sample" | tee -a "$LOG"; continue; }
+    [[ -d "$folder" ]] || continue
+    sample=$(basename "$folder")
+    tsv_file="$folder/${sample}.tsv"
+    fasta_file="$folder/${sample}.fna"
 
-  genes=$(grep -m1 '^Genes:' "$stats_file" | awk '{print $2}')
-  cds=$(grep -m1 '^CDS:' "$stats_file" | awk '{print $2}')
-  rrna=$(grep -m1 '^rRNA:' "$stats_file" | awk '{print $2}')
-  trna=$(grep -m1 '^tRNA:' "$stats_file" | awk '{print $2}')
-  tmrna=$(grep -m1 '^tmRNA:' "$stats_file" | awk '{print $2}')
-  contigs=$(grep -m1 '^Contigs:' "$stats_file" | awk '{print $2}')
-  bases=$(grep -m1 '^Bases:' "$stats_file" | awk '{print $2}')
+    [[ -s "$tsv_file" ]] || { echo "[WARN] Missing TSV file for $sample" | tee -a "$LOG"; continue; }
+    [[ -s "$fasta_file" ]] || { echo "[WARN] Missing FASTA file for $sample" | tee -a "$LOG"; continue; }
 
-  echo -e "${sample}\t${genes:-0}\t${cds:-0}\t${rrna:-0}\t${trna:-0}\t${tmrna:-0}\t${contigs:-0}\t${bases:-0}" >> "$SUMMARY_TSV"
+    # Count features from TSV
+    genes=$(grep -v '^#' "$tsv_file" | wc -l)
+    cds=$(grep -P '\tCDS\t' "$tsv_file" | wc -l)
+    rrna=$(grep -P '\trRNA\t' "$tsv_file" | wc -l)
+    trna=$(grep -P '\ttRNA\t' "$tsv_file" | wc -l)
+    tmrna=$(grep -P '\ttmRNA\t' "$tsv_file" | wc -l)
 
-  # === COLLECT FILES FOR GET_HOMOLOGUES ===
-  gbk_src="$folder/${sample}.gbk"
-  faa_src="$folder/${sample}.faa"
+    # Contigs and Bases from FASTA
+    contigs=$(grep -c '^>' "$fasta_file")
+    bases=$(grep -v '^>' "$fasta_file" | tr -d '\n' | wc -c)
 
-  if [[ -s "$gbk_src" ]]; then
-    cp "$gbk_src" "$GBK_COLLECT/${sample}.gbk"
-  fi
-
-  if [[ -s "$faa_src" ]]; then
-    cp "$faa_src" "$FAA_COLLECT/${sample}.faa"
-  fi
+    echo -e "${sample}\t${genes}\t${cds}\t${rrna}\t${trna}\t${tmrna}\t${contigs}\t${bases}" >> "$SUMMARY_TSV"
 done
 
-# === FINAL MESSAGES ===
 echo "[INFO] Annotation summary written to: $SUMMARY_TSV"
-echo "[INFO] GenBank files collected in: $GBK_COLLECT"
-echo "[INFO] Protein FASTA files collected in: $FAA_COLLECT"
-echo "[INFO] You can now run GET_HOMOLOGUES with:"
-echo ""
-echo "   get_homologues.pl -d $GBK_COLLECT -M -n 10 -t 0"
-echo ""
 echo "[INFO] Log file saved to: $LOG"
-
 
 ```
 ##### Step 3: Save and exit nano
