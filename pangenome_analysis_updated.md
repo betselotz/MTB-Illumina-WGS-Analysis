@@ -362,69 +362,76 @@ LOG_FILE="$QUAST_DIR/quast_log.txt"
 mkdir -p "$QUAST_DIR" "$CSV_OUTDIR"
 
 CSV_FILE="$CSV_OUTDIR/quast_summary_shovill.csv"
-echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,N75,GC%" > "$CSV_FILE"
+echo "Sample,NumContigs,TotalLength,MinLen,MaxLen,AverageLen,N50,GC%" > "$CSV_FILE"
 
 for sample_out in "$SHOVILL_DIR"/*; do
     [[ -d "$sample_out" ]] || continue
     sample=$(basename "$sample_out")
+    echo "[INFO] Processing sample: $sample"
 
     # Reset variables per sample
-    unset num_contigs total_len min_len max_len avg_len n50 n75 gc lengths
+    unset num_contigs total_len min_len max_len avg_len n50 gc lengths
 
     contigs_file=("$sample_out"/*_contigs.fa)
-    [[ -f "${contigs_file[0]}" ]] || continue
+    [[ -f "${contigs_file[0]}" ]] || { echo "[WARN] No contigs found for $sample"; continue; }
     contigs="${contigs_file[0]}"
 
     outdir="$QUAST_DIR/$sample"
     mkdir -p "$outdir"
 
-    # Run QUAST, log errors
+    echo "[INFO] Running QUAST for $sample"
     if ! quast "$contigs" -o "$outdir" > "$LOG_FILE" 2>&1; then
-        echo "QUAST failed for $sample, see $LOG_FILE" >&2
+        echo "[WARN] QUAST failed for $sample, see $LOG_FILE" >&2
     fi
 
-    # Extract lengths robustly from headers using len=
-    readarray -t lengths < <(grep "^>" "$contigs" | sed -E 's/.*len=([0-9]+).*/\1/')
+    # Extract contig lengths robustly (multi-line sequences)
+    lengths=()
+    seq=""
+    while read -r line; do
+        if [[ "$line" == ">"* ]]; then
+            [[ -n "$seq" ]] && lengths+=(${#seq})
+            seq=""
+        else
+            seq+="$line"
+        fi
+    done < "$contigs"
+    [[ -n "$seq" ]] && lengths+=(${#seq})
 
     if (( ${#lengths[@]} > 0 )); then
-        # Basic stats
         num_contigs=${#lengths[@]}
         total_len=$(awk '{sum+=$1} END{print sum}' <<<"${lengths[*]}")
         min_len=$(printf "%s\n" "${lengths[@]}" | sort -n | head -n1)
         max_len=$(printf "%s\n" "${lengths[@]}" | sort -nr | head -n1)
         avg_len=$(awk -v t="$total_len" -v n="$num_contigs" 'BEGIN{if(n>0) print t/n; else print "NA"}')
 
-        # Sort lengths descending for N50/N75
+        # N50 calculation
         IFS=$'\n' sorted=($(sort -nr <<<"${lengths[*]}"))
         unset IFS
         cum=0
-        n50="NA"
-        n75="NA"
         n50_target=$((total_len / 2))
-        n75_target=$((total_len * 3 / 4))
+        n50="NA"
         for l in "${sorted[@]}"; do
             cum=$((cum + l))
             [[ "$n50" == "NA" && $cum -ge $n50_target ]] && n50=$l
-            [[ "$n75" == "NA" && $cum -ge $n75_target ]] && n75=$l
         done
     else
-        # Fallback if lengths extraction failed
         num_contigs=0
         total_len=0
         min_len=NA
         max_len=NA
         avg_len=NA
         n50=NA
-        n75=NA
     fi
 
-    # GC% calculation from sequences
+    # GC% calculation
     gc=$(awk 'BEGIN{gc=0; total=0} /^[^>]/ {seq=toupper($0); for(i=1;i<=length(seq);i++){b=substr(seq,i,1); if(b=="G"||b=="C")gc++}; total+=length(seq)} END{if(total>0) print (gc/total)*100; else print "NA"}' "$contigs")
 
-    # Write to CSV
-    echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$n75,$gc" >> "$CSV_FILE"
+    # Write summary to CSV
+    echo "$sample,$num_contigs,$total_len,$min_len,$max_len,$avg_len,$n50,$gc" >> "$CSV_FILE"
 
 done
+
+echo "[INFO] QUAST summary written to $CSV_FILE"
 ```
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
