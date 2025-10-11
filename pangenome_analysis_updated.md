@@ -541,11 +541,10 @@ if [[ -f "$LOG_FILE" ]]; then
     echo "Skipped samples logged in $LOG_FILE"
 fi
 
-
 ``` 
 ###### Step 3: Make scripts executable
 ``` bash
-chmod +x run_checkm_spades.sh run_checkm_shovill.sh
+chmod +x run_checkm_shovill.sh
 ``` 
 ###### Step 4: Run the scripts
 ``` bash
@@ -605,24 +604,32 @@ for R1 in "$READ_DIR"/*_1.trim.fastq.gz; do
 
     echo "🧬 Processing $sample..." | tee "$log"
 
-    # Build BWA index if not found
-    [[ ! -f "${asm}.bwt" ]] && bwa index "$asm" >>"$log" 2>&1
+    # Build BWA index if missing
+    if [[ ! -f "${asm}.bwt" ]]; then
+        echo "📌 Building BWA index..." | tee -a "$log"
+        bwa index "$asm" >>"$log" 2>&1
+    fi
 
     # Align reads and create sorted BAM
-    bwa mem -t "$THREADS" "$asm" "$R1" "$R2" 2>>"$log" \
+    echo "📌 Aligning reads..." | tee -a "$log"
+    if ! bwa mem -t "$THREADS" "$asm" "$R1" "$R2" 2>>"$log" \
         | samtools view -bS - \
-        | samtools sort -@ "$THREADS" -o "$bam"
+        | samtools sort -@ "$THREADS" -o "$bam"; then
+        echo "❌ Alignment failed for $sample" | tee -a "$log"
+        continue
+    fi
+
     samtools index "$bam"
 
     # -----------------------------
-    # Total reads (R1 only)
+    # Total reads
     # -----------------------------
     total_r1=$(zcat "$R1" | wc -l)
     total_r1=$(( total_r1 / 4 ))
     total=$total_r1
 
     # -----------------------------
-    # Proper paired reads (divide by 2 to avoid double counting)
+    # Proper paired reads
     # -----------------------------
     proper_pairs_both_mates=$(samtools view -c -f 2 "$bam")
     proper_pairs=$(( proper_pairs_both_mates / 2 ))
@@ -634,29 +641,40 @@ for R1 in "$READ_DIR"/*_1.trim.fastq.gz; do
     mean_mapq=$(samtools view "$bam" | awk '{sum+=$5; n++} END{if(n>0) printf "%.4f", sum/n; else print 0}')
 
     # -----------------------------
-    # Depth calculation (all positions, including zeros)
+    # Depth statistics
     # -----------------------------
-    samtools depth -a "$bam" > "$depth"
-    total_positions=$(wc -l < "$depth" || echo 0)
-    if [[ "$total_positions" -eq 0 ]]; then
+    samtools depth -a "$bam" > "$depth" || true
+    if [[ ! -s "$depth" ]]; then
         echo -e "$sample\t$total\t0\t0\tNA\tNA\tNA\tNA\t$mean_mapq\tNo depth data" >>"$SUMMARY"
+        echo "⚠️ No depth data for $sample" | tee -a "$log"
         continue
     fi
 
-    # Average coverage
-    avgcov=$(awk '{sum+=$3} END{if(NR>0) printf "%.3f", sum/NR; else print 0}' "$depth")
+    # Compute coverage stats
+    readarray -t depths < <(awk '{print $3}' "$depth")
+    n=${#depths[@]}
+    if (( n == 0 )); then
+        avgcov=0; mediancov=0; mindepth=0; maxdepth=0
+    else
+        # Average
+        sum=0
+        for d in "${depths[@]}"; do sum=$((sum + d)); done
+        avgcov=$(awk -v s=$sum -v n=$n 'BEGIN{printf "%.3f", s/n}')
 
-    # Median depth (including zeros)
-    mediancov=$(awk '{a[NR]=$3} END{
-        n=NR
-        if(n==0){print 0}
-        else if(n%2==1){print a[(n+1)/2]}
-        else{print (a[n/2]+a[n/2+1])/2}
-    }' "$depth" | sort -n)
+        # Median
+        IFS=$'\n' sorted=($(sort -n <<<"${depths[*]}"))
+        if (( n % 2 == 1 )); then
+            mediancov=${sorted[$((n/2))]}
+        else
+            m1=${sorted[$((n/2-1))]}
+            m2=${sorted[$((n/2))]}
+            mediancov=$(awk -v a=$m1 -v b=$m2 'BEGIN{printf "%.3f", (a+b)/2}')
+        fi
 
-    # Min and max depth
-    mindepth=$(awk 'NR==1{min=$3} $3<min{min=$3} END{print min+0}' "$depth")
-    maxdepth=$(awk 'NR==1{max=$3} $3>max{max=$3} END{print max+0}' "$depth")
+        # Min & Max
+        mindepth=${sorted[0]}
+        maxdepth=${sorted[-1]}
+    fi
 
     # -----------------------------
     # Warnings
@@ -686,9 +704,10 @@ for R1 in "$READ_DIR"/*_1.trim.fastq.gz; do
     # -----------------------------
     echo -e "$sample\t$total\t$proper_pairs\t$percent_mapped\t$avgcov\t$mediancov\t$mindepth\t$maxdepth\t$mean_mapq\t$warnings" >> "$SUMMARY"
 
+    echo "✅ Finished $sample" | tee -a "$log"
 done
 
-echo "✅ Backmapping summary completed: $SUMMARY"
+echo "🎉 Backmapping summary completed: $SUMMARY"
 
 ```
 
