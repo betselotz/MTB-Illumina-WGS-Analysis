@@ -574,7 +574,7 @@ MIN_AVG_COVERAGE=1
 mkdir -p "$OUTDIR"/{bams,depths,logs}
 
 SUMMARY="$OUTDIR/backmap_summary.tsv"
-echo -e "Sample\tTotal_Reads\tMapped_Reads\tPercent_Mapped\tAvg_Coverage\tMedian_Depth\tMin_Depth\tMax_Depth\tMean_Mapping_Quality\tPercent_Proper_Pairs\tWarnings" > "$SUMMARY"
+echo -e "Sample\tTotal_Reads\tProper_Pairs\tPercent_Mapped\tAvg_Coverage\tMedian_Depth\tMin_Depth\tMax_Depth\tMean_Mapping_Quality\tWarnings" > "$SUMMARY"
 
 echo "🔍 Searching for FASTQ files in: $READ_DIR"
 
@@ -601,85 +601,88 @@ for R1 in "$READ_DIR"/*_1.trim.fastq.gz; do
     # Build BWA index if not found
     [[ ! -f "${asm}.bwt" ]] && bwa index "$asm" >>"$log" 2>&1
 
-    # Align reads
+    # Align reads and create sorted BAM
     bwa mem -t "$THREADS" "$asm" "$R1" "$R2" 2>>"$log" \
         | samtools view -bS - \
         | samtools sort -@ "$THREADS" -o "$bam"
     samtools index "$bam"
 
-    # Total reads
-    total_r1=$(zcat "$R1" | echo $(( $(wc -l) / 4 )) )
-    total_r2=$(zcat "$R2" | echo $(( $(wc -l) / 4 )) )
-    total=$(( (total_r1 + total_r2) / 2 ))
+    # -----------------------------
+    # Total reads (R1 only)
+    # -----------------------------
+    total_r1=$(zcat "$R1" | wc -l)
+    total_r1=$(( total_r1 / 4 ))
+    total=$total_r1
 
-    # Mapped reads
-    mapped=$(samtools view -c -F 4 "$bam")
-    percent_mapped=$(awk -v m=$mapped -v t=$total 'BEGIN{if(t>0) printf "%.2f", (m/t)*100; else print 0}')
+    # -----------------------------
+    # Proper paired reads (divide by 2 to avoid double counting)
+    # -----------------------------
+    proper_pairs_both_mates=$(samtools view -c -f 2 "$bam")
+    proper_pairs=$(( proper_pairs_both_mates / 2 ))
+    percent_mapped=$(awk -v p=$proper_pairs -v t=$total 'BEGIN{if(t>0) printf "%.2f", (p/t)*100; else print 0}')
 
+    # -----------------------------
     # Mean mapping quality
+    # -----------------------------
     mean_mapq=$(samtools view "$bam" | awk '{sum+=$5; n++} END{if(n>0) printf "%.4f", sum/n; else print 0}')
 
-    # Proper pairs
-    proper_pairs=$(samtools view -c -f 2 "$bam")
-    percent_proper=$(awk -v p=$proper_pairs -v t=$total 'BEGIN{if(t>0) printf "%.2f", (p/t)*100; else print 0}')
-
-    # Depths
+    # -----------------------------
+    # Depth calculation (all positions, including zeros)
+    # -----------------------------
     samtools depth -a "$bam" > "$depth"
     total_positions=$(wc -l < "$depth" || echo 0)
     if [[ "$total_positions" -eq 0 ]]; then
-        echo -e "$sample\t$total\t$mapped\t$percent_mapped\tNA\tNA\tNA\tNA\t$mean_mapq\t$percent_proper\tNo depth data" >>"$SUMMARY"
+        echo -e "$sample\t$total\t0\t0\tNA\tNA\tNA\tNA\t$mean_mapq\tNo depth data" >>"$SUMMARY"
         continue
     fi
 
+    # Average coverage
     avgcov=$(awk '{sum+=$3} END{if(NR>0) printf "%.3f", sum/NR; else print 0}' "$depth")
 
-    # Median depth (POSIX-compatible)
-    mediancov=$(awk '{
-        a[NR]=$3
-    } END {
-        if(NR==0){print 0}
-        else{
-            n=NR
-            # Simple bubble sort
-            for(i=1;i<=n;i++){for(j=i+1;j<=n;j++){if(a[i]>a[j]){t=a[i];a[i]=a[j];a[j]=t}}}
-            if(n%2==1) print a[int((n+1)/2)]
-            else print (a[n/2]+a[n/2+1])/2
-        }
-    }' "$depth")
+    # Median depth (including zeros)
+    mediancov=$(awk '{a[NR]=$3} END{
+        n=NR
+        if(n==0){print 0}
+        else if(n%2==1){print a[(n+1)/2]}
+        else{print (a[n/2]+a[n/2+1])/2}
+    }' "$depth" | sort -n)
 
+    # Min and max depth
     mindepth=$(awk 'NR==1{min=$3} $3<min{min=$3} END{print min+0}' "$depth")
     maxdepth=$(awk 'NR==1{max=$3} $3>max{max=$3} END{print max+0}' "$depth")
 
     # -----------------------------
-    # Mapping interpretation
+    # Warnings
     # -----------------------------
     if (( $(echo "$percent_mapped > 95" | bc -l) )); then
-        warnings="Excellent: >95% mapped — expected if same strain."
+        warnings="Excellent: >95% properly paired — expected if same strain."
     elif (( $(echo "$percent_mapped >= 80" | bc -l) )); then
-        warnings="Good: 80–95% mapped — same species, slight divergence."
+        warnings="Good: 80–95% properly paired — same species, slight divergence."
     elif (( $(echo "$percent_mapped >= 50" | bc -l) )); then
-        warnings="Moderate/Suspicious: 50–80% mapped — possible contamination or mismatch."
+        warnings="Moderate/Suspicious: 50–80% properly paired — possible contamination or mismatch."
     elif (( $(echo "$percent_mapped >= 10" | bc -l) )); then
-        warnings="Poor: 10–50% mapped — likely reference mismatch."
+        warnings="Poor: 10–50% properly paired — likely reference mismatch."
     elif (( $(echo "$percent_mapped >= 1" | bc -l) )); then
-        warnings="Very Poor: <10% mapped — likely wrong reference or severe contamination."
+        warnings="Very Poor: <10% properly paired — likely wrong reference or severe contamination."
     else
-        warnings="Critical: <1% mapped — almost certainly wrong reference or contamination."
+        warnings="Critical: <1% properly paired — almost certainly wrong reference or contamination."
     fi
 
-    # Coverage warnings
     if (( $(echo "$avgcov > $MAX_AVG_COVERAGE" | bc -l) )); then
         warnings="${warnings}; High coverage (> ${MAX_AVG_COVERAGE}×)"
     elif (( $(echo "$avgcov < $MIN_AVG_COVERAGE" | bc -l) )); then
         warnings="${warnings}; Low coverage (< ${MIN_AVG_COVERAGE}×)"
     fi
 
-    # Output
-    echo -e "$sample\t$total\t$mapped\t$percent_mapped\t$avgcov\t$mediancov\t$mindepth\t$maxdepth\t$mean_mapq\t$percent_proper\t$warnings" >> "$SUMMARY"
+    # -----------------------------
+    # Output summary
+    # -----------------------------
+    echo -e "$sample\t$total\t$proper_pairs\t$percent_mapped\t$avgcov\t$mediancov\t$mindepth\t$maxdepth\t$mean_mapq\t$warnings" >> "$SUMMARY"
 
 done
 
 echo "✅ Backmapping summary completed: $SUMMARY"
+
 ```
 
 Save and exit nano
