@@ -723,47 +723,111 @@ nano run_prokka_shovill.sh
 #!/bin/bash
 set -euo pipefail
 
+# === CONFIGURATION ===
 SHOVILL_DIR="shovill_results"
 PROKKA_DIR="prokka_results/shovill"
+LOG="$PROKKA_DIR/prokka_summary.log"
+SUMMARY_TSV="$PROKKA_DIR/prokka_annotation_summary.tsv"
+GBK_COLLECT="$PROKKA_DIR/gbk_collection"
+FAA_COLLECT="$PROKKA_DIR/faa_collection"
 
-mkdir -p "$PROKKA_DIR"
+mkdir -p "$PROKKA_DIR" "$GBK_COLLECT" "$FAA_COLLECT"
+: > "$LOG"
 
+# === CHECK DEPENDENCIES ===
 if ! command -v prokka &>/dev/null; then
   echo "Error: Prokka not found in PATH."
   exit 1
 fi
 
+# === FUNCTION ===
 run_prokka() {
   sample_out="$1"
   sample=$(basename "$sample_out")
 
   contigs=("$sample_out"/*contigs*.fa*)
   contigs="${contigs[0]:-}"
-  [[ -z "$contigs" ]] && return
-
-  echo "Annotating $sample..."
+  [[ -z "$contigs" ]] && { echo "[WARN] No contigs for $sample" | tee -a "$LOG"; return; }
 
   outdir="$PROKKA_DIR/$sample"
-  mkdir -p "$outdir"
+  [[ -d "$outdir" && -s "$outdir/$sample.gff" ]] && {
+    echo "[INFO] Skipping $sample (already annotated)" | tee -a "$LOG"
+    return
+  }
 
-  prokka --outdir "$outdir" \
-         --prefix "$sample" \
-         --kingdom Bacteria \
-         --genus Mycobacterium \
-         --species tuberculosis \
-         --cpus 4 \
-         --evalue 1e-9 \
-         --coverage 90 \
-         --centre TBLab \
-         --compliant \
-         --force --quiet \
-         "$contigs"
+  echo "[INFO] Annotating $sample..." | tee -a "$LOG"
+
+  if prokka --outdir "$outdir" \
+            --prefix "$sample" \
+            --locustag "$sample" \
+            --kingdom Bacteria \
+            --genus Mycobacterium \
+            --species tuberculosis \
+            --strain "$sample" \
+            --cpus 4 \
+            --evalue 1e-9 \
+            --centre TBLab \
+            --compliant \
+            --addgenes \
+            --force \
+            --quiet \
+            "$contigs"; then
+    echo "[OK] $sample annotated successfully" | tee -a "$LOG"
+  else
+    echo "[ERROR] Prokka failed for $sample" | tee -a "$LOG"
+  fi
 }
 
 export -f run_prokka
-export PROKKA_DIR
+export PROKKA_DIR LOG
 
+# === RUN ANNOTATIONS IN PARALLEL ===
+echo "[INFO] Starting Prokka annotation on Shovill results..."
 find "$SHOVILL_DIR" -maxdepth 1 -mindepth 1 -type d | parallel -j "$(nproc)" run_prokka {}
+
+# === SUMMARY TABLE ===
+echo "[INFO] Generating annotation summary..."
+echo -e "Sample\tGenes\tCDS\trRNA\ttRNA\ttmRNA\tContigs\tBases" > "$SUMMARY_TSV"
+
+for folder in "$PROKKA_DIR"/*; do
+  [[ -d "$folder" ]] || continue
+  sample=$(basename "$folder")
+  stats_file="$folder/${sample}.txt"
+  [[ -s "$stats_file" ]] || { echo "[WARN] Missing stats file for $sample" | tee -a "$LOG"; continue; }
+
+  genes=$(grep -m1 '^Genes:' "$stats_file" | awk '{print $2}')
+  cds=$(grep -m1 '^CDS:' "$stats_file" | awk '{print $2}')
+  rrna=$(grep -m1 '^rRNA:' "$stats_file" | awk '{print $2}')
+  trna=$(grep -m1 '^tRNA:' "$stats_file" | awk '{print $2}')
+  tmrna=$(grep -m1 '^tmRNA:' "$stats_file" | awk '{print $2}')
+  contigs=$(grep -m1 '^Contigs:' "$stats_file" | awk '{print $2}')
+  bases=$(grep -m1 '^Bases:' "$stats_file" | awk '{print $2}')
+
+  echo -e "${sample}\t${genes:-0}\t${cds:-0}\t${rrna:-0}\t${trna:-0}\t${tmrna:-0}\t${contigs:-0}\t${bases:-0}" >> "$SUMMARY_TSV"
+
+  # === COLLECT FILES FOR GET_HOMOLOGUES ===
+  gbk_src="$folder/${sample}.gbk"
+  faa_src="$folder/${sample}.faa"
+
+  if [[ -s "$gbk_src" ]]; then
+    cp "$gbk_src" "$GBK_COLLECT/${sample}.gbk"
+  fi
+
+  if [[ -s "$faa_src" ]]; then
+    cp "$faa_src" "$FAA_COLLECT/${sample}.faa"
+  fi
+done
+
+# === FINAL MESSAGES ===
+echo "[INFO] Annotation summary written to: $SUMMARY_TSV"
+echo "[INFO] GenBank files collected in: $GBK_COLLECT"
+echo "[INFO] Protein FASTA files collected in: $FAA_COLLECT"
+echo "[INFO] You can now run GET_HOMOLOGUES with:"
+echo ""
+echo "   get_homologues.pl -d $GBK_COLLECT -M -n 10 -t 0"
+echo ""
+echo "[INFO] Log file saved to: $LOG"
+
 
 ```
 ##### Step 3: Save and exit nano
