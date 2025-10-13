@@ -1,4 +1,5 @@
-1. rmove
+modify 5.fastp_filtered_reads_plot.tsv in place and remove _1 from the Sample column directly.
+```bash
+sed -i -E 's/^([^[:space:]]+)_1/\1/' 5.fastp_filtered_reads_plot.tsv
 
-sed 's/_1\t/\t/' 5.fastp_filtered_reads_plot.tsv > 5.fastp_filtered_reads_plot_clean.tsv
-
+```
