@@ -432,6 +432,7 @@ for sample_out in "$SHOVILL_DIR"/*; do
 done
 
 echo "[INFO] QUAST summary written to $CSV_FILE"
+
 ```
 ##### Step 3: Save and exit nano
 Press Ctrl + O → Enter (to write the file)
@@ -641,40 +642,36 @@ for R1 in "$READ_DIR"/*_1.trim.fastq.gz; do
     mean_mapq=$(samtools view "$bam" | awk '{sum+=$5; n++} END{if(n>0) printf "%.4f", sum/n; else print 0}')
 
     # -----------------------------
-    # Depth statistics
+    # Depth statistics (NEW SECTION)
     # -----------------------------
-    samtools depth -a "$bam" > "$depth" || true
+    echo "📊 Calculating depth statistics..." | tee -a "$log"
+    if ! samtools depth -a "$bam" > "$depth" 2>>"$log"; then
+        echo -e "$sample\t$total\t0\t0\tNA\tNA\tNA\tNA\t$mean_mapq\tDepth calculation failed" >>"$SUMMARY"
+        continue
+    fi
+
     if [[ ! -s "$depth" ]]; then
         echo -e "$sample\t$total\t0\t0\tNA\tNA\tNA\tNA\t$mean_mapq\tNo depth data" >>"$SUMMARY"
         echo "⚠️ No depth data for $sample" | tee -a "$log"
         continue
     fi
 
-    # Compute coverage stats
-    readarray -t depths < <(awk '{print $3}' "$depth")
-    n=${#depths[@]}
-    if (( n == 0 )); then
-        avgcov=0; mediancov=0; mindepth=0; maxdepth=0
-    else
-        # Average
-        sum=0
-        for d in "${depths[@]}"; do sum=$((sum + d)); done
-        avgcov=$(awk -v s=$sum -v n=$n 'BEGIN{printf "%.3f", s/n}')
-
-        # Median
-        IFS=$'\n' sorted=($(sort -n <<<"${depths[*]}"))
-        if (( n % 2 == 1 )); then
-            mediancov=${sorted[$((n/2))]}
-        else
-            m1=${sorted[$((n/2-1))]}
-            m2=${sorted[$((n/2))]}
-            mediancov=$(awk -v a=$m1 -v b=$m2 'BEGIN{printf "%.3f", (a+b)/2}')
-        fi
-
-        # Min & Max
-        mindepth=${sorted[0]}
-        maxdepth=${sorted[-1]}
-    fi
+    # Calculate stats directly via awk (no array loading)
+    read avgcov mediancov mindepth maxdepth <<<$(awk '
+    {
+        d[NR]=$3; sum+=$3;
+        if(NR==1 || $3<min) min=$3;
+        if(NR==1 || $3>max) max=$3;
+    }
+    END{
+        if(NR>0){
+            asort(d);
+            median = (NR%2==1)? d[(NR+1)/2] : (d[NR/2]+d[NR/2+1])/2;
+            printf "%.3f %.3f %d %d", sum/NR, median, min, max;
+        } else {
+            print "0 0 0 0";
+        }
+    }' "$depth")
 
     # -----------------------------
     # Warnings
@@ -708,6 +705,7 @@ for R1 in "$READ_DIR"/*_1.trim.fastq.gz; do
 done
 
 echo "🎉 Backmapping summary completed: $SUMMARY"
+
 
 ```
 
