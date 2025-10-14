@@ -972,6 +972,8 @@ With 128 GB RAM, you can load all  genomes’ matrices into R simultaneously f
 
 
 
+Copy all faa files into gethomologues_results directory 
+
 create the script.
 
 ``` bash
@@ -982,40 +984,81 @@ Paste the following:
 #!/bin/bash
 set -euo pipefail
 
+# ---------------------------
+# Configuration
+# ---------------------------
 WORKDIR=$(pwd)
-PROKKA_DIR="$WORKDIR/prokka_results/shovill"
+FAA_DIR="$WORKDIR/gethomologues_results"
 THREADS=32
 MIN_CLUSTER_SIZE=2
 PAN_OUTPUT="pan_genome_matrix"
 PLOT_OUTPUT="plots"
+RESULTS_DIR="$WORKDIR/gethomologues_results"
+SUMMARY_DIR="$RESULTS_DIR/summary"
+mkdir -p "$SUMMARY_DIR" "$PLOT_OUTPUT"
 
-mkdir -p "$WORKDIR/gethomologues_results"
-cd "$WORKDIR/gethomologues_results"
+# ---------------------------
+# Record software versions
+# ---------------------------
+echo "🛠 Recording software versions..."
+{
+    echo "Date: $(date)"
+    echo "get_homologues version: $(get_homologues.pl --version 2>&1 | head -n1)"
+    echo "Prokka version: $(prokka --version 2>&1)"
+    echo "Perl version: $(perl -v | grep 'v[0-9]\+\.[0-9]\+')"
+    echo "Python version: $(python --version 2>&1)"
+} > "$RESULTS_DIR/software_versions.txt"
 
-# Copy and rename FAA files
-for f in $PROKKA_DIR/*/*.faa; do
-    sample=$(basename "$(dirname "$f")")
-    cp "$f" "${sample}.faa"
-done
+# ---------------------------
+# Check input genomes
+# ---------------------------
+NUM_GENOMES=$(ls -1 "$FAA_DIR"/*.faa | wc -l)
+echo "📊 Number of genomes: $NUM_GENOMES"
+if [ "$NUM_GENOMES" -eq 0 ]; then
+    echo "❌ No .faa files found in $FAA_DIR"
+    exit 1
+fi
 
-# Run GET_HOMOLOGUES with 90% identity and 75% coverage (MCL clustering)
-get_homologues.pl -d ./ -M -S 90 -C 75 -t $THREADS -n $MIN_CLUSTER_SIZE
+# ---------------------------
+# Run GET_HOMOLOGUES
+# ---------------------------
+echo "🔍 Running GET_HOMOLOGUES..."
+get_homologues.pl -d "$FAA_DIR" -M -S 90 -C 75 -t "$THREADS" -n "$MIN_CLUSTER_SIZE"
 
+# ---------------------------
 # Build pan-genome matrix
-compare_clusters.pl -d ./ -o $PAN_OUTPUT
+# ---------------------------
+echo "🧩 Building pan-genome matrix..."
+compare_clusters.pl -d "$FAA_DIR" -o "$PAN_OUTPUT"
 
-# Categorize core, soft-core, shell, cloud genes
-parse_pangenome_matrix.pl -m ${PAN_OUTPUT}_cluster.tab -o summary
+# ---------------------------
+# Categorize genes
+# ---------------------------
+echo "📝 Categorizing core, soft-core, shell, cloud genes..."
+parse_pangenome_matrix.pl -m "${PAN_OUTPUT}_cluster.tab" -o "$SUMMARY_DIR"
 
-# Plot core/pangenome curves with Tettelin model
-plot_pancore_matrix.pl -m ${PAN_OUTPUT}_cluster.tab \
-    -o $PLOT_OUTPUT \
-    -p $(ls $PROKKA_DIR | wc -l) \
-    -t 1000 -r
+# ---------------------------
+# Plot pan/core genome curves
+# ---------------------------
+echo "📈 Plotting pan/core genome curves..."
+plot_pancore_matrix.pl -m "${PAN_OUTPUT}_cluster.tab" -o "$PLOT_OUTPUT" -p "$NUM_GENOMES" -t 1000 -r
 
-echo "✅ Pan-genome construction complete"
-echo "📊 Results: summary/ (core/soft-core/shell/cloud)"
-echo "📈 Plots: $PLOT_OUTPUT/"
+# ---------------------------
+# Generate publication-ready summary
+# ---------------------------
+CORE_GENES=$(grep -w "core" "$SUMMARY_DIR/summary_stats.txt" | awk '{print $2}' || echo "N/A")
+SOFT_CORE=$(grep -w "soft-core" "$SUMMARY_DIR/summary_stats.txt" | awk '{print $2}' || echo "N/A")
+SHELL_GENES=$(grep -w "shell" "$SUMMARY_DIR/summary_stats.txt" | awk '{print $2}' || echo "N/A")
+CLOUD_GENES=$(grep -w "cloud" "$SUMMARY_DIR/summary_stats.txt" | awk '{print $2}' || echo "N/A")
+
+echo -e "📄 Publication-ready summary:"
+echo -e "Number of genomes: $NUM_GENOMES"
+echo -e "Core genes: $CORE_GENES"
+echo -e "Soft-core genes: $SOFT_CORE"
+echo -e "Shell genes: $SHELL_GENES"
+echo -e "Cloud genes: $CLOUD_GENES"
+echo -e "Pan-genome matrix: ${PAN_OUTPUT}_cluster.tab"
+echo -e "Plots directory: $PLOT_OUTPUT/"
 
 ``` 
 Save and exit
