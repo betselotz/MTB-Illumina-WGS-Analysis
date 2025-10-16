@@ -942,12 +942,12 @@ blastp -query *.faa -db *.faa -outfmt 6 -evalue 1e-5 -num_threads 32 -out all_vs
 Step — Cluster homologous genes with COGtriangles
 ``` bash
 conda activate gethomologues_env
-get_homologues.pl -d ./ -c -t 32 -n 2
+get_homologues.pl -d ./gethomologues_results -c -t 32 -n 2
 ``` 
 
 Step 4 — Generate pan-genome matrix
 ``` bash
-compare_clusters.pl -d ./ -o pan_genome_matrix
+compare_clusters.pl -d ./gethomologues_results -o pan_genome_matrix -t 0
 ``` 
 Step 5 — Parse matrix and classify genes
 ``` bash
