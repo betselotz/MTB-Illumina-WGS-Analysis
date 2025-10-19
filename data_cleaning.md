@@ -17,61 +17,57 @@ merge_all_summary_files.sh
 ```bash
 
 #!/bin/bash
-set -euo pipefail
+# Robust merge of 1–14 CSV/TSV files using pandas
 
-# Directory containing your files
-INPUT_DIR="aggregate_result"
-OUTPUT_FILE="$INPUT_DIR/merged_summary.csv"
+python3 - <<'EOF'
+import pandas as pd
 
-# List of files to merge in order
-FILES=(
-  "1_fastq_read_counts.csv"
-  "2_read_length_summary.csv"
-  "3_trimmed_read_counts.csv"
-  "4_trimmed_read_length_summary.csv"
-  "5_fastp_general_stats_table.tsv"
-  "6_fastp_filtered_reads_plot.tsv"
-  "7_tbprofiler_collated.csv"
-  "8_qualimap_general_stats_table.tsv"
-  "9_variant_filter_summary.csv"
-  "10_consensus_lengths.csv"
-  "11_shovill_assembly_summary.tsv"
-  "12_quast_summary_shovill.csv"
-  "13_backmap_summary.tsv"
-  "14_prokka_annotation_summary.tsv"
-)
+files = [
+    "1_fastq_read_counts.csv",
+    "2_read_length_summary.csv",
+    "3_trimmed_read_counts.csv",
+    "4_trimmed_read_length_summary.csv",
+    "5_fastp_general_stats_table.tsv",
+    "6_fastp_filtered_reads_plot.tsv",
+    "7_tbprofiler_collated.csv",
+    "8_qualimap_general_stats_table.tsv",
+    "9_variant_filter_summary.csv",
+    "10_consensus_lengths.csv",
+    "11_shovill_assembly_summary.tsv",
+    "12_quast_summary_shovill.csv",
+    "13_backmap_summary.tsv",
+    "14_prokka_annotation_summary.tsv"
+]
 
-# Temporary working directory
-TMP_DIR=$(mktemp -d)
-cd "$INPUT_DIR"
+def read_file(f):
+    # First try comma
+    try:
+        df = pd.read_csv(f)
+        if 'Sample' in df.columns:
+            return df
+    except:
+        pass
+    # Fallback to tab
+    df = pd.read_csv(f, sep='\t')
+    # Strip whitespace from column names
+    df.columns = df.columns.str.strip()
+    return df
 
-# Convert all TSVs to CSV for consistency
-for f in "${FILES[@]}"; do
-  if [[ "$f" == *.tsv ]]; then
-    tr '\t' ',' < "$f" > "$TMP_DIR/$f.csv"
-  else
-    cp "$f" "$TMP_DIR/$f.csv"
-  fi
-done
+# Load first file
+merged = read_file(files[0])
 
-# Merge step by step on "Sample" column
-cd "$TMP_DIR"
-FIRST_FILE="${FILES[0]}.csv"
-cp "$FIRST_FILE" merged.csv
+# Merge sequentially on 'Sample'
+for f in files[1:]:
+    df = read_file(f)
+    if 'Sample' not in df.columns:
+        print(f"❌ Warning: {f} does not have 'Sample' column, skipping")
+        continue
+    merged = pd.merge(merged, df, on='Sample', how='outer')
+    print(f"Merged {f}")
 
-for f in "${FILES[@]:1}"; do
-  csvjoin --no-inference -c "Sample" merged.csv "$f.csv" > tmp.csv
-  mv tmp.csv merged.csv
-done
+# Save merged file
+merged.to_csv("merged_all_summary_files.csv", index=False)
+print("\n✅ All files merged successfully into merged_all_summary_files.csv")
+EOF
 
-# Clean column duplicates (optional)
-csvcut -n merged.csv | awk -F: '{print $2}' | awk '{$1=$1};1' | sort | uniq -d | while read -r col; do
-  echo "Removing duplicate column: $col"
-  csvcut -C "$col" merged.csv > tmp.csv && mv tmp.csv merged.csv
-done
-
-# Move merged file to output location
-mv merged.csv "$OUTPUT_FILE"
-
-echo "✅ Merged summary file created at: $OUTPUT_FILE"
 ```
