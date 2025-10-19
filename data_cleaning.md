@@ -17,7 +17,8 @@ merge_all_summary_files.sh
 ```bash
 
 #!/bin/bash
-# Robust merge of 1–14 CSV/TSV files using pandas
+# Robust merging of 15 summary files into one table
+# Automatically detects CSV/TSV delimiters and merges on 'Sample'
 
 python3 - <<'EOF'
 import pandas as pd
@@ -32,42 +33,50 @@ files = [
     "7_tbprofiler_collated.csv",
     "8_qualimap_general_stats_table.tsv",
     "9_variant_filter_summary.csv",
-    "10_consensus_lengths.csv",
     "11_shovill_assembly_summary.tsv",
     "12_quast_summary_shovill.csv",
     "13_backmap_summary.tsv",
-    "14_prokka_annotation_summary.tsv"
+    "14_checkm_summary.tsv",
+    "15_prokka_annotation_summary.tsv"
 ]
 
 def read_file(f):
-    # First try comma
+    """Reads either comma- or tab-delimited files, stripping spaces."""
     try:
         df = pd.read_csv(f)
         if 'Sample' in df.columns:
+            df.columns = df.columns.str.strip()
             return df
-    except:
+    except Exception:
         pass
-    # Fallback to tab
-    df = pd.read_csv(f, sep='\t')
-    # Strip whitespace from column names
-    df.columns = df.columns.str.strip()
-    return df
+    try:
+        df = pd.read_csv(f, sep='\t')
+        df.columns = df.columns.str.strip()
+        return df
+    except Exception as e:
+        print(f"❌ Could not read {f}: {e}")
+        return None
 
-# Load first file
+# Load the first file
 merged = read_file(files[0])
+if merged is None:
+    raise SystemExit("❌ Could not read the first file properly.")
 
-# Merge sequentially on 'Sample'
+# Merge remaining files
 for f in files[1:]:
     df = read_file(f)
+    if df is None:
+        print(f"⚠️ Skipping {f} (read error)")
+        continue
     if 'Sample' not in df.columns:
-        print(f"❌ Warning: {f} does not have 'Sample' column, skipping")
+        print(f"⚠️ Skipping {f} (no 'Sample' column)")
         continue
     merged = pd.merge(merged, df, on='Sample', how='outer')
-    print(f"Merged {f}")
+    print(f"✅ Merged {f}")
 
 # Save merged file
 merged.to_csv("merged_all_summary_files.csv", index=False)
-print("\n✅ All files merged successfully into merged_all_summary_files.csv")
+print("\n🎯 Final merged file: merged_all_summary_files.csv")
 EOF
 
 ```
