@@ -1056,3 +1056,79 @@ chmod +x run_gethomologues.sh
 
 
 
+``` bash
+nano run_bpga_functional_analysis.sh
+```
+
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+THREADS=32
+BPGA_PATH="/path/to/BPGA_v1.3"
+INPUT_DIR="./gethomologues_pangenome_out"
+OUT_DIR="bpga_results"
+SIMILARITY=95
+
+mkdir -p "$OUT_DIR"
+cd "$OUT_DIR"
+
+echo "Copying faa files..."
+find "$INPUT_DIR" -name "*.faa" -exec cp {} ./ \;
+
+echo "Running BPGA clustering..."
+perl "$BPGA_PATH/BPGA.pl" -f ./ -p $THREADS -i $SIMILARITY -t USEARCH
+
+echo "Assigning COG IDs..."
+perl "$BPGA_PATH/BPGA.pl" -cog
+
+echo "Generating COG frequency tables and histograms..."
+perl "$BPGA_PATH/BPGA.pl" -cogplot gnuplot
+
+echo "Combining COG frequencies into CSV..."
+COG_DIR="COG_Annotation"
+OUT_CSV="COG_combined_summary.csv"
+
+CORE="$COG_DIR/COG_Core_Frequency.txt"
+ACC="$COG_DIR/COG_Accessory_Frequency.txt"
+UNI="$COG_DIR/COG_Unique_Frequency.txt"
+
+if [[ -f "$CORE" && -f "$ACC" && -f "$UNI" ]]; then
+    echo "Category,Core,Accessory,Unique" > "$OUT_CSV"
+    paste "$CORE" "$ACC" "$UNI" | awk 'NR>1{print $1","$2","$4","$6}' >> "$OUT_CSV"
+fi
+
+echo "Generating publication-style COG bar plot (R)..."
+R_SCRIPT="COG_barplot.R"
+
+cat > "$R_SCRIPT" <<'EOF'
+library(ggplot2)
+library(reshape2)
+
+# Read CSV
+data <- read.csv("COG_combined_summary.csv", row.names = 1)
+
+# Melt data for ggplot
+df <- melt(data)
+colnames(df) <- c("COG_Category","Gene_Type","Percentage")
+
+# Plot
+p <- ggplot(df, aes(x=COG_Category, y=Percentage, fill=Gene_Type)) +
+    geom_bar(stat="identity", position="dodge") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5, size=10),
+          axis.text.y = element_text(size=10),
+          axis.title = element_text(size=12)) +
+    labs(x="COG Category", y="Percentage (%)", fill="Gene Type") +
+    scale_fill_manual(values=c("Core"="#1b9e77","Accessory"="#d95f02","Unique"="#7570b3"))
+
+# Save plot as PNG and PDF
+ggsave("COG_barplot.png", plot=p, width=12, height=6)
+ggsave("COG_barplot.pdf", plot=p, width=12, height=6)
+EOF
+
+Rscript "$R_SCRIPT"
+
+echo "✅ Done. Results in $OUT_DIR"
+```
+
