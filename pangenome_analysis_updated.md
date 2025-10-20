@@ -1131,4 +1131,57 @@ Rscript "$R_SCRIPT"
 
 echo "✅ Done. Results in $OUT_DIR"
 ```
+``` bash
+nano run_scoary_analysis.sh
+```
+``` bash
+#!/bin/bash
+set -euo pipefail
 
+# -----------------------------
+# CONFIGURATION
+# -----------------------------
+PANGENOME_MATRIX="../gethomologues_pangenome_out/pangenome_matrix_t0.tab"
+CATEGORY_FILE="../gethomologues_pangenome_out/pangenome_matrix_t0.tab_core_soft_shell_cloud.tab"
+COG_FILE="../bpga_results/COG_combined_summary.csv"   # Contains COG IDs per cluster
+TRAIT_FILE="./phenotype_traits.csv"
+OUT_DIR="scoary_combined_results"
+THREADS=8
+BH_THRESHOLD=0.05
+
+mkdir -p "$OUT_DIR"
+
+echo "Running Scoary..."
+scoary -g "$PANGENOME_MATRIX" -t "$TRAIT_FILE" -o "$OUT_DIR" \
+       --threads $THREADS --no_pairwise --collapse --min_count 1 \
+       --bonferroni 1 --bh $BH_THRESHOLD --no_csv
+
+GENE_TABLE="$OUT_DIR/gene_table.txt"
+COMBINED_CSV="$OUT_DIR/scoary_combined_summary.csv"
+SIGNIFICANT_CSV="$OUT_DIR/scoary_significant_genes.csv"
+SUMMARY_FILE="$OUT_DIR/significant_genes_summary.csv"
+
+echo "Combining Scoary results with gene categories and COG annotations..."
+awk 'NR>1' "$GENE_TABLE" | while read -r Gene Naive Bonf BH Rest; do
+    # Get category
+    Category=$(grep -w "$Gene" "$CATEGORY_FILE" | awk '{print $2}')
+    # Get COG ID (if available)
+    COG_ID=$(grep -w "$Gene" "$COG_FILE" | cut -d',' -f2)
+    echo "$Gene,$Category,$COG_ID,$Naive,$Bonf,$BH"
+done > "$COMBINED_CSV"
+
+echo "Flagging significant genes (BH < $BH_THRESHOLD)..."
+awk -F',' -v thresh="$BH_THRESHOLD" 'NR==1 || $6 < thresh {print}' "$COMBINED_CSV" > "$SIGNIFICANT_CSV"
+
+echo "Generating summary table of significant genes per category..."
+echo "Category,Significant_Genes_Count" > "$SUMMARY_FILE"
+for cat in Core Soft-core Shell Cloud; do
+    count=$(awk -F',' -v c="$cat" 'NR>1 && $2==c {sum++} END{print sum+0}' "$SIGNIFICANT_CSV")
+    echo "$cat,$count" >> "$SUMMARY_FILE"
+done
+
+echo "✅ Done!"
+echo "Combined Scoary summary: $COMBINED_CSV"
+echo "Significant genes: $SIGNIFICANT_CSV"
+echo "Summary per category: $SUMMARY_FILE"
+```
