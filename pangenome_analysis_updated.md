@@ -984,81 +984,64 @@ Paste the following:
 #!/bin/bash
 set -euo pipefail
 
-# ---------------------------
-# Configuration
-# ---------------------------
-WORKDIR=$(pwd)
-FAA_DIR="$WORKDIR/gethomologues_results"
 THREADS=32
-MIN_CLUSTER_SIZE=2
-PAN_OUTPUT="pan_genome_matrix"
-PLOT_OUTPUT="plots"
-RESULTS_DIR="$WORKDIR/gethomologues_results"
-SUMMARY_DIR="$RESULTS_DIR/summary"
-mkdir -p "$SUMMARY_DIR" "$PLOT_OUTPUT"
+IDENTITY=90
+COVERAGE=75
+INPUT_DIR="./gethomologues_results"
+OUT_DIR="gethomologues_pangenome_out"
 
-# ---------------------------
-# Record software versions
-# ---------------------------
-echo "🛠 Recording software versions..."
+echo "Running get_homologues.pl..."
+get_homologues.pl -d "$INPUT_DIR" -M -e -t $THREADS -G 0 -c -C $COVERAGE -S $IDENTITY -n 2 -A
+
+echo "Generating pan-matrix..."
+mkdir -p "$OUT_DIR"
+compare_clusters.pl -d "$INPUT_DIR" -o "$OUT_DIR" -t 0
+
+echo "Categorizing clusters..."
+parse_pangenome_matrix.pl -m "$OUT_DIR/pangenome_matrix_t0.tab" -s
+
+echo "Plotting pan/core genome curves..."
+plot_pancore_matrix.pl -i "$OUT_DIR/pangenome_matrix_t0.tab" -f Tettelin -t png
+plot_pancore_matrix.pl -i "$OUT_DIR/pangenome_matrix_t0.tab" -f Tettelin -t pdf
+
+echo "Summarizing categories..."
+TAB_FILE="$OUT_DIR/pangenome_matrix_t0.tab_core_soft_shell_cloud.tab"
+MATRIX_FILE="$OUT_DIR/pangenome_matrix_t0.tab"
+STATS_FILE="$OUT_DIR/pangenome_stats.csv"
+
 {
-    echo "Date: $(date)"
-    echo "get_homologues version: $(get_homologues.pl --version 2>&1 | head -n1)"
-    echo "Prokka version: $(prokka --version 2>&1)"
-    echo "Perl version: $(perl -v | grep 'v[0-9]\+\.[0-9]\+')"
-    echo "Python version: $(python --version 2>&1)"
-} > "$RESULTS_DIR/software_versions.txt"
+    echo "Metric,Value"
+    echo "Core_genes,$(grep -c 'core'  "$TAB_FILE")"
+    echo "Soft-core_genes,$(grep -c 'soft' "$TAB_FILE")"
+    echo "Shell_genes,$(grep -c 'shell' "$TAB_FILE")"
+    echo "Cloud_genes,$(grep -c 'cloud' "$TAB_FILE")"
+    TOTAL=$(($(wc -l < "$MATRIX_FILE") - 1))
+    echo "Total_clusters,$TOTAL"
+    GENOMES=$(head -1 "$MATRIX_FILE" | awk '{print NF-1}')
+    echo "Total_genomes,$GENOMES"
+    CORE=$(awk 'NR>1 {c=0; for(i=2;i<=NF;i++) if($i==1) c++; if(c=='"$GENOMES"') x++} END{print x+0}' "$MATRIX_FILE")
+    PANGENOME=$TOTAL
+    echo "Core_cluster_count,$CORE"
+    echo "Pangenome_cluster_count,$PANGENOME"
+} > "$STATS_FILE"
 
-# ---------------------------
-# Check input genomes
-# ---------------------------
-NUM_GENOMES=$(ls -1 "$FAA_DIR"/*.faa | wc -l)
-echo "📊 Number of genomes: $NUM_GENOMES"
-if [ "$NUM_GENOMES" -eq 0 ]; then
-    echo "❌ No .faa files found in $FAA_DIR"
-    exit 1
-fi
+echo "Generating R plots..."
+parse_pangenome_matrix.pl -m "$OUT_DIR/pangenome_matrix_t0.tab" -r > "$OUT_DIR/cluster_distribution.R"
 
-# ---------------------------
-# Run GET_HOMOLOGUES
-# ---------------------------
-echo "🔍 Running GET_HOMOLOGUES..."
-get_homologues.pl -d "$FAA_DIR" -M -S 90 -C 75 -t "$THREADS" -n "$MIN_CLUSTER_SIZE"
+cat >> "$OUT_DIR/cluster_distribution.R" <<'EOF'
+# Save plots as PNG and PDF
+png(filename="cluster_distribution.png", width=1200, height=900)
+plot_cluster_distribution()
+dev.off()
+pdf(file="cluster_distribution.pdf", width=12, height=9)
+plot_cluster_distribution()
+dev.off()
+EOF
 
-# ---------------------------
-# Build pan-genome matrix
-# ---------------------------
-echo "🧩 Building pan-genome matrix..."
-compare_clusters.pl -d "$FAA_DIR" -o "$PAN_OUTPUT"
+(cd "$OUT_DIR" && Rscript cluster_distribution.R >/dev/null 2>&1 || true)
 
-# ---------------------------
-# Categorize genes
-# ---------------------------
-echo "📝 Categorizing core, soft-core, shell, cloud genes..."
-parse_pangenome_matrix.pl -m "${PAN_OUTPUT}_cluster.tab" -o "$SUMMARY_DIR"
-
-# ---------------------------
-# Plot pan/core genome curves
-# ---------------------------
-echo "📈 Plotting pan/core genome curves..."
-plot_pancore_matrix.pl -m "${PAN_OUTPUT}_cluster.tab" -o "$PLOT_OUTPUT" -p "$NUM_GENOMES" -t 1000 -r
-
-# ---------------------------
-# Generate publication-ready summary
-# ---------------------------
-CORE_GENES=$(grep -w "core" "$SUMMARY_DIR/summary_stats.txt" | awk '{print $2}' || echo "N/A")
-SOFT_CORE=$(grep -w "soft-core" "$SUMMARY_DIR/summary_stats.txt" | awk '{print $2}' || echo "N/A")
-SHELL_GENES=$(grep -w "shell" "$SUMMARY_DIR/summary_stats.txt" | awk '{print $2}' || echo "N/A")
-CLOUD_GENES=$(grep -w "cloud" "$SUMMARY_DIR/summary_stats.txt" | awk '{print $2}' || echo "N/A")
-
-echo -e "📄 Publication-ready summary:"
-echo -e "Number of genomes: $NUM_GENOMES"
-echo -e "Core genes: $CORE_GENES"
-echo -e "Soft-core genes: $SOFT_CORE"
-echo -e "Shell genes: $SHELL_GENES"
-echo -e "Cloud genes: $CLOUD_GENES"
-echo -e "Pan-genome matrix: ${PAN_OUTPUT}_cluster.tab"
-echo -e "Plots directory: $PLOT_OUTPUT/"
+echo "✅ Done. Results in $OUT_DIR"
+echo "📊 Summary file: $STATS_FILE"
 
 ``` 
 Save and exit
@@ -1069,182 +1052,6 @@ Make it executable and run
 conda activate gethomologues_env
 chmod +x run_gethomologues.sh
 ./run_gethomologues.sh
-``` 
-
-``` bash
-nano run_pangenome_analysis.R
-``` 
-
-``` bash
-library(ggplot2)
-library(reshape2)
-
-workdir <- getwd()
-results_dir <- file.path(workdir, "gethomologues_results")
-tab_file <- list.files(results_dir, pattern = "pan_genome_matrix.*\\.tab$", full.names = TRUE)
-
-if(length(tab_file) == 0){
-  stop("No pan-genome matrix .tab file found in gethomologues_results/")
-}
-
-pangenome <- read.table(tab_file[1], header = TRUE, sep = "\t", check.names = FALSE)
-pangenome_long <- melt(pangenome, id.vars = "Cluster")
-
-presence_absence <- pangenome_long
-presence_absence$value[presence_absence$value != "" & presence_absence$value != "0"] <- 1
-presence_absence$value[presence_absence$value == "" | presence_absence$value == "0"] <- 0
-presence_absence$value <- as.numeric(presence_absence$value)
-
-cluster_summary <- aggregate(value ~ Cluster, data = presence_absence, sum)
-num_genomes <- ncol(pangenome) - 1
-cluster_summary$type <- cut(cluster_summary$value,
-                            breaks = c(-1, 2, floor(0.95*num_genomes)-1, num_genomes-1, num_genomes),
-                            labels = c("Cloud", "Shell", "Soft-core", "Core"))
-
-write.table(cluster_summary, file = file.path(results_dir, "cluster_summary.tsv"),
-            sep = "\t", row.names = FALSE, quote = FALSE)
-
-pdf(file.path(results_dir, "pan_core_plot.pdf"), width = 8, height = 6)
-ggplot(cluster_summary, aes(x = type, fill = type)) +
-  geom_bar() +
-  geom_text(stat='count', aes(label=..count..), vjust=-0.5) +
-  labs(title = "Pan-Core Genome Plot", x = "Gene Type", y = "Number of Clusters") +
-  theme_minimal() +
-  scale_fill_manual(values = c("Cloud"="#FF9999","Shell"="#FFCC66","Soft-core"="#66CC99","Core"="#3399FF"))
-dev.off()
-```
-``` bash
-chmod +x run_pangenome_analysis.R
-``` 
-
-``` bash
-conda activate r_env
-Rscript run_pangenome_analysis.R
-``` 
-
-``` bash
-nano run_summarize_clusters.R
-``` 
-
-Step 3 – Summarize clusters and assign types (summarize_clusters.R)
-``` bash
-library(reshape2)
-
-workdir <- getwd()
-results_dir <- file.path(workdir, "gethomologues_results")
-tab_file <- list.files(results_dir, pattern = "pan_genome_matrix.*\\.tab$", full.names = TRUE)
-
-if(length(tab_file) == 0){
-  stop("No pan-genome matrix .tab file found in gethomologues_results/")
-}
-
-pangenome <- read.table(tab_file[1], header = TRUE, sep = "\t", check.names = FALSE)
-pangenome_long <- melt(pangenome, id.vars = "Cluster")
-
-presence_absence <- pangenome_long
-presence_absence$value[presence_absence$value != "" & presence_absence$value != "0"] <- 1
-presence_absence$value[presence_absence$value == "" | presence_absence$value == "0"] <- 0
-presence_absence$value <- as.numeric(presence_absence$value)
-
-cluster_summary <- aggregate(value ~ Cluster, data = presence_absence, sum)
-num_genomes <- ncol(pangenome) - 1
-cluster_summary$type <- cut(cluster_summary$value,
-                            breaks = c(-1, 2, floor(0.95*num_genomes)-1, num_genomes-1, num_genomes),
-                            labels = c("Cloud", "Shell", "Soft-core", "Core"))
-
-write.table(cluster_summary, file = file.path(results_dir, "cluster_summary.tsv"),
-            sep = "\t", row.names = FALSE, quote = FALSE)
-``` 
-``` bash
-conda activate r_env
-Rscript run_summarize_clusters.R
-``` 
-
-
-Step 4 – Plot cluster distribution (plot_clusters.R)
-``` bash
-nano run_plot_clusters.R
-``` 
-
-``` bash
-library(ggplot2)
-
-workdir <- getwd()
-results_dir <- file.path(workdir, "gethomologues_results")
-cluster_file <- file.path(results_dir, "cluster_summary.tsv")
-
-if(!file.exists(cluster_file)){
-  stop("cluster_summary.tsv not found. Run summarize_clusters.R first.")
-}
-
-cluster_summary <- read.table(cluster_file, header = TRUE, sep = "\t", check.names = FALSE)
-
-pdf(file.path(results_dir, "pan_core_plot.pdf"), width = 8, height = 6)
-ggplot(cluster_summary, aes(x = type, fill = type)) +
-  geom_bar() +
-  geom_text(stat='count', aes(label=..count..), vjust=-0.5) +
-  labs(title = "Pan-Core Genome Plot", x = "Gene Type", y = "Number of Clusters") +
-  theme_minimal() +
-  scale_fill_manual(values = c("Cloud"="#FF9999","Shell"="#FFCC66","Soft-core"="#66CC99","Core"="#3399FF"))
-dev.off()
-
-# -------------------------
-# Save Tettelin pan/core curve data as CSV
-# -------------------------
-plots_dir <- file.path(results_dir, "plots")
-curve_file <- list.files(plots_dir, pattern = "_pancore_curve.txt$", full.names = TRUE)[1]
-
-if(length(curve_file) > 0){
-  curve_data <- read.table(curve_file, header = TRUE, sep = "\t")
-  write.csv(curve_data, file=file.path(plots_dir, "pan_core_curve_data.csv"), row.names=FALSE)
-}
-``` 
-Step 5: pan-genome openness/closeness numerically so you have both the plots and values for reporting
-
-Using GET_HOMOLOGUES output
-
-plot_pancore_matrix.pl generates:
-
-Core gene decay curve (exponential decay)
-
-Pan-genome growth curve (exponential growth)
-
-These are usually saved in a PDF, but the script also outputs the underlying curve parameters in .txt files inside $PLOT_OUTPUT.
-
-You can extract the parameters (Tettelin alpha for core decay, gamma for pan-genome growth) with this approach:
-
-``` bash
-NUM_GENOMES=$(ls *.faa | wc -l)
-plot_pancore_matrix.pl -m ${PAN_OUTPUT}_cluster.tab \
-    -o $PLOT_OUTPUT \
-    -p $NUM_GENOMES \
-    -t 1000 -r
-
-# Extract Tettelin model parameters
-grep -i "alpha\|gamma" $PLOT_OUTPUT/*_pancore_curve.txt > $PLOT_OUTPUT/tettelin_parameters.txt
-echo "Tettelin parameters saved to $PLOT_OUTPUT/tettelin_parameters.txt"
-``` 
-Optional: R script to read and visualize curves
-
-If you want the curves numerically and plotted in R:
-
-``` 
-library(ggplot2)
-
-results_dir <- file.path(getwd(), "gethomologues_results", "plots")
-curve_file <- list.files(results_dir, pattern = "_pancore_curve.txt$", full.names = TRUE)[1]
-
-curve_data <- read.table(curve_file, header = TRUE, sep = "\t")
-# Usually columns: NumGenomes, Core, PanGenome, MeanCore, MeanPan
-
-pdf(file.path(results_dir, "pan_core_growth.pdf"), width = 8, height = 6)
-ggplot(curve_data, aes(x = NumGenomes)) +
-  geom_line(aes(y = Core, color="Core")) +
-  geom_line(aes(y = PanGenome, color="Pan-genome")) +
-  labs(title="Pan-genome and Core Genome Curves", x="Number of Genomes", y="Genes") +
-  scale_color_manual(values=c("Core"="blue","Pan-genome"="red")) +
-  theme_minimal()
-dev.off()
 ``` 
 
 
