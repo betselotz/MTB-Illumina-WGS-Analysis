@@ -33,6 +33,7 @@ files = [
     "7_tbprofiler_collated.csv",
     "8_qualimap_general_stats_table.tsv",
     "9_variant_filter_summary.csv",
+    "10_consensus_lengths.csv",
     "11_shovill_assembly_summary.tsv",
     "12_quast_summary_shovill.csv",
     "13_backmap_summary.tsv",
