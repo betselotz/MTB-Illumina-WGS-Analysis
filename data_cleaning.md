@@ -7,7 +7,7 @@ done
 
 
 ```bash
-sed '/^-/d' checkm.txt | awk '{$1=$1}1' OFS=',' > checkm.csv
+awk 'NR==1 {print; next} {gsub(/[[:space:]]+/, ","); print}' 14_checkm_summary.txt > 14_checkm_summary.csv
 ```
 
 for aggregate  result 
