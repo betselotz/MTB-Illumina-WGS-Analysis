@@ -7,7 +7,15 @@ done
 
 
 ```bash
-awk 'NR==1 {print; next} {gsub(/[[:space:]]+/, ","); print}' 14_checkm_summary.txt > 14_checkm_summary.csv
+awk '{
+    for(i=1;i<=NF;i++){
+        gsub(/^[ \t]+|[ \t]+$/, "", $i)  # remove leading/trailing spaces
+    }
+    $1=$1
+    gsub(/[ \t]+/, ",")
+    print
+}' 14_checkm_summary.txt > 14_checkm_summary.csv
+
 ```
 
 for aggregate  result 
