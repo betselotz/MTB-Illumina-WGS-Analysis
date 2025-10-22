@@ -1345,15 +1345,24 @@ nano run_tbprofiler.sh
 set -euo pipefail
 
 FASTQ_DIR="raw_data"
+OUTDIR="tbprofiler_results"
 
+mkdir -p "$OUTDIR"
 echo "📊 Starting TBProfiler runs for all samples in $FASTQ_DIR ..."
 
 for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do
     SAMPLE=$(basename "$R1" _1.fastq.gz)
     R2="$FASTQ_DIR/${SAMPLE}_2.fastq.gz"
+    RESULT_FILE="$OUTDIR/${SAMPLE}.results.txt"
 
     if [[ ! -f "$R2" ]]; then
         echo "❌ Warning: missing paired file for $SAMPLE, skipping."
+        continue
+    fi
+
+    # ✅ Skip if already processed
+    if [[ -f "$RESULT_FILE" ]]; then
+        echo "⏩ Skipping $SAMPLE (already analyzed)"
         continue
     fi
 
@@ -1363,7 +1372,7 @@ for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do
         -1 "$R1" \
         -2 "$R2" \
         --threads 8 \
-        --prefix "$SAMPLE" \
+        --prefix "$OUTDIR/$SAMPLE" \
         --txt \
         --spoligotype
 
@@ -1371,6 +1380,7 @@ for R1 in "$FASTQ_DIR"/*_1.fastq.gz; do
 done
 
 echo "📌 All samples processed!"
+
 
 
 ```
