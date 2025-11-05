@@ -88,3 +88,24 @@ print("\n🎯 Final merged file: merged_all_summary_files.csv")
 EOF
 
 ```
+
+Depth calculation
+
+
+```bash
+# Show per-base depth for SRR28821350
+samtools depth backmap_stats/bams/SRR28821350.bam | head
+
+# Quick summary: average, min, max depth, and genome coverage %
+samtools depth backmap_stats/bams/SRR28821350.bam | \
+awk '{sum+=$3; if(min==""){min=$3}; if($3<min) min=$3; if($3>max) max=$3; if($3>0) covered++; count++} END {print "AverageDepth:", sum/count, "MinDepth:", min, "MaxDepth:", max, "GenomeCoverage%:", covered/count*100}'
+```
+
+```bash
+# Quick per-base depth (first few lines)
+samtools depth snippy_results/SRR28821350.bam | head
+
+# Simple summary: average, min, max depth and genome coverage %
+samtools depth snippy_results/SRR28821350.bam | \
+awk '{sum+=$3; if(NR==1){min=$3; max=$3} if($3<min) min=$3; if($3>max) max=$3; if($3>0) covered++; count++} END {print "AverageDepth:", sum/count, "MinDepth:", min, "MaxDepth:", max, "GenomeCoverage%:", covered/count*100}'
+```
