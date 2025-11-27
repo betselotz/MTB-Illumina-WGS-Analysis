@@ -2627,14 +2627,12 @@ conda activate iqtree_env
 ```
 ##### Step 2: Run the following script
 ```bash
-mkdir -p iqtree_results
-
-iqtree2 -s mafft_results/aligned_consensus.fasta \
-        -m GTR+G \
-        -bb 1000 \
-        -nt 4 \
-        -o SRR10828835 \
-        -pre iqtree_results/aligned_consensus
+iqtree3 -s mafft_results/combined_aligned.fasta \
+        -m MFP \
+        -B 1000 \
+        -T 4 \
+        -o CP048071.1 \
+        -pre iqtree_results/TB_MFP
 ```
 <details>
 <summary>📖 Explanation of IQ-TREE command for aligned consensus sequences</summary>
